@@ -1,0 +1,40 @@
+{
+  "name": "agentproxy",
+  "version": "0.1.0",
+  "description": "Thin control plane for Coding Agent runtimes. v1 targets OpenCode.",
+  "type": "module",
+  "bin": {
+    "agentproxy": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "docs/adr"
+  ],
+  "scripts": {
+    "build": "tsup src/cli/index.ts --format esm --target node22 --clean --sourcemap --out-dir dist",
+    "dev": "tsx src/cli/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "agentproxy": "tsx src/cli/index.ts"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@10.10.0",
+  "dependencies": {
+    "commander": "^14.0.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
+    "@types/node": "^22.19.19",
+    "tsup": "^8.5.1",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

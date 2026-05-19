@@ -11,12 +11,44 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-19
+
+Scope: complete Phase 0.2 pre-implementation technical decisions, then initialize the Phase 1 TypeScript foundation with a placeholder `agentproxy` CLI.
+
+Dependencies confirmed before implementation:
+
+- Package manager: `pnpm`.
+- Runtime baseline: Node.js 22+ LTS line, with current local verification on Node.js 25.9.0.
+- CLI parser: Commander.
+- TUI decision only: Ink + React, to be installed when Phase 6 starts using it.
+- SQLite decision only: `better-sqlite3`, to be installed when Phase 2 storage starts using it.
+- Test runner: Vitest.
+- Build/dev tooling: TypeScript, tsup, tsx.
+- Lint/format tooling: Biome.
+
+Acceptance criteria for this iteration:
+
+- [x] Decisions are recorded in an ADR or the main development plan.
+- [x] README shows basic development commands.
+- [x] `package.json`, `tsconfig.json`, source directories, tests, and `.gitignore` exist.
+- [x] `agentproxy --help` and `agentproxy --version` work through a local command after dependencies are installed.
+- [x] `pnpm typecheck`, `pnpm test`, `pnpm lint`, `pnpm format:check`, and `pnpm build` pass.
+- [x] Chinese progress tracker is updated with checkmarks and Review notes.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- Keep AgentProxy as a thin control plane; do not implement OpenCode runtime behavior in this iteration.
+- Do not add TUI or SQLite runtime code before their phases; record choices now, install/use them later when implementation requires them.
+- Node.js minimum must avoid already-EOL lines and remain compatible with the selected future TUI/SQLite dependencies.
+- The CLI placeholder must list planned commands without pretending those workflows are implemented.
+
 ## Phase Gates
 
 - [x] Gate 0: Product direction is locked: AgentProxy is a thin control plane, not a new Agent runtime.
 - [x] Gate 0: v1 scope is locked: CLI/TUI plus OpenCode provider.
 - [x] Gate 0: architecture plan exists in `docs/agentproxy-development-plan.md`.
-- [ ] Gate 1: TypeScript project skeleton is initialized and basic checks pass.
+- [x] Gate 1: TypeScript project skeleton is initialized and basic checks pass.
 - [ ] Gate 2: provider contracts and storage foundations are implemented.
 - [ ] Gate 3: OpenCode runtime can be started, attached, diagnosed, and stopped safely.
 - [ ] Gate 4: CLI MVP supports real run/resume/session workflows.
@@ -47,40 +79,40 @@
 
 ### 0.2 Pre-Implementation Checkpoint
 
-- [ ] Confirm package manager (`pnpm` recommended unless repo chooses otherwise).
-- [ ] Confirm Node.js minimum version.
-- [ ] Confirm CLI package name and binary name: `agentproxy`.
-- [ ] Confirm initial TUI library choice.
-- [ ] Confirm SQLite library choice.
-- [ ] Confirm test runner choice.
-- [ ] Confirm lint/format policy.
-- [ ] Confirm whether v1 ships as npm package only.
+- [x] Confirm package manager (`pnpm` recommended unless repo chooses otherwise).
+- [x] Confirm Node.js minimum version.
+- [x] Confirm CLI package name and binary name: `agentproxy`.
+- [x] Confirm initial TUI library choice.
+- [x] Confirm SQLite library choice.
+- [x] Confirm test runner choice.
+- [x] Confirm lint/format policy.
+- [x] Confirm whether v1 ships as npm package only.
 
 Acceptance criteria:
 
-- [ ] Decisions are recorded in `docs/agentproxy-development-plan.md` or a dedicated ADR file.
-- [ ] `tasks/todo.md` is updated before starting implementation.
+- [x] Decisions are recorded in `docs/agentproxy-development-plan.md` or a dedicated ADR file.
+- [x] `tasks/todo.md` is updated before starting implementation.
 
 ## Phase 1: Project Foundation
 
 ### 1.1 Repository Skeleton
 
-- [ ] Create `package.json`.
-- [ ] Add TypeScript config.
-- [ ] Add source directory structure from the architecture plan.
-- [ ] Add build script.
-- [ ] Add test script.
-- [ ] Add lint script.
-- [ ] Add format script if formatter is selected.
-- [ ] Add `.gitignore`.
-- [ ] Add initial README development commands.
+- [x] Create `package.json`.
+- [x] Add TypeScript config.
+- [x] Add source directory structure from the architecture plan.
+- [x] Add build script.
+- [x] Add test script.
+- [x] Add lint script.
+- [x] Add format script if formatter is selected.
+- [x] Add `.gitignore`.
+- [x] Add initial README development commands.
 
 Acceptance criteria:
 
-- [ ] `agentproxy --help` can be wired through a local dev command or placeholder.
-- [ ] `pnpm typecheck` or equivalent passes.
-- [ ] `pnpm test` or equivalent passes.
-- [ ] `pnpm lint` or equivalent passes.
+- [x] `agentproxy --help` can be wired through a local dev command or placeholder.
+- [x] `pnpm typecheck` or equivalent passes.
+- [x] `pnpm test` or equivalent passes.
+- [x] `pnpm lint` or equivalent passes.
 
 ### 1.2 Core Domain Types
 
@@ -758,4 +790,5 @@ A task can be checked only when all applicable items are true:
 - 2026-05-19: Replaced the short TODO list with this phase-gated development tracker for future iterative implementation.
 - 2026-05-19: Added `docs/development-progress-tracker.zh.md` as the standalone Chinese phase tracker requested for future iterations.
 - 2026-05-19: Updated the Chinese phase tracker with latest completed/pending status, next-step guidance, and a restart prompt for continuing development.
-- 2026-05-19: Added a latest-status summary to the Chinese tracker so the next Codex session can resume from Phase 0.2 / Phase 1 without manual reorientation.
+- 2026-05-19: Completed Phase 0.2 decisions and Phase 1 foundation with `pnpm`, Node.js `>=22.0.0`, Commander, Vitest, Biome, tsup, tsx, and `better-sqlite3` selected for later phases. Added ADR `docs/adr/0001-implementation-tooling.md`, initialized the TypeScript project skeleton, and wired a placeholder `agentproxy` CLI. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm exec biome check .`, `pnpm run build`, `pnpm run agentproxy -- --help`, and `pnpm run agentproxy -- --version`. Remaining risk: Phase 2 provider contracts, config, logging, and SQLite are still unimplemented; TUI and SQLite are only selected, not implemented, and the version constant is still mirrored in source and package metadata.
+- 2026-05-19: Updated the latest-status summary in the Chinese tracker so the next Codex session can resume from Phase 2 without manual reorientation.

@@ -9,3 +9,5 @@
 - 后续开发追踪清单必须使用阶段门槛、验收标准和 Definition of Done，不能只维护没有验证条件的松散 TODO。
 - 用户要求单独中文进度追踪清单时，应在 `docs/` 下维护独立文档，并作为后续迭代的主要执行清单。
 - 每完成一个阶段任务后应主动创建一次 commit，并使用详细中文 commit 信息；重启 Codex 会话后也应先复习 lessons 并延续该习惯。
+- 用 `pnpm run <script> -- ...` 启动 CLI 时，分隔符 `--` 可能会进入 `process.argv`；入口需要先规范化参数再交给 Commander，否则 `--help` / `--version` 会被误判为未知命令。
+- Biome 默认可能会检查构建产物；启用 `vcs.useIgnoreFile` 或显式排除 `dist/`，避免 lint/format 结果被生成物污染。

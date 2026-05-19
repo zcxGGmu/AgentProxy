@@ -1544,6 +1544,22 @@ AgentProxy 只维护索引、状态摘要和诊断元数据。
 - 同一 provider 不同版本能力也会变化。
 - CLI/TUI 需要稳定降级逻辑。
 
+### ADR-007：实施工具链基线
+
+详细记录见 `docs/adr/0001-implementation-tooling.md`。
+
+核心决策：
+
+- 包管理器：`pnpm`。
+- Node.js 最低版本：`>=22.0.0`。
+- npm package name 和 CLI binary：`agentproxy`。
+- CLI 框架：Commander。
+- TUI 技术栈：Ink + React。
+- SQLite 库：`better-sqlite3`。
+- 测试框架：Vitest。
+- lint/format：Biome。
+- v1 发布渠道：只通过 npm 发布。
+
 ## 23. v1 验收清单
 
 - [ ] `agentproxy doctor` 可以完成完整诊断。
