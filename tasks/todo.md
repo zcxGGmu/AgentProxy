@@ -13,46 +13,46 @@
 
 ## Current Iteration - 2026-05-19
 
-Scope: advance only Phase 2.4 logging and redaction first group from the Chinese progress tracker.
+Scope: advance only Phase 2.5 SQLite storage first group from the Chinese progress tracker.
 
 Implementation checklist:
 
-- [x] Add focused unit tests for structured logging, `correlationId`, standard log fields, redaction, stdout/stderr separation, and explicit debug enablement.
-- [x] Implement a structured logger in `src/logging`.
-- [x] Generate a `correlationId` for each operation/logger context when one is not provided.
-- [x] Include `providerId`, `runtimeId`, `sessionId`, and `operation` fields when supplied.
-- [x] Redact token, secret, password, API key, authorization, and common key variants from env/config/args/error-shaped values.
-- [x] Keep command/user output on stdout and logs on stderr so `--json` output remains clean.
-- [x] Ensure debug logs are emitted only when debug is explicitly enabled.
+- [x] Add `better-sqlite3` and its TypeScript types.
+- [x] Implement database opening/initialization in `src/storage`.
+- [x] Implement an explicit migration version table.
+- [x] Add migration SQL for `providers`, `runtimes`, `sessions`, and `session_events`.
+- [x] Add basic repository CRUD for provider, runtime, session, and session event records.
+- [x] Cover fresh database migration and repeated migration safety with focused tests.
+- [x] Cover `(provider_id, provider_session_id)` uniqueness and tombstone preservation with tests.
 - [x] Update the Chinese progress tracker and record verification evidence.
 - [x] Run verification and create a detailed Chinese commit.
 
 Dependencies confirmed before implementation:
 
-- Use existing TypeScript, Vitest, Biome, tsup, Commander, and Node built-ins.
-- Reuse the existing config logging shape: `logging.level` and `logging.redact`.
-- Use Node `crypto.randomUUID()` for correlation IDs; no new logging dependency.
-- Do not install SQLite, Ink, OpenCode SDK, runtime lifecycle dependencies, or OpenCode server clients.
-- Do not implement SQLite storage, OpenCode runtime lifecycle, provider passthrough execution, or debug bundle export in this iteration.
+- Use the already accepted SQLite decision: `better-sqlite3`.
+- Use existing TypeScript, Vitest, Biome, tsup, and Node.js `>=22.0.0`.
+- Reuse stable domain types from `src/core`, `src/providers`, and `src/sessions`.
+- Store JSON metadata as text in `metadata_json` / `payload_json`; do not persist full prompts, full responses, secrets, provider credential files, or large tool output.
+- Migration version table fields are not prescribed by the plan; use a minimal explicit table keyed by migration id/version with applied timestamp.
+- Do not implement OpenCode runtime lifecycle, OpenCodeProvider core behavior, CLI MVP, TUI, sync workers, or provider transcript storage in this iteration.
 
 Acceptance criteria for this iteration:
 
-- [x] Logger emits newline-delimited JSON records to stderr with stable `timestamp`, `level`, `namespace`, `correlationId`, and `message` fields.
-- [x] Logger context can carry `providerId`, `runtimeId`, `sessionId`, and `operation`.
-- [x] Redaction tests cover env-like records, config-like records, command args, and `Error` / `AgentProxyError` values.
-- [x] Secret values are redacted by key and by common inline patterns such as `Authorization: Bearer ...` and `--api-key=value`.
-- [x] `createOutputWriters` or equivalent keeps normal output on stdout and diagnostics/logs on stderr.
-- [x] Debug logs are dropped unless logger level is `debug` or debug is explicitly enabled.
+- [x] Fresh database migration creates migration metadata plus `providers`, `runtimes`, `sessions`, and `session_events`.
+- [x] Re-running migration is safe and does not duplicate migration records.
+- [x] Repository CRUD can create, read, update, list, and delete/mark records needed by the local metadata index.
+- [x] `(provider_id, provider_session_id)` uniqueness is enforced.
+- [x] Tombstone records are preserved by default list/read behavior and can be explicitly filtered when needed.
+- [x] Storage errors are mapped to `STORAGE_ERROR`.
 - [x] `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
-- [x] Chinese progress tracker is updated with Phase 2.4 first-group checkmarks and Review notes.
+- [x] Chinese progress tracker is updated with Phase 2.5 first-group checkmarks and Review notes.
 - [x] A detailed Chinese commit is created after verification.
 
 Risks and constraints:
 
-- Redaction must be conservative enough to avoid leaking secrets but should not mutate unrelated user-facing output.
-- Avoid coupling logging to CLI command execution that is still placeholder-only.
-- Avoid inventing a full observability/debug bundle system before Phase 7.
-- Keep AgentProxy as a thin control plane; logging must not inspect or reinterpret OpenCode runtime internals.
+- Native SQLite dependency installation may fail on unsupported local Node/native build environments; verify immediately after adding it.
+- Migration backup behavior is required for destructive migrations, but this first migration is non-destructive; implement the hook/contract only if it stays small and does not imply future migrations.
+- Keep AgentProxy as a thin control plane: storage indexes provider/runtime/session metadata only and must not duplicate OpenCode runtime state or transcripts.
 
 ## Phase Gates
 
@@ -806,3 +806,4 @@ A task can be checked only when all applicable items are true:
 - 2026-05-19: Completed the Phase 2.1 core domain type group. Added stable error code runtime values and `AgentProxyError`, provider metadata preservation helpers, normalized provider capabilities with unsupported defaults, runtime handle types, session index/provider session types, event union/envelope types, and the public `AgentProvider` contract. Added `tests/core-domain-types.test.ts` to prove mock provider contract usage, capability defaults, stable error codes, and metadata preservation. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: Provider Registry, config, logging, and SQLite storage are still pending, so Gate 2 remains open.
 - 2026-05-19: Completed Phase 2.3 configuration resolver first group. Added built-in AgentProxy defaults, global/project/explicit config loading, env and CLI overrides, manual schema validation mapped to `CONFIG_INVALID`, `~` expansion, workspace path normalization, OpenCode passthrough-env boundaries, and focused config resolver tests. Code review found no blocking issues; follow-up fixes added port range validation, explicit config precedence tests, nested OpenCode config rejection tests, and aligned the default database filename with the storage constant. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: logging/redaction and SQLite storage are still pending, so Gate 2 remains open.
 - 2026-05-19: Completed Phase 2.4 logging and redaction first group. Added structured NDJSON logging, per-operation `correlationId`, provider/runtime/session/operation fields, stdout/stderr output helpers, default redaction for logger data/message, errors, command args, diagnostics, Commander parse errors, JSON-style inline secrets, env-var style inline secrets, and space-separated CLI secret flags. Code review found blocking leakage paths in logger messages, diagnostic stderr, inline env strings, and Commander parse errors; all were fixed with regression tests. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: SQLite storage is still pending, so Gate 2 remains open; no OpenCode runtime lifecycle was implemented.
+- 2026-05-19: Completed Phase 2.5 SQLite storage first group. Added `better-sqlite3`, `@types/better-sqlite3`, `pnpm-workspace.yaml` native build approval, SQLite opening/initialization, explicit migration tracking, providers/runtimes/sessions/session_events schema, repository CRUD, JSON metadata/payload persistence, `STORAGE_ERROR` mapping, and focused storage tests. Code review found that normal session upsert could clear an existing tombstone; this was fixed with SQL preservation logic and a regression test. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: destructive migration backup behavior is still pending; no OpenCode runtime lifecycle, OpenCodeProvider core behavior, CLI MVP, or TUI work was implemented.
