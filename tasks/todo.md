@@ -11,6 +11,49 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Phase 3.1
+
+Scope: advance only OpenCode binary discovery from the Chinese progress tracker.
+
+Implementation checklist:
+
+- [x] Add focused fake-binary tests for OpenCode version output parsing.
+- [x] Locate the configured OpenCode binary, falling back to `PATH` command resolution.
+- [x] Execute `opencode --version` without starting any runtime.
+- [x] Normalize OpenCode version strings to a stable semver-like value.
+- [x] Map missing or non-executable OpenCode binary failures to `PROVIDER_UNAVAILABLE`.
+- [x] Detect OpenCode versions below the declared minimum supported version.
+- [x] Return executable install or upgrade suggestions for binary probe failures.
+- [x] Update the Chinese progress tracker and record verification evidence.
+- [x] Run verification and create a detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Reuse the existing accepted TypeScript, Vitest, Biome, tsup, and Node.js `>=22.0.0` tooling.
+- Reuse the existing AgentProxy config field `providers.opencode.binary`; do not expand the config system unless the probe exposes a real gap.
+- Reuse stable error code `PROVIDER_UNAVAILABLE` for missing/unusable OpenCode binary and unsupported OpenCode version.
+- Use Node.js child process execution for `--version`; do not add a runtime manager, OpenCode SDK, HTTP client, CLI MVP, TUI, or provider session behavior in this iteration.
+- Keep AgentProxy as a thin control plane: probe the OpenCode binary boundary only and do not inspect or duplicate OpenCode runtime internals.
+
+Acceptance criteria for this iteration:
+
+- [x] A configured binary path or command can be probed with `--version`.
+- [x] The default `opencode` command is resolved through `PATH`.
+- [x] Fake binary tests cover plain, prefixed, and `v`-prefixed version output.
+- [x] Missing binary maps to `PROVIDER_UNAVAILABLE` with an install suggestion.
+- [x] Versions below the declared minimum supported version map to `PROVIDER_UNAVAILABLE` with an upgrade suggestion.
+- [x] Version normalization and comparison are covered without relying on a real OpenCode installation.
+- [x] `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
+- [x] Chinese progress tracker marks the Phase 3.1 binary-probe group done and records Review notes.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- OpenCode `--version` output may vary by release or platform; parsing should accept common semver forms while rejecting ambiguous output.
+- The project plan does not pin a minimum supported OpenCode version; this iteration must declare one explicitly without binding AgentProxy to a single patch version.
+- Command probing must not leak environment secrets in error details.
+- This iteration intentionally does not implement managed/attached runtime lifecycle, provider capabilities from runtime probe, `doctor`, passthrough, CLI MVP, or TUI.
+
 ## Current Iteration - 2026-05-20
 
 Scope: advance only the remaining Phase 2.5 SQLite storage backup item from the Chinese progress tracker.
@@ -844,3 +887,4 @@ A task can be checked only when all applicable items are true:
 - 2026-05-19: Completed Phase 2.4 logging and redaction first group. Added structured NDJSON logging, per-operation `correlationId`, provider/runtime/session/operation fields, stdout/stderr output helpers, default redaction for logger data/message, errors, command args, diagnostics, Commander parse errors, JSON-style inline secrets, env-var style inline secrets, and space-separated CLI secret flags. Code review found blocking leakage paths in logger messages, diagnostic stderr, inline env strings, and Commander parse errors; all were fixed with regression tests. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: SQLite storage is still pending, so Gate 2 remains open; no OpenCode runtime lifecycle was implemented.
 - 2026-05-19: Completed Phase 2.5 SQLite storage first group. Added `better-sqlite3`, `@types/better-sqlite3`, `pnpm-workspace.yaml` native build approval, SQLite opening/initialization, explicit migration tracking, providers/runtimes/sessions/session_events schema, repository CRUD, JSON metadata/payload persistence, `STORAGE_ERROR` mapping, and focused storage tests. Code review found that normal session upsert could clear an existing tombstone; this was fixed with SQL preservation logic and a regression test. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: destructive migration backup behavior is still pending; no OpenCode runtime lifecycle, OpenCodeProvider core behavior, CLI MVP, or TUI work was implemented.
 - 2026-05-20: Completed the Phase 2.5 destructive migration backup item. Added explicit SQLite migration descriptors in `src/storage/migrations.ts`, destructive migration temporary file backups for the main database plus WAL/SHM/journal sidecars, backup restore on migration failure, temporary backup cleanup after successful migration or restore, and `STORAGE_ERROR` failure mapping. Added focused storage tests that prove successful destructive migration cleanup, two-step failed destructive migration rollback, missing migration records, and preservation of pre-migration provider data. Verification passed with `pnpm exec vitest run tests/storage-sqlite.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Gate 2 is complete; no OpenCode runtime lifecycle, OpenCodeProvider core behavior, CLI MVP, or TUI work was implemented.
+- 2026-05-20: Completed Phase 3.1 OpenCode Binary 探测. Added `src/providers/opencode/binary.ts` and `src/providers/opencode/constants.ts` to probe a configured binary or PATH-resolved `opencode`, execute `--version`, normalize version strings, compare against minimum supported version `1.0.0`, and map missing/non-executable/failing/unparseable/too-old results to `PROVIDER_UNAVAILABLE` with install or upgrade suggestions. Added `tests/opencode-binary.test.ts` covering default PATH lookup, explicit absolute path, explicit command name, explicit relative path from `cwd`, normal/v-prefixed/pre-release version output, missing binary, non-executable binary, non-zero exit, unparsable output, and low-version rejection. Code review caught a real bug where `./opencode` could be normalized into a bare command and hijacked by PATH; fixed by resolving relative binaries against `cwd` and by sharing an effective env between PATH lookup and execution, including `PATH`/`Path` compatibility. Verification passed with `pnpm exec vitest run tests/opencode-binary.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Next step is Phase 3.2 Runtime Registry; no runtime manager, OpenCodeProvider core behavior, CLI MVP, or TUI work was added.

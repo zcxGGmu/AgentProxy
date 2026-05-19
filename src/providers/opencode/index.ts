@@ -1,6 +1,7 @@
 import { createAgentProxyError } from "../../core/errors.js";
 import type { RuntimeHandle, RuntimeRequest } from "../../core/types.js";
 import type { ProviderSession } from "../../sessions/types.js";
+import { OPENCODE_PROVIDER_ID } from "./constants.js";
 import type {
   AgentProvider,
   ExportResult,
@@ -23,7 +24,17 @@ import type {
 } from "../types.js";
 import { CAPABILITY_SCHEMA_VERSION, normalizeProviderCapabilities } from "../types.js";
 
-export const OPENCODE_PROVIDER_ID = "opencode";
+export { OPENCODE_PROVIDER_ID } from "./constants.js";
+export {
+  OPENCODE_MINIMUM_SUPPORTED_VERSION,
+  normalizeOpenCodeVersion,
+  probeOpenCodeBinary,
+} from "./binary.js";
+export type {
+  OpenCodeBinaryProbe,
+  OpenCodeBinarySource,
+  ProbeOpenCodeBinaryOptions,
+} from "./binary.js";
 
 export class OpenCodeProvider implements AgentProvider {
   readonly id = OPENCODE_PROVIDER_ID;

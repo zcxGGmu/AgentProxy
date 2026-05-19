@@ -1344,7 +1344,7 @@ AgentProxy 不应强绑定单一 OpenCode 小版本。
 
 建议：
 
-- 声明最低支持版本。
+- 声明最低支持版本；v1 当前最低支持 OpenCode `1.0.0`。
 - `doctor` 输出当前 OpenCode 版本。
 - integration tests 覆盖最低版本和最新版本。
 - provider capability 由 runtime probe 得出。

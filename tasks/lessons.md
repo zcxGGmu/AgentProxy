@@ -22,3 +22,5 @@
 - SQLite session upsert 必须默认保留既有 tombstone；恢复/清除 tombstone 需要未来显式 API，不能被普通 provider sync 覆盖。
 - SQLite 破坏性 migration 的备份测试必须证明文件级恢复，而不能只证明单个 transaction 自动回滚；用两段式 migration 先提交可观察破坏，再让后续 migration 失败。
 - SQLite 文件恢复要把主库和 `-wal`、`-shm`、`-journal` sidecar 作为一组处理，并在成功迁移或成功恢复后清理临时备份，避免数据目录残留完整快照。
+- 探测用户显式配置的 binary 时，相对路径必须按调用方 `cwd` 解析成绝对路径再执行，不能经 `normalize("./cmd")` 退化成裸命令导致被 `PATH` 劫持。
+- 外部命令探测要让 `PATH` 查找和实际执行共用同一个 effective env，并兼容 `PATH`/`Path` 键；fake binary 测试应覆盖相对路径优先、不可执行、非零退出和不可解析版本输出。
