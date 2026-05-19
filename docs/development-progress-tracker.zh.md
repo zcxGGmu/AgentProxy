@@ -12,12 +12,12 @@
 ### 当前阶段
 
 - 当前处于：Phase 2.4 日志与脱敏第一组已完成实现与验证；Gate 2 尚未通过，下一步进入 Phase 2.5 SQLite 存储。
-- 当前启动基线：`214afc1 Phase 2.3：完成配置系统最小闭环`。
-- 最新阶段实现提交：本次 Phase 2.4 实现提交。
+- 当前启动基线：`161c02c 阶段进展：完成 Phase 2.4 日志与脱敏第一组最小闭环`。
+- 最新阶段实现提交：`161c02c 阶段进展：完成 Phase 2.4 日志与脱敏第一组最小闭环`。
 - Phase 0.2 / Phase 1 阶段提交：`e5eb0ce 阶段进展：完成 Phase 0.2 技术决策与 Phase 1 工程骨架`
 - 当前主要进度来源：本文档和 `docs/agentproxy-development-plan.md`
 - 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层、provider registry 最小闭环、配置解析层最小闭环和日志/脱敏第一组：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型、`AgentProvider` 契约、provider 注册/lookup/list、capability probe、schema mismatch limited mode、OpenCodeProvider 占位实现、AgentProxy 默认配置、全局/项目/显式配置读取、env/CLI 覆盖、schema 校验、路径规范化、OpenCode 配置隔离、结构化 NDJSON logger、correlationId、标准日志字段、redaction、stdout/stderr 分离和 Commander parse error 脱敏。
-- 当前工作区预期：文档同步提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核。
+- 当前工作区预期：本文档同步提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核，若最新提交是文档同步提交，也应以 `161c02c` 作为最近阶段实现基线。
 
 ### 已完成
 
@@ -37,7 +37,6 @@
 
 ### 未完成
 
-- [x] Phase 2.4 日志与脱敏第一组已完成：结构化 logger、correlationId、日志字段、secret redaction、stdout/stderr 分离、debug 显式启用。
 - [ ] Phase 2.5 SQLite 存储尚未实现：初始化、migration、providers/runtimes/sessions/session_events 表、CRUD、备份机制。
 - [ ] Gate 2 尚未通过：核心类型、Provider Registry、配置系统和日志已完成，但存储基础仍未完成。
 - [ ] Phase 3：OpenCode runtime 生命周期尚未实现。
@@ -67,11 +66,11 @@
 再阅读 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/development-progress-tracker.zh.md
 和 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/agentproxy-development-plan.md。
 
-当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组已完成并验证；下一步从 Phase 2.5 SQLite 存储开始。
+当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组已完成并验证；最新阶段实现提交是 `161c02c 阶段进展：完成 Phase 2.4 日志与脱敏第一组最小闭环`。如果 `git log -1 --oneline` 显示的是后续文档同步提交，请继续以 `161c02c` 作为最近阶段实现基线。下一步从 Phase 2.5 SQLite 存储开始。
 请先运行 `git status --short` 和 `git log -1 --oneline` 核对最新提交与工作区状态。
 
 请严格按照 docs/development-progress-tracker.zh.md 继续迭代，从第一个未完成项开始：
-Phase 2.5 SQLite 存储。先做初始化、migration 和基础 CRUD，不要提前进入 OpenCode runtime 生命周期。
+Phase 2.5 SQLite 存储。第一组只推进 SQLite 库接入、数据库初始化、migration 版本表、providers/runtimes/sessions/session_events 表、基础 repository CRUD 和重复运行 migration 安全性；不要提前进入 OpenCode runtime 生命周期。
 
 要求：
 1. 不要重新规划已完成的架构方案，除非发现真实设计缺口。
@@ -82,7 +81,7 @@ Phase 2.5 SQLite 存储。先做初始化、migration 和基础 CRUD，不要提
 6. 每完成一个阶段任务后，运行适用验证命令，并使用详细中文 commit 信息提交一次。
 7. AgentProxy 必须保持薄代理和控制面定位，v1 只接入 OpenCode，不重写 Agent runtime。
 8. 重启会话后先复习 `tasks/lessons.md`，并自动延续阶段提交习惯，不需要用户再次提醒。
-9. Phase 2.4 已完成，不要回退或扩展它；下一步只推进 Phase 2.5 SQLite 存储，不要提前进入 OpenCode runtime 生命周期。
+9. Phase 2.4 已完成，不要回退或扩展它；Phase 2.5 不要实现 OpenCode runtime 生命周期、OpenCodeProvider 核心能力、CLI MVP 或 TUI，只建立 SQLite 存储最小闭环。
 ```
 
 ## 1. 使用规则
