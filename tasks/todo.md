@@ -13,49 +13,46 @@
 
 ## Current Iteration - 2026-05-19
 
-Scope: advance only Phase 2.3 configuration resolver first group from the Chinese progress tracker.
+Scope: advance only Phase 2.4 logging and redaction first group from the Chinese progress tracker.
 
 Implementation checklist:
 
-- [x] Add focused unit tests for built-in defaults, global/project config loading, env overrides, CLI flag overrides, schema validation, `~` expansion, and workspace path normalization.
-- [x] Implement built-in AgentProxy default config.
-- [x] Load global config from `~/.config/agentproxy/config.json`.
-- [x] Load project config from `.agentproxy/config.json`.
-- [x] Apply environment variable overrides after file config.
-- [x] Apply CLI flag overrides after environment variables.
-- [x] Validate config shape and map invalid config to `CONFIG_INVALID`.
-- [x] Expand `~` and normalize workspace paths.
-- [x] Keep AgentProxy config separate from OpenCode config; do not read or mutate OpenCode native config.
+- [x] Add focused unit tests for structured logging, `correlationId`, standard log fields, redaction, stdout/stderr separation, and explicit debug enablement.
+- [x] Implement a structured logger in `src/logging`.
+- [x] Generate a `correlationId` for each operation/logger context when one is not provided.
+- [x] Include `providerId`, `runtimeId`, `sessionId`, and `operation` fields when supplied.
+- [x] Redact token, secret, password, API key, authorization, and common key variants from env/config/args/error-shaped values.
+- [x] Keep command/user output on stdout and logs on stderr so `--json` output remains clean.
+- [x] Ensure debug logs are emitted only when debug is explicitly enabled.
 - [x] Update the Chinese progress tracker and record verification evidence.
 - [x] Run verification and create a detailed Chinese commit.
 
 Dependencies confirmed before implementation:
 
 - Use existing TypeScript, Vitest, Biome, tsup, Commander, and Node built-ins.
-- Do not add a schema validation dependency for this small task group unless native validation proves insufficient.
-- Do not install SQLite, Ink, OpenCode SDK, or runtime dependencies.
-- Do not implement logging, SQLite storage, OpenCode runtime lifecycle, server calls, or CLI passthrough.
-- Keep v1 scoped to OpenCode as the first provider while preserving AgentProxy/provider config boundaries.
+- Reuse the existing config logging shape: `logging.level` and `logging.redact`.
+- Use Node `crypto.randomUUID()` for correlation IDs; no new logging dependency.
+- Do not install SQLite, Ink, OpenCode SDK, runtime lifecycle dependencies, or OpenCode server clients.
+- Do not implement SQLite storage, OpenCode runtime lifecycle, provider passthrough execution, or debug bundle export in this iteration.
 
 Acceptance criteria for this iteration:
 
-- [x] Config precedence is deterministic: built-in defaults < global config < project config < explicit `--config` file < env vars < CLI flags.
-- [x] Missing auto-discovered config files are ignored without failure; missing explicit `--config` fails as `CONFIG_INVALID`.
-- [x] Invalid config throws `AgentProxyError` with code `CONFIG_INVALID`.
-- [x] Config errors avoid echoing secret values.
-- [x] `~` paths expand against the configured home directory.
-- [x] Workspace paths resolve to absolute normalized paths.
-- [x] OpenCode native config remains separate from AgentProxy config.
+- [x] Logger emits newline-delimited JSON records to stderr with stable `timestamp`, `level`, `namespace`, `correlationId`, and `message` fields.
+- [x] Logger context can carry `providerId`, `runtimeId`, `sessionId`, and `operation`.
+- [x] Redaction tests cover env-like records, config-like records, command args, and `Error` / `AgentProxyError` values.
+- [x] Secret values are redacted by key and by common inline patterns such as `Authorization: Bearer ...` and `--api-key=value`.
+- [x] `createOutputWriters` or equivalent keeps normal output on stdout and diagnostics/logs on stderr.
+- [x] Debug logs are dropped unless logger level is `debug` or debug is explicitly enabled.
 - [x] `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
-- [x] Chinese progress tracker is updated with Phase 2.3 first-group checkmarks and Review notes.
+- [x] Chinese progress tracker is updated with Phase 2.4 first-group checkmarks and Review notes.
 - [x] A detailed Chinese commit is created after verification.
 
 Risks and constraints:
 
-- Avoid turning Phase 2.3 into a logging or storage phase; config errors may carry safe field paths but no redaction subsystem yet.
-- Avoid overfitting config shape to future OpenCode runtime lifecycle details; provider-specific config should stay nested under `providers.opencode`.
-- Keep validation strict enough to catch bad types, but leave future provider-specific unknown keys in explicit metadata/extra boundaries when needed.
-- Keep types strict under `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`.
+- Redaction must be conservative enough to avoid leaking secrets but should not mutate unrelated user-facing output.
+- Avoid coupling logging to CLI command execution that is still placeholder-only.
+- Avoid inventing a full observability/debug bundle system before Phase 7.
+- Keep AgentProxy as a thin control plane; logging must not inspect or reinterpret OpenCode runtime internals.
 
 ## Phase Gates
 
@@ -164,17 +161,17 @@ Acceptance criteria:
 
 ### 1.4 Logging And Redaction
 
-- [ ] Implement structured logger.
-- [ ] Add `correlationId`.
-- [ ] Add `runtimeId`, `sessionId`, `providerId`, and operation fields.
-- [ ] Implement redaction for token, secret, password, API key, authorization, and common variants.
-- [ ] Ensure `--json` output is not polluted by logs.
-- [ ] Ensure debug logs are opt-in.
+- [x] Implement structured logger.
+- [x] Add `correlationId`.
+- [x] Add `runtimeId`, `sessionId`, `providerId`, and operation fields.
+- [x] Implement redaction for token, secret, password, API key, authorization, and common variants.
+- [x] Ensure `--json` output is not polluted by logs.
+- [x] Ensure debug logs are opt-in.
 
 Acceptance criteria:
 
-- [ ] Redaction tests cover env vars, config, errors, and command args.
-- [ ] Human output and JSON output are separated correctly.
+- [x] Redaction tests cover env vars, config, errors, and command args.
+- [x] Human output and JSON output are separated correctly.
 
 ### 1.5 SQLite Storage
 
@@ -808,3 +805,4 @@ A task can be checked only when all applicable items are true:
 - 2026-05-19: Updated the latest-status summary in the Chinese tracker so the next Codex session can resume from Phase 2 without manual reorientation.
 - 2026-05-19: Completed the Phase 2.1 core domain type group. Added stable error code runtime values and `AgentProxyError`, provider metadata preservation helpers, normalized provider capabilities with unsupported defaults, runtime handle types, session index/provider session types, event union/envelope types, and the public `AgentProvider` contract. Added `tests/core-domain-types.test.ts` to prove mock provider contract usage, capability defaults, stable error codes, and metadata preservation. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: Provider Registry, config, logging, and SQLite storage are still pending, so Gate 2 remains open.
 - 2026-05-19: Completed Phase 2.3 configuration resolver first group. Added built-in AgentProxy defaults, global/project/explicit config loading, env and CLI overrides, manual schema validation mapped to `CONFIG_INVALID`, `~` expansion, workspace path normalization, OpenCode passthrough-env boundaries, and focused config resolver tests. Code review found no blocking issues; follow-up fixes added port range validation, explicit config precedence tests, nested OpenCode config rejection tests, and aligned the default database filename with the storage constant. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: logging/redaction and SQLite storage are still pending, so Gate 2 remains open.
+- 2026-05-19: Completed Phase 2.4 logging and redaction first group. Added structured NDJSON logging, per-operation `correlationId`, provider/runtime/session/operation fields, stdout/stderr output helpers, default redaction for logger data/message, errors, command args, diagnostics, Commander parse errors, JSON-style inline secrets, env-var style inline secrets, and space-separated CLI secret flags. Code review found blocking leakage paths in logger messages, diagnostic stderr, inline env strings, and Commander parse errors; all were fixed with regression tests. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: SQLite storage is still pending, so Gate 2 remains open; no OpenCode runtime lifecycle was implemented.

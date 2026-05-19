@@ -2,6 +2,7 @@
 
 import { pathToFileURL } from "node:url";
 import { Command } from "commander";
+import { createOutputWriters, type AgentProxyOutputWriters } from "../logging/index.js";
 import { OPENCODE_PROVIDER_ID } from "../providers/opencode/index.js";
 
 export const AGENTPROXY_VERSION = "0.1.0";
@@ -17,17 +18,28 @@ const plannedCoreWorkflows = [
   "agentproxy config get|set",
 ];
 
-function plannedAction(commandName: string): () => void {
+function plannedAction(commandName: string, output: AgentProxyOutputWriters): () => void {
   return () => {
-    console.error(
+    output.writeDiagnostic(
       `agentproxy ${commandName} is planned for a later phase and is not implemented yet.`,
     );
     process.exitCode = 1;
   };
 }
 
-export function createProgram(): Command {
+export interface CreateProgramOptions {
+  output?: AgentProxyOutputWriters;
+}
+
+export function createProgram(options: CreateProgramOptions = {}): Command {
   const program = new Command();
+  const output = options.output ?? createOutputWriters();
+
+  program.configureOutput({
+    writeOut: (chunk) => output.stdout.write(chunk),
+    writeErr: (chunk) => output.writeDiagnostic(chunk),
+    outputError: (chunk, write) => write(chunk),
+  });
 
   program
     .name("agentproxy")
@@ -50,81 +62,81 @@ export function createProgram(): Command {
   program
     .command("doctor")
     .description("Check AgentProxy, provider, runtime, and workspace health.")
-    .action(plannedAction("doctor"));
+    .action(plannedAction("doctor", output));
 
   program
     .command("run")
     .argument("[prompt]", "Prompt to send to the provider runtime.")
     .option("--model <model>", "Provider model selection.")
     .description("Run a headless OpenCode task through AgentProxy.")
-    .action(plannedAction("run"));
+    .action(plannedAction("run", output));
 
   program
     .command("chat")
     .option("--session <id>", "Open an existing AgentProxy session.")
     .description("Open the AgentProxy control-plane TUI.")
-    .action(plannedAction("chat"));
+    .action(plannedAction("chat", output));
 
   const sessions = program.command("sessions").description("Manage indexed provider sessions.");
   sessions
     .command("list")
     .description("List known sessions.")
-    .action(plannedAction("sessions list"));
+    .action(plannedAction("sessions list", output));
   sessions
     .command("show")
     .argument("<id>", "Session id.")
     .description("Show session details.")
-    .action(plannedAction("sessions show"));
+    .action(plannedAction("sessions show", output));
   sessions
     .command("resume")
     .argument("<id>", "Session id.")
     .option("--prompt <prompt>", "Prompt to send after resuming.")
     .description("Resume a session.")
-    .action(plannedAction("sessions resume"));
+    .action(plannedAction("sessions resume", output));
   sessions
     .command("abort")
     .argument("<id>", "Session id.")
     .description("Abort a running session.")
-    .action(plannedAction("sessions abort"));
+    .action(plannedAction("sessions abort", output));
   sessions
     .command("delete")
     .argument("<id>", "Session id.")
     .option("--yes", "Skip interactive confirmation.")
     .description("Delete a session tombstone-aware.")
-    .action(plannedAction("sessions delete"));
+    .action(plannedAction("sessions delete", output));
   sessions
     .command("export")
     .argument("<id>", "Session id.")
     .option("--sanitize", "Sanitize exported data.")
     .option("--output <path>", "Output file.")
     .description("Export a session.")
-    .action(plannedAction("sessions export"));
+    .action(plannedAction("sessions export", output));
   sessions
     .command("import")
     .argument("<source>", "File or URL.")
     .description("Import a provider session.")
-    .action(plannedAction("sessions import"));
+    .action(plannedAction("sessions import", output));
   sessions
     .command("share")
     .argument("<id>", "Session id.")
     .description("Share a session through the provider.")
-    .action(plannedAction("sessions share"));
+    .action(plannedAction("sessions share", output));
   sessions
     .command("unshare")
     .argument("<id>", "Session id.")
     .description("Remove provider session sharing.")
-    .action(plannedAction("sessions unshare"));
+    .action(plannedAction("sessions unshare", output));
 
   const providers = program.command("providers").description("Inspect registered providers.");
   providers
     .command("list")
     .description("List providers and capabilities.")
-    .action(plannedAction("providers list"));
+    .action(plannedAction("providers list", output));
   providers
     .command("inspect")
     .argument("<id>", "Provider id.")
     .description("Inspect provider health and capabilities.")
-    .action(plannedAction("providers inspect"));
+    .action(plannedAction("providers inspect", output));
 
   const provider = program.command("provider").description("Provider passthrough commands.");
   provider
@@ -133,15 +145,18 @@ export function createProgram(): Command {
     .argument("[nativeArgs...]", "Native provider arguments after --.")
     .allowUnknownOption(true)
     .description("Execute a provider-native command without changing AgentProxy state.")
-    .action(plannedAction("provider exec"));
+    .action(plannedAction("provider exec", output));
 
   const runtime = program.command("runtime").description("Manage provider runtime connections.");
-  runtime.command("list").description("List known runtimes.").action(plannedAction("runtime list"));
+  runtime
+    .command("list")
+    .description("List known runtimes.")
+    .action(plannedAction("runtime list", output));
   runtime
     .command("stop")
     .argument("<runtime-id>", "Runtime id.")
     .description("Stop a managed runtime.")
-    .action(plannedAction("runtime stop"));
+    .action(plannedAction("runtime stop", output));
 
   const config = program
     .command("config")
@@ -150,13 +165,13 @@ export function createProgram(): Command {
     .command("get")
     .argument("[key]", "Config key.")
     .description("Read config values.")
-    .action(plannedAction("config get"));
+    .action(plannedAction("config get", output));
   config
     .command("set")
     .argument("<key>", "Config key.")
     .argument("<value>", "Config value.")
     .description("Set an AgentProxy config value.")
-    .action(plannedAction("config set"));
+    .action(plannedAction("config set", output));
 
   return program;
 }
@@ -180,7 +195,7 @@ export async function main(argv = process.argv): Promise<void> {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(message);
+    createOutputWriters().writeDiagnostic(message);
     process.exitCode = 1;
   });
 }

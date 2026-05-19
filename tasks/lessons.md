@@ -16,3 +16,5 @@
 - Provider list 的 JSON 输出要显式保留原始 capability schema version，并把 metadata 做 JSON-safe 规整；循环对象和循环数组都要覆盖，避免 limited mode 把真实版本号写丢或让非 JSON 值污染列表结果。
 - 配置解析阶段要区分自动发现和用户显式输入：全局/项目配置缺失可以忽略，但显式 `--config` 指向的文件缺失必须映射为 `CONFIG_INVALID`。
 - runtime 端口属于配置层可验证边界，必须在解析阶段校验为 1-65535 的整数，避免把非法端口延迟到 runtime 生命周期阶段才失败。
+- 日志脱敏不能只处理结构化 `data` 字段；logger message、CLI diagnostic stderr 和 JSON 风格 inline secret 字符串也必须默认脱敏。
+- 使用 Commander 等 CLI 框架时，框架自身的 parse error / unknown option / unknown command stderr 也要接入脱敏输出通道，不能只包自写错误输出。
