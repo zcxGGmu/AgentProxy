@@ -13,35 +13,32 @@
 
 ## Current Iteration - 2026-05-19
 
-Scope: complete Phase 0.2 pre-implementation technical decisions, then initialize the Phase 1 TypeScript foundation with a placeholder `agentproxy` CLI.
+Scope: advance only Phase 2.1 core domain types and stable error codes from the Chinese progress tracker.
 
 Dependencies confirmed before implementation:
 
-- Package manager: `pnpm`.
-- Runtime baseline: Node.js 22+ LTS line, with current local verification on Node.js 25.9.0.
-- CLI parser: Commander.
-- TUI decision only: Ink + React, to be installed when Phase 6 starts using it.
-- SQLite decision only: `better-sqlite3`, to be installed when Phase 2 storage starts using it.
-- Test runner: Vitest.
-- Build/dev tooling: TypeScript, tsup, tsx.
-- Lint/format tooling: Biome.
+- Use existing TypeScript, Vitest, Biome, tsup, and Commander setup.
+- Do not install SQLite, Ink, OpenCode SDK, or runtime dependencies in this small task group.
+- Keep v1 scoped to OpenCode as the first provider while preserving multi-provider contract boundaries.
+- Keep AgentProxy as a thin control plane; do not implement OpenCode runtime lifecycle, server calls, or CLI passthrough yet.
 
 Acceptance criteria for this iteration:
 
-- [x] Decisions are recorded in an ADR or the main development plan.
-- [x] README shows basic development commands.
-- [x] `package.json`, `tsconfig.json`, source directories, tests, and `.gitignore` exist.
-- [x] `agentproxy --help` and `agentproxy --version` work through a local command after dependencies are installed.
-- [x] `pnpm typecheck`, `pnpm test`, `pnpm lint`, `pnpm format:check`, and `pnpm build` pass.
-- [x] Chinese progress tracker is updated with checkmarks and Review notes.
+- [x] `AgentProvider`, `ProviderCapabilities`, `ProviderHealth`, `RuntimeHandle`, session, event, and request/result contract types exist.
+- [x] Stable `AgentProxyErrorCode` values and typed `AgentProxyError` helpers exist.
+- [x] Capability helpers treat missing fields as unsupported.
+- [x] Unknown provider fields are preserved in `metadata`.
+- [x] Tests prove the contract is usable by a mock provider.
+- [x] `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
+- [x] Chinese progress tracker is updated with Phase 2.1 checkmarks and Review notes.
 - [x] A detailed Chinese commit is created after verification.
 
 Risks and constraints:
 
-- Keep AgentProxy as a thin control plane; do not implement OpenCode runtime behavior in this iteration.
-- Do not add TUI or SQLite runtime code before their phases; record choices now, install/use them later when implementation requires them.
-- Node.js minimum must avoid already-EOL lines and remain compatible with the selected future TUI/SQLite dependencies.
-- The CLI placeholder must list planned commands without pretending those workflows are implemented.
+- Avoid overfitting the contract to OpenCode API shapes; provider-specific values must stay in `metadata` or `raw`.
+- Avoid implementing provider registry, config, logging, SQLite, or runtime behavior before their tracker items.
+- Keep types strict under `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`.
+- Keep the implementation small enough that later provider registry and OpenCodeProvider phases can consume it without refactoring.
 
 ## Phase Gates
 
@@ -116,20 +113,20 @@ Acceptance criteria:
 
 ### 1.2 Core Domain Types
 
-- [ ] Implement `AgentProvider` interface.
-- [ ] Implement `ProviderCapabilities` with `schemaVersion`.
-- [ ] Implement `ProviderHealth`.
-- [ ] Implement `RuntimeHandle`.
-- [ ] Implement session model types.
-- [ ] Implement event envelope and core event union.
-- [ ] Implement stable error codes.
-- [ ] Implement provider-specific metadata escape hatch.
+- [x] Implement `AgentProvider` interface.
+- [x] Implement `ProviderCapabilities` with `schemaVersion`.
+- [x] Implement `ProviderHealth`.
+- [x] Implement `RuntimeHandle`.
+- [x] Implement session model types.
+- [x] Implement event envelope and core event union.
+- [x] Implement stable error codes.
+- [x] Implement provider-specific metadata escape hatch.
 
 Acceptance criteria:
 
-- [ ] Type-level tests or compile checks prove provider contracts are usable.
-- [ ] Capability defaults treat missing fields as unsupported.
-- [ ] Unknown provider fields are preserved as metadata.
+- [x] Type-level tests or compile checks prove provider contracts are usable.
+- [x] Capability defaults treat missing fields as unsupported.
+- [x] Unknown provider fields are preserved as metadata.
 
 ### 1.3 Config Resolver
 
@@ -792,3 +789,4 @@ A task can be checked only when all applicable items are true:
 - 2026-05-19: Updated the Chinese phase tracker with latest completed/pending status, next-step guidance, and a restart prompt for continuing development.
 - 2026-05-19: Completed Phase 0.2 decisions and Phase 1 foundation with `pnpm`, Node.js `>=22.0.0`, Commander, Vitest, Biome, tsup, tsx, and `better-sqlite3` selected for later phases. Added ADR `docs/adr/0001-implementation-tooling.md`, initialized the TypeScript project skeleton, and wired a placeholder `agentproxy` CLI. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm exec biome check .`, `pnpm run build`, `pnpm run agentproxy -- --help`, and `pnpm run agentproxy -- --version`. Remaining risk: Phase 2 provider contracts, config, logging, and SQLite are still unimplemented; TUI and SQLite are only selected, not implemented, and the version constant is still mirrored in source and package metadata.
 - 2026-05-19: Updated the latest-status summary in the Chinese tracker so the next Codex session can resume from Phase 2 without manual reorientation.
+- 2026-05-19: Completed the Phase 2.1 core domain type group. Added stable error code runtime values and `AgentProxyError`, provider metadata preservation helpers, normalized provider capabilities with unsupported defaults, runtime handle types, session index/provider session types, event union/envelope types, and the public `AgentProvider` contract. Added `tests/core-domain-types.test.ts` to prove mock provider contract usage, capability defaults, stable error codes, and metadata preservation. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: Provider Registry, config, logging, and SQLite storage are still pending, so Gate 2 remains open.

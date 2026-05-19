@@ -11,3 +11,4 @@
 - 每完成一个阶段任务后应主动创建一次 commit，并使用详细中文 commit 信息；重启 Codex 会话后也必须先复习 lessons 并自动延续该习惯，不需要等待用户再次提醒。
 - 用 `pnpm run <script> -- ...` 启动 CLI 时，分隔符 `--` 可能会进入 `process.argv`；入口需要先规范化参数再交给 Commander，否则 `--help` / `--version` 会被误判为未知命令。
 - Biome 默认可能会检查构建产物；启用 `vcs.useIgnoreFile` 或显式排除 `dist/`，避免 lint/format 结果被生成物污染。
+- 核心契约实现时不要用 `unknown` 临时占位 provider 会话返回值；`AgentProvider` 应直接返回 `ProviderSession` 等稳定类型，让 mock provider 测试和 `tsc` 尽早暴露契约偏差。
