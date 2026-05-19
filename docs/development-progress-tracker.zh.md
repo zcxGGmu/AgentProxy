@@ -7,6 +7,72 @@
 - 首版目标：以 OpenCode 作为第一个完整 Coding Agent runtime provider
 - 维护规则：后续迭代以本文档为主要开发进度追踪清单，完成项必须有实现、测试、文档或验证记录支撑；每完成一个阶段任务后立即提交一次 commit
 
+## 最新开发状态（2026-05-19）
+
+### 当前阶段
+
+- 当前处于：Phase 0 已完成，准备进入 Phase 0.2 实施前决策和 Phase 1 工程骨架。
+- 最近已完成阶段的基线提交：`92a09c5ceec14140317459bddf42c2b4d18c7e0b`
+- 当前主要进度来源：本文档和 `docs/agentproxy-development-plan.md`
+- 当前代码状态：尚未初始化 TypeScript 工程，暂无 `package.json`、`src/`、测试框架或 CLI 实现。
+
+### 已完成
+
+- [x] 明确产品定位：AgentProxy 是薄代理和控制面，不重新实现 Agent runtime。
+- [x] 明确 v1 范围：只接入 OpenCode，未来再扩展 Claude Code、Codex 等 provider。
+- [x] 完成主开发方案：`docs/agentproxy-development-plan.md`。
+- [x] 完成中文阶段进度追踪清单：`docs/development-progress-tracker.zh.md`。
+- [x] 完成任务管理规则：阶段门禁、验收标准、Definition of Done、Review 模板。
+- [x] 完成长期经验记录：`tasks/lessons.md`。
+- [x] 建立工作习惯：每完成一个阶段任务后主动提交一次详细中文 commit。
+
+### 未完成
+
+- [ ] Phase 0.2：实施前技术决策尚未完成。
+- [ ] Phase 1：TypeScript 工程骨架尚未初始化。
+- [ ] Phase 2：核心契约、配置、日志、SQLite 存储尚未实现。
+- [ ] Phase 3：OpenCode runtime 生命周期尚未实现。
+- [ ] Phase 4：OpenCodeProvider 核心能力尚未实现。
+- [ ] Phase 5：CLI MVP 尚未实现。
+- [ ] Phase 6：TUI MVP 尚未实现。
+- [ ] Phase 7：安全、信任与可观测性尚未实现。
+- [ ] Phase 8：测试与 CI 尚未落地。
+- [ ] Phase 9：文档、打包与发布流程尚未完成。
+
+### 下一步建议
+
+下次启动后，应按以下顺序继续：
+
+1. 先阅读 `tasks/lessons.md`，确认项目规则和长期习惯。
+2. 阅读本文档，定位第一个未完成任务。
+3. 从 Phase 0.2 开始，确认包管理器、Node.js 版本、CLI/TUI/SQLite/测试/lint 技术选型。
+4. 将选型结果写回主方案或 ADR，并更新本文档 Review。
+5. 进入 Phase 1，初始化 TypeScript 工程骨架。
+6. 完成阶段后运行验证命令，更新本文档，创建详细中文 commit。
+
+### 下次启动提示词
+
+```text
+请先阅读 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/tasks/lessons.md，
+再阅读 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/development-progress-tracker.zh.md
+和 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/agentproxy-development-plan.md。
+
+当前项目状态是：Phase 0 方案与中文阶段进度追踪清单已完成并提交，代码实现尚未开始。
+请先运行 `git status --short` 和 `git log -1 --oneline` 核对最新提交与工作区状态。
+
+请严格按照 docs/development-progress-tracker.zh.md 继续迭代，从第一个未完成项开始：
+Phase 0.2 实施前技术决策，然后进入 Phase 1 TypeScript 工程骨架。
+
+要求：
+1. 不要重新规划已完成的架构方案，除非发现真实设计缺口。
+2. 每次只选择一个小范围任务组推进。
+3. 实现前确认依赖、验收标准和风险。
+4. 完成后更新 docs/development-progress-tracker.zh.md 的勾选状态和 Review。
+5. 如果产生可复用经验或用户纠正，更新 tasks/lessons.md。
+6. 每完成一个阶段任务后，运行适用验证命令，并使用详细中文 commit 信息提交一次。
+7. AgentProxy 必须保持薄代理和控制面定位，v1 只接入 OpenCode，不重写 Agent runtime。
+```
+
 ## 1. 使用规则
 
 ### 1.1 状态标记
@@ -881,3 +947,4 @@
 
 - 2026-05-19：创建中文阶段开发进度追踪清单，后续迭代以本文档为主要进度跟踪依据。
 - 2026-05-19：补充阶段完成即提交的迭代规则，后续每完成一个阶段任务都应主动创建 commit。
+- 2026-05-19：补充最新开发状态、已完成/未完成摘要、下一步建议和下次启动提示词；当前实现尚未开始，下一步从 Phase 0.2 和 Phase 1 继续。

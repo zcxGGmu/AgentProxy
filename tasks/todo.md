@@ -757,3 +757,5 @@ A task can be checked only when all applicable items are true:
 - 2026-05-19: Completed development plan Draft v3 with runtime state machine, CLI/TUI contracts, capability schema versioning, source of truth, workspace trust, debug bundle, compatibility matrix, and assumptions list.
 - 2026-05-19: Replaced the short TODO list with this phase-gated development tracker for future iterative implementation.
 - 2026-05-19: Added `docs/development-progress-tracker.zh.md` as the standalone Chinese phase tracker requested for future iterations.
+- 2026-05-19: Updated the Chinese phase tracker with latest completed/pending status, next-step guidance, and a restart prompt for continuing development.
+- 2026-05-19: Added a latest-status summary to the Chinese tracker so the next Codex session can resume from Phase 0.2 / Phase 1 without manual reorientation.
