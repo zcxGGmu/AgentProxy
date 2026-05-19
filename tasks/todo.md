@@ -13,40 +13,49 @@
 
 ## Current Iteration - 2026-05-19
 
-Scope: advance only Phase 2.2 provider registry from the Chinese progress tracker.
+Scope: advance only Phase 2.3 configuration resolver first group from the Chinese progress tracker.
 
 Implementation checklist:
 
-- [x] Add focused unit tests for provider registration, lookup, list, capability probe, and limited mode.
-- [x] Implement the registry API without config, logging, SQLite, or runtime lifecycle dependencies.
-- [x] Replace the OpenCode provider id-only placeholder with a contract-compatible placeholder provider.
-- [x] Export the registry and placeholder provider from the provider barrel.
+- [x] Add focused unit tests for built-in defaults, global/project config loading, env overrides, CLI flag overrides, schema validation, `~` expansion, and workspace path normalization.
+- [x] Implement built-in AgentProxy default config.
+- [x] Load global config from `~/.config/agentproxy/config.json`.
+- [x] Load project config from `.agentproxy/config.json`.
+- [x] Apply environment variable overrides after file config.
+- [x] Apply CLI flag overrides after environment variables.
+- [x] Validate config shape and map invalid config to `CONFIG_INVALID`.
+- [x] Expand `~` and normalize workspace paths.
+- [x] Keep AgentProxy config separate from OpenCode config; do not read or mutate OpenCode native config.
 - [x] Update the Chinese progress tracker and record verification evidence.
 - [x] Run verification and create a detailed Chinese commit.
 
 Dependencies confirmed before implementation:
 
-- Use existing TypeScript, Vitest, Biome, tsup, and Commander setup.
-- Do not install SQLite, Ink, OpenCode SDK, or runtime dependencies in this small task group.
-- Keep v1 scoped to OpenCode as the first provider while preserving multi-provider contract boundaries.
-- Keep AgentProxy as a thin control plane; do not implement OpenCode runtime lifecycle, server calls, or CLI passthrough yet.
+- Use existing TypeScript, Vitest, Biome, tsup, Commander, and Node built-ins.
+- Do not add a schema validation dependency for this small task group unless native validation proves insufficient.
+- Do not install SQLite, Ink, OpenCode SDK, or runtime dependencies.
+- Do not implement logging, SQLite storage, OpenCode runtime lifecycle, server calls, or CLI passthrough.
+- Keep v1 scoped to OpenCode as the first provider while preserving AgentProxy/provider config boundaries.
 
 Acceptance criteria for this iteration:
 
-- [x] Provider registration, lookup, list, capability probe, and limited mode hooks exist.
-- [x] Unknown provider id maps to `PROVIDER_NOT_FOUND`.
-- [x] Capability schema mismatch can degrade to limited mode without crashing.
-- [x] Provider list can emit data structures suitable for JSON output.
+- [x] Config precedence is deterministic: built-in defaults < global config < project config < explicit `--config` file < env vars < CLI flags.
+- [x] Missing auto-discovered config files are ignored without failure; missing explicit `--config` fails as `CONFIG_INVALID`.
+- [x] Invalid config throws `AgentProxyError` with code `CONFIG_INVALID`.
+- [x] Config errors avoid echoing secret values.
+- [x] `~` paths expand against the configured home directory.
+- [x] Workspace paths resolve to absolute normalized paths.
+- [x] OpenCode native config remains separate from AgentProxy config.
 - [x] `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
-- [x] Chinese progress tracker is updated with Phase 2.2 checkmarks and Review notes.
+- [x] Chinese progress tracker is updated with Phase 2.3 first-group checkmarks and Review notes.
 - [x] A detailed Chinese commit is created after verification.
 
 Risks and constraints:
 
-- Avoid overfitting the registry to OpenCode API shapes; provider-specific values must stay in `metadata` or `raw`.
-- Avoid implementing config, logging, SQLite, or runtime behavior before their tracker items.
+- Avoid turning Phase 2.3 into a logging or storage phase; config errors may carry safe field paths but no redaction subsystem yet.
+- Avoid overfitting config shape to future OpenCode runtime lifecycle details; provider-specific config should stay nested under `providers.opencode`.
+- Keep validation strict enough to catch bad types, but leave future provider-specific unknown keys in explicit metadata/extra boundaries when needed.
 - Keep types strict under `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`.
-- Keep the implementation small enough that later provider registry and OpenCodeProvider phases can consume it without refactoring.
 
 ## Phase Gates
 
@@ -798,3 +807,4 @@ A task can be checked only when all applicable items are true:
 - 2026-05-19: Completed Phase 0.2 decisions and Phase 1 foundation with `pnpm`, Node.js `>=22.0.0`, Commander, Vitest, Biome, tsup, tsx, and `better-sqlite3` selected for later phases. Added ADR `docs/adr/0001-implementation-tooling.md`, initialized the TypeScript project skeleton, and wired a placeholder `agentproxy` CLI. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm exec biome check .`, `pnpm run build`, `pnpm run agentproxy -- --help`, and `pnpm run agentproxy -- --version`. Remaining risk: Phase 2 provider contracts, config, logging, and SQLite are still unimplemented; TUI and SQLite are only selected, not implemented, and the version constant is still mirrored in source and package metadata.
 - 2026-05-19: Updated the latest-status summary in the Chinese tracker so the next Codex session can resume from Phase 2 without manual reorientation.
 - 2026-05-19: Completed the Phase 2.1 core domain type group. Added stable error code runtime values and `AgentProxyError`, provider metadata preservation helpers, normalized provider capabilities with unsupported defaults, runtime handle types, session index/provider session types, event union/envelope types, and the public `AgentProvider` contract. Added `tests/core-domain-types.test.ts` to prove mock provider contract usage, capability defaults, stable error codes, and metadata preservation. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: Provider Registry, config, logging, and SQLite storage are still pending, so Gate 2 remains open.
+- 2026-05-19: Completed Phase 2.3 configuration resolver first group. Added built-in AgentProxy defaults, global/project/explicit config loading, env and CLI overrides, manual schema validation mapped to `CONFIG_INVALID`, `~` expansion, workspace path normalization, OpenCode passthrough-env boundaries, and focused config resolver tests. Code review found no blocking issues; follow-up fixes added port range validation, explicit config precedence tests, nested OpenCode config rejection tests, and aligned the default database filename with the storage constant. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: logging/redaction and SQLite storage are still pending, so Gate 2 remains open.

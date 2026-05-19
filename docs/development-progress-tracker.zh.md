@@ -11,13 +11,13 @@
 
 ### 当前阶段
 
-- 当前处于：Phase 2.2 Provider Registry 已完成并提交；Gate 2 尚未通过，下一步进入 Phase 2.3 配置系统。
-- 当前启动基线：`a35c4ef Phase 2.2：完成 Provider Registry 最小闭环`；如果后续 `git log -1 --oneline` 显示文档同步提交，阶段实现基线仍以 `a35c4ef` 为准。
-- 最新阶段实现提交：`a35c4ef Phase 2.2：完成 Provider Registry 最小闭环`。
+- 当前处于：Phase 2.3 配置系统第一组已完成并准备提交；Gate 2 尚未通过，下一步进入 Phase 2.4 日志与脱敏。
+- 当前启动基线：`a35c4ef Phase 2.2：完成 Provider Registry 最小闭环`；本次 Phase 2.3 提交后，下次启动应以 Phase 2.3 阶段实现提交为基线。
+- 最新阶段实现提交：本次提交 `Phase 2.3：完成配置系统最小闭环`。
 - Phase 0.2 / Phase 1 阶段提交：`e5eb0ce 阶段进展：完成 Phase 0.2 技术决策与 Phase 1 工程骨架`
 - 当前主要进度来源：本文档和 `docs/agentproxy-development-plan.md`
-- 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层和 provider registry 最小闭环：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型、`AgentProvider` 契约、provider 注册/lookup/list、capability probe、schema mismatch limited mode，以及 OpenCodeProvider 占位实现。
-- 当前工作区预期：文档同步提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核。
+- 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层、provider registry 最小闭环和配置解析层最小闭环：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型、`AgentProvider` 契约、provider 注册/lookup/list、capability probe、schema mismatch limited mode、OpenCodeProvider 占位实现、AgentProxy 默认配置、全局/项目/显式配置读取、env/CLI 覆盖、schema 校验、路径规范化和 OpenCode 配置隔离。
+- 当前工作区预期：Phase 2.3 提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核。
 
 ### 已完成
 
@@ -32,13 +32,13 @@
 - [x] 完成 Phase 1 TypeScript 工程骨架、基础脚本和 CLI help/version 占位入口。
 - [x] 完成 Phase 2.1 核心领域类型和稳定错误码，包含 mock provider contract 测试。
 - [x] 完成 Phase 2.2 Provider Registry，包含内存注册表、lookup/list、OpenCodeProvider 占位、capability probe 和 schema mismatch limited mode。
+- [x] 完成 Phase 2.3 配置系统第一组，包含默认配置、全局/项目/显式配置读取、env/CLI 覆盖、schema 校验、路径规范化和 OpenCode 配置隔离。
 
 ### 未完成
 
-- [ ] Phase 2.3 配置系统尚未实现：默认配置、全局/项目配置、env/CLI 覆盖、schema 校验、路径规范化。
 - [ ] Phase 2.4 日志与脱敏尚未实现：结构化 logger、correlationId、日志字段、secret redaction、stdout/stderr 分离。
 - [ ] Phase 2.5 SQLite 存储尚未实现：初始化、migration、providers/runtimes/sessions/session_events 表、CRUD、备份机制。
-- [ ] Gate 2 尚未通过：核心类型和 Provider Registry 已完成，但配置、日志、存储基础仍未完成。
+- [ ] Gate 2 尚未通过：核心类型、Provider Registry 和配置系统已完成，但日志、存储基础仍未完成。
 - [ ] Phase 3：OpenCode runtime 生命周期尚未实现。
 - [ ] Phase 4：OpenCodeProvider 核心能力尚未实现。
 - [ ] Phase 5：CLI MVP 尚未实现。
@@ -53,7 +53,7 @@
 
 1. 先阅读 `tasks/lessons.md`，确认项目规则和长期习惯。
 2. 阅读本文档，定位第一个未完成任务。
-3. 从 Phase 2.3 配置系统开始，先实现默认配置、全局/项目配置读取、env/CLI 覆盖、schema 校验和路径规范化的最小闭环；不要提前进入日志、SQLite 或 OpenCode runtime 生命周期。
+3. 从 Phase 2.4 日志与脱敏开始，先实现结构化 logger、correlationId、基础字段、secret redaction 和 stdout/stderr 分离；不要提前进入 SQLite 或 OpenCode runtime 生命周期。
 4. 复用 Phase 2.1 已建立的 `AgentProvider`、capability schema、metadata escape hatch 和稳定错误码。
 5. 暂不实现 OpenCode runtime 生命周期，直到 Phase 3。
 6. 完成阶段后运行验证命令，更新本文档，创建详细中文 commit。
@@ -66,12 +66,11 @@
 再阅读 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/development-progress-tracker.zh.md
 和 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/agentproxy-development-plan.md。
 
-当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry 已完成并提交；最新阶段实现提交是 `a35c4ef Phase 2.2：完成 Provider Registry 最小闭环`。下一步从 Phase 2.3 配置系统开始。
+当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组已完成并提交；最新阶段实现提交是 `Phase 2.3：完成配置系统最小闭环`。下一步从 Phase 2.4 日志与脱敏开始。
 请先运行 `git status --short` 和 `git log -1 --oneline` 核对最新提交与工作区状态。
-如果 `git log -1 --oneline` 显示的是文档同步提交，请继续以 `a35c4ef` 作为最近阶段实现基线。
 
 请严格按照 docs/development-progress-tracker.zh.md 继续迭代，从第一个未完成项开始：
-Phase 2.3 配置系统。第一组只推进内置默认配置、全局/项目配置读取、环境变量覆盖、CLI flag 覆盖、配置 schema 校验、`~` 展开和 workspace path 规范化，并保持 AgentProxy 配置与 OpenCode 配置分离。
+Phase 2.4 日志与脱敏。第一组只推进结构化 logger、correlationId、日志字段、token/secret/password/api key/authorization redaction、stdout/stderr 分离和 debug 显式启用。
 
 要求：
 1. 不要重新规划已完成的架构方案，除非发现真实设计缺口。
@@ -82,7 +81,7 @@ Phase 2.3 配置系统。第一组只推进内置默认配置、全局/项目配
 6. 每完成一个阶段任务后，运行适用验证命令，并使用详细中文 commit 信息提交一次。
 7. AgentProxy 必须保持薄代理和控制面定位，v1 只接入 OpenCode，不重写 Agent runtime。
 8. 重启会话后先复习 `tasks/lessons.md`，并自动延续阶段提交习惯，不需要用户再次提醒。
-9. Phase 2.3 不要实现日志系统、SQLite 存储或 OpenCode runtime 生命周期，只建立配置解析层最小闭环。
+9. Phase 2.4 不要实现 SQLite 存储或 OpenCode runtime 生命周期，只建立日志与脱敏层最小闭环。
 ```
 
 ## 1. 使用规则
@@ -266,20 +265,20 @@ Phase 2.3 配置系统。第一组只推进内置默认配置、全局/项目配
 
 ### 5.3 配置系统
 
-- [ ] 实现内置默认配置。
-- [ ] 读取全局配置 `~/.config/agentproxy/config.json`。
-- [ ] 读取项目配置 `.agentproxy/config.json`。
-- [ ] 支持环境变量覆盖。
-- [ ] 支持 CLI flag 覆盖。
-- [ ] 实现配置 schema 校验。
-- [ ] 实现 `~` 展开和 workspace path 规范化。
-- [ ] 保持 AgentProxy 配置和 OpenCode 配置分离。
+- [x] 实现内置默认配置。
+- [x] 读取全局配置 `~/.config/agentproxy/config.json`。
+- [x] 读取项目配置 `.agentproxy/config.json`。
+- [x] 支持环境变量覆盖。
+- [x] 支持 CLI flag 覆盖。
+- [x] 实现配置 schema 校验。
+- [x] 实现 `~` 展开和 workspace path 规范化。
+- [x] 保持 AgentProxy 配置和 OpenCode 配置分离。
 
 验收标准：
 
-- [ ] 配置优先级测试通过。
-- [ ] 无效配置映射到 `CONFIG_INVALID`。
-- [ ] 错误输出不泄漏 secret。
+- [x] 配置优先级测试通过。
+- [x] 无效配置映射到 `CONFIG_INVALID`。
+- [x] 错误输出不泄漏 secret。
 
 ### 5.4 日志与脱敏
 
@@ -966,3 +965,4 @@ Phase 2.3 配置系统。第一组只推进内置默认配置、全局/项目配
 - 2026-05-19：完成 Phase 2.1 核心领域类型和稳定错误码；新增 `src/core/errors.ts`、`src/core/events.ts`、`src/core/metadata.ts`、`src/core/types.ts`、`src/providers/types.ts`、`src/providers/metadata.ts`、`src/sessions/types.ts` 和 `tests/core-domain-types.test.ts`，并更新 core/providers/sessions barrel exports。验证命令：`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`，结果均通过。未解决风险：Provider Registry、配置系统、日志脱敏和 SQLite 存储仍未实现，Gate 2 仍未通过；下一步只推进 Phase 2.2 Provider Registry。
 - 2026-05-19：完成 Phase 2.2 Provider Registry 第一组最小闭环；新增 `src/providers/registry.ts` 和 `tests/provider-registry.test.ts`，将 `src/providers/opencode/index.ts` 扩展为满足 `AgentProvider` 契约的 OpenCodeProvider 占位实现，并更新 provider barrel exports。实现范围包含内存 provider 注册、重复注册保护、lookup、JSON-ready list、capability probe、capability schema mismatch limited mode、capability probe 失败降级、默认 registry 注册 OpenCodeProvider；审查后补充 list 中暴露 provider 原始 capability schema version，并对 list metadata 做 JSON-safe 规整。验证命令：`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`，结果均通过。未解决风险：Phase 2.3 配置系统、Phase 2.4 日志脱敏、Phase 2.5 SQLite 存储仍未实现，Gate 2 仍未通过；OpenCodeProvider 仍是占位，不启动 runtime、不调用 SDK/API/CLI。
 - 2026-05-19：同步 Phase 2.2 后续开发状态；明确最新阶段实现提交为 `a35c4ef Phase 2.2：完成 Provider Registry 最小闭环`，已完成项包含 Phase 0.2、Phase 1、Phase 2.1、Phase 2.2，未完成项从 Phase 2.3 配置系统开始；更新下次启动提示词，要求以 Phase 2.3 配置系统为第一个未完成任务继续。
+- 2026-05-19：完成 Phase 2.3 配置系统第一组最小闭环；新增 `src/config/defaults.ts`、`src/config/paths.ts`、`src/config/resolver.ts`、`src/config/types.ts` 和 `tests/config-resolver.test.ts`，并扩展 config barrel exports。实现范围包含 AgentProxy 内置默认配置、全局配置 `~/.config/agentproxy/config.json`、项目配置 `.agentproxy/config.json`、显式 `--config` 文件、环境变量覆盖、CLI flag 覆盖、手写 schema 校验、`CONFIG_INVALID` 错误映射、`~` 展开、workspace path 规范化、OpenCode passthrough env 白名单和 AgentProxy/OpenCode 配置隔离；审查后补充 runtime port 1-65535 校验、显式配置优先级测试、嵌套 OpenCode 原生配置拒绝测试，并将默认数据库文件名与 storage 常量对齐。验证命令：`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`，结果均通过。未解决风险：Phase 2.4 日志与脱敏、Phase 2.5 SQLite 存储仍未实现，Gate 2 仍未通过；配置解析层不启动 runtime、不读取或写入 OpenCode 原生配置。

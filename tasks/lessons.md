@@ -14,3 +14,5 @@
 - 核心契约实现时不要用 `unknown` 临时占位 provider 会话返回值；`AgentProvider` 应直接返回 `ProviderSession` 等稳定类型，让 mock provider 测试和 `tsc` 尽早暴露契约偏差。
 - Provider Registry 阶段只做内存注册、lookup、list 和 capability probe，不读取配置、不落 SQLite、不触发 runtime 生命周期；schema 不兼容时应降级为 limited mode，并把原始 provider 信息保留在 metadata。
 - Provider list 的 JSON 输出要显式保留原始 capability schema version，并把 metadata 做 JSON-safe 规整；循环对象和循环数组都要覆盖，避免 limited mode 把真实版本号写丢或让非 JSON 值污染列表结果。
+- 配置解析阶段要区分自动发现和用户显式输入：全局/项目配置缺失可以忽略，但显式 `--config` 指向的文件缺失必须映射为 `CONFIG_INVALID`。
+- runtime 端口属于配置层可验证边界，必须在解析阶段校验为 1-65535 的整数，避免把非法端口延迟到 runtime 生命周期阶段才失败。
