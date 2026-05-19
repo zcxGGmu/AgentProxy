@@ -12,3 +12,5 @@
 - 用 `pnpm run <script> -- ...` 启动 CLI 时，分隔符 `--` 可能会进入 `process.argv`；入口需要先规范化参数再交给 Commander，否则 `--help` / `--version` 会被误判为未知命令。
 - Biome 默认可能会检查构建产物；启用 `vcs.useIgnoreFile` 或显式排除 `dist/`，避免 lint/format 结果被生成物污染。
 - 核心契约实现时不要用 `unknown` 临时占位 provider 会话返回值；`AgentProvider` 应直接返回 `ProviderSession` 等稳定类型，让 mock provider 测试和 `tsc` 尽早暴露契约偏差。
+- Provider Registry 阶段只做内存注册、lookup、list 和 capability probe，不读取配置、不落 SQLite、不触发 runtime 生命周期；schema 不兼容时应降级为 limited mode，并把原始 provider 信息保留在 metadata。
+- Provider list 的 JSON 输出要显式保留原始 capability schema version，并把 metadata 做 JSON-safe 规整；循环对象和循环数组都要覆盖，避免 limited mode 把真实版本号写丢或让非 JSON 值污染列表结果。

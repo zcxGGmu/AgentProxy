@@ -11,12 +11,12 @@
 
 ### 当前阶段
 
-- 当前处于：Phase 2.1 核心领域类型和稳定错误码已完成；Gate 2 尚未通过，下一步进入 Phase 2.2 Provider Registry。
-- 本轮启动基线：`9513f92 文档：同步最新开发状态与下次启动提示词`；提示词中提到的 `ecfd1bf` 已被后续文档提交取代。
-- 最新阶段实现提交：`fccb809 Phase 2.1：完成核心契约与稳定错误码`
+- 当前处于：Phase 2.2 Provider Registry 已完成；Gate 2 尚未通过，下一步进入 Phase 2.3 配置系统。
+- 本轮启动基线：`1b086b7 文档：同步 Phase 2.1 后续开发状态`；提示词中提到的 `fccb809` 是最新阶段实现提交，后续另有文档同步提交。
+- 最新阶段实现提交：Phase 2.2 Provider Registry 本轮提交；具体哈希以下次 `git log -1 --oneline` 为准。
 - Phase 0.2 / Phase 1 阶段提交：`e5eb0ce 阶段进展：完成 Phase 0.2 技术决策与 Phase 1 工程骨架`
 - 当前主要进度来源：本文档和 `docs/agentproxy-development-plan.md`
-- 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型和 `AgentProvider` 契约。
+- 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层和 provider registry 最小闭环：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型、`AgentProvider` 契约、provider 注册/lookup/list、capability probe、schema mismatch limited mode，以及 OpenCodeProvider 占位实现。
 - 当前工作区预期：阶段实现提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核。
 
 ### 已完成
@@ -31,10 +31,10 @@
 - [x] 完成 Phase 0.2 实施前技术决策，记录于 `docs/adr/0001-implementation-tooling.md`。
 - [x] 完成 Phase 1 TypeScript 工程骨架、基础脚本和 CLI help/version 占位入口。
 - [x] 完成 Phase 2.1 核心领域类型和稳定错误码，包含 mock provider contract 测试。
+- [x] 完成 Phase 2.2 Provider Registry，包含内存注册表、lookup/list、OpenCodeProvider 占位、capability probe 和 schema mismatch limited mode。
 
 ### 未完成
 
-- [ ] Phase 2.2 Provider Registry 尚未实现：注册机制、lookup、list、OpenCodeProvider 占位、capability probe、limited mode。
 - [ ] Phase 2.3 配置系统尚未实现：默认配置、全局/项目配置、env/CLI 覆盖、schema 校验、路径规范化。
 - [ ] Phase 2.4 日志与脱敏尚未实现：结构化 logger、correlationId、日志字段、secret redaction、stdout/stderr 分离。
 - [ ] Phase 2.5 SQLite 存储尚未实现：初始化、migration、providers/runtimes/sessions/session_events 表、CRUD、备份机制。
@@ -53,7 +53,7 @@
 
 1. 先阅读 `tasks/lessons.md`，确认项目规则和长期习惯。
 2. 阅读本文档，定位第一个未完成任务。
-3. 从 Phase 2.2 Provider Registry 开始，先实现注册、lookup、list、OpenCodeProvider 占位和 capability probe/limited mode 的最小闭环；不要提前进入配置、日志、SQLite 或 OpenCode runtime 生命周期。
+3. 从 Phase 2.3 配置系统开始，先实现默认配置、全局/项目配置读取、env/CLI 覆盖、schema 校验和路径规范化的最小闭环；不要提前进入日志、SQLite 或 OpenCode runtime 生命周期。
 4. 复用 Phase 2.1 已建立的 `AgentProvider`、capability schema、metadata escape hatch 和稳定错误码。
 5. 暂不实现 OpenCode runtime 生命周期，直到 Phase 3。
 6. 完成阶段后运行验证命令，更新本文档，创建详细中文 commit。
@@ -66,11 +66,11 @@
 再阅读 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/development-progress-tracker.zh.md
 和 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/agentproxy-development-plan.md。
 
-当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码已完成并提交；最新阶段实现提交是 `fccb809 Phase 2.1：完成核心契约与稳定错误码`。下一步从 Phase 2.2 Provider Registry 开始。
+当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry 已完成并提交；下一步从 Phase 2.3 配置系统开始。
 请先运行 `git status --short` 和 `git log -1 --oneline` 核对最新提交与工作区状态。
 
 请严格按照 docs/development-progress-tracker.zh.md 继续迭代，从第一个未完成项开始：
-Phase 2.2 Provider Registry。第一组只推进 provider 注册机制、provider lookup、provider list、OpenCodeProvider 占位实现、capability probe 占位流程，以及 capability schema 不兼容时的 limited mode。
+Phase 2.3 配置系统。第一组只推进内置默认配置、全局/项目配置读取、环境变量覆盖、CLI flag 覆盖、配置 schema 校验、`~` 展开和 workspace path 规范化，并保持 AgentProxy 配置与 OpenCode 配置分离。
 
 要求：
 1. 不要重新规划已完成的架构方案，除非发现真实设计缺口。
@@ -81,7 +81,7 @@ Phase 2.2 Provider Registry。第一组只推进 provider 注册机制、provide
 6. 每完成一个阶段任务后，运行适用验证命令，并使用详细中文 commit 信息提交一次。
 7. AgentProxy 必须保持薄代理和控制面定位，v1 只接入 OpenCode，不重写 Agent runtime。
 8. 重启会话后先复习 `tasks/lessons.md`，并自动延续阶段提交习惯，不需要用户再次提醒。
-9. Phase 2.2 不要实现 OpenCode runtime 生命周期、配置系统、日志系统或 SQLite 存储，只建立 registry 层最小闭环。
+9. Phase 2.3 不要实现日志系统、SQLite 存储或 OpenCode runtime 生命周期，只建立配置解析层最小闭环。
 ```
 
 ## 1. 使用规则
@@ -250,18 +250,18 @@ Phase 2.2 Provider Registry。第一组只推进 provider 注册机制、provide
 
 ### 5.2 Provider Registry
 
-- [ ] 实现 provider 注册机制。
-- [ ] 实现 provider lookup。
-- [ ] 实现 provider list。
-- [ ] 注册 OpenCodeProvider 占位实现。
-- [ ] 实现 capability probe 占位流程。
-- [ ] 实现 capability schema 不兼容时的 limited mode。
+- [x] 实现 provider 注册机制。
+- [x] 实现 provider lookup。
+- [x] 实现 provider list。
+- [x] 注册 OpenCodeProvider 占位实现。
+- [x] 实现 capability probe 占位流程。
+- [x] 实现 capability schema 不兼容时的 limited mode。
 
 验收标准：
 
-- [ ] 未知 provider 返回 `PROVIDER_NOT_FOUND`。
-- [ ] schema 不兼容时不崩溃。
-- [ ] provider list 支持 JSON 输出所需数据结构。
+- [x] 未知 provider 返回 `PROVIDER_NOT_FOUND`。
+- [x] schema 不兼容时不崩溃。
+- [x] provider list 支持 JSON 输出所需数据结构。
 
 ### 5.3 配置系统
 
@@ -963,3 +963,4 @@ Phase 2.2 Provider Registry。第一组只推进 provider 注册机制、provide
 - 2026-05-19：完成 Phase 1 TypeScript 工程骨架；新增 `package.json`、`tsconfig.json`、`biome.json`、`vitest.config.ts`、`src/` 模块目录、`tests/cli-help.test.ts`、`.gitignore`、`pnpm-lock.yaml`，并在 README 写入基础开发命令。验证命令：`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`、`pnpm run agentproxy -- --help`、`pnpm run agentproxy -- --version`，结果均通过。未解决风险：Phase 2 尚未实现 provider contract、配置、日志和 SQLite；TUI/SQLite 只记录选型，未进入实现。
 - 2026-05-19：同步最新开发状态到 `ecfd1bf` 后；明确最新提交、Phase 0.2 / Phase 1 阶段提交、当前已完成项、未完成 Phase 2-9，以及下次启动应从 Phase 2.1 核心领域类型和稳定错误码继续。
 - 2026-05-19：完成 Phase 2.1 核心领域类型和稳定错误码；新增 `src/core/errors.ts`、`src/core/events.ts`、`src/core/metadata.ts`、`src/core/types.ts`、`src/providers/types.ts`、`src/providers/metadata.ts`、`src/sessions/types.ts` 和 `tests/core-domain-types.test.ts`，并更新 core/providers/sessions barrel exports。验证命令：`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`，结果均通过。未解决风险：Provider Registry、配置系统、日志脱敏和 SQLite 存储仍未实现，Gate 2 仍未通过；下一步只推进 Phase 2.2 Provider Registry。
+- 2026-05-19：完成 Phase 2.2 Provider Registry 第一组最小闭环；新增 `src/providers/registry.ts` 和 `tests/provider-registry.test.ts`，将 `src/providers/opencode/index.ts` 扩展为满足 `AgentProvider` 契约的 OpenCodeProvider 占位实现，并更新 provider barrel exports。实现范围包含内存 provider 注册、重复注册保护、lookup、JSON-ready list、capability probe、capability schema mismatch limited mode、capability probe 失败降级、默认 registry 注册 OpenCodeProvider；审查后补充 list 中暴露 provider 原始 capability schema version，并对 list metadata 做 JSON-safe 规整。验证命令：`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`，结果均通过。未解决风险：Phase 2.3 配置系统、Phase 2.4 日志脱敏、Phase 2.5 SQLite 存储仍未实现，Gate 2 仍未通过；OpenCodeProvider 仍是占位，不启动 runtime、不调用 SDK/API/CLI。

@@ -15,6 +15,15 @@
 
 Scope: advance only Phase 2.2 provider registry from the Chinese progress tracker.
 
+Implementation checklist:
+
+- [x] Add focused unit tests for provider registration, lookup, list, capability probe, and limited mode.
+- [x] Implement the registry API without config, logging, SQLite, or runtime lifecycle dependencies.
+- [x] Replace the OpenCode provider id-only placeholder with a contract-compatible placeholder provider.
+- [x] Export the registry and placeholder provider from the provider barrel.
+- [x] Update the Chinese progress tracker and record verification evidence.
+- [x] Run verification and create a detailed Chinese commit.
+
 Dependencies confirmed before implementation:
 
 - Use existing TypeScript, Vitest, Biome, tsup, and Commander setup.
@@ -24,13 +33,13 @@ Dependencies confirmed before implementation:
 
 Acceptance criteria for this iteration:
 
-- [ ] Provider registration, lookup, list, capability probe, and limited mode hooks exist.
-- [ ] Unknown provider id maps to `PROVIDER_NOT_FOUND`.
-- [ ] Capability schema mismatch can degrade to limited mode without crashing.
-- [ ] Provider list can emit data structures suitable for JSON output.
-- [ ] `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
-- [ ] Chinese progress tracker is updated with Phase 2.2 checkmarks and Review notes.
-- [ ] A detailed Chinese commit is created after verification.
+- [x] Provider registration, lookup, list, capability probe, and limited mode hooks exist.
+- [x] Unknown provider id maps to `PROVIDER_NOT_FOUND`.
+- [x] Capability schema mismatch can degrade to limited mode without crashing.
+- [x] Provider list can emit data structures suitable for JSON output.
+- [x] `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
+- [x] Chinese progress tracker is updated with Phase 2.2 checkmarks and Review notes.
+- [x] A detailed Chinese commit is created after verification.
 
 Risks and constraints:
 

@@ -1,4 +1,4 @@
-export { OPENCODE_PROVIDER_ID } from "./opencode/index.js";
+export { OpenCodeProvider, OPENCODE_PROVIDER_ID } from "./opencode/index.js";
 
 export type {
   AgentProvider,
@@ -32,6 +32,18 @@ export {
   CAPABILITY_SCHEMA_VERSION,
   normalizeProviderCapabilities,
 } from "./types.js";
+export type {
+  ProviderCapabilityProbe,
+  ProviderLimitedReason,
+  ProviderListItem,
+  ProviderListOptions,
+  ProviderProbeContext,
+  ProviderRegistryMode,
+} from "./registry.js";
+export {
+  createDefaultProviderRegistry,
+  ProviderRegistry,
+} from "./registry.js";
 export type { ProviderMetadata } from "./metadata.js";
 export {
   isProviderMetadata,
