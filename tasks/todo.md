@@ -13,7 +13,7 @@
 
 ## Current Iteration - 2026-05-19
 
-Scope: advance only Phase 2.1 core domain types and stable error codes from the Chinese progress tracker.
+Scope: advance only Phase 2.2 provider registry from the Chinese progress tracker.
 
 Dependencies confirmed before implementation:
 
@@ -24,19 +24,18 @@ Dependencies confirmed before implementation:
 
 Acceptance criteria for this iteration:
 
-- [x] `AgentProvider`, `ProviderCapabilities`, `ProviderHealth`, `RuntimeHandle`, session, event, and request/result contract types exist.
-- [x] Stable `AgentProxyErrorCode` values and typed `AgentProxyError` helpers exist.
-- [x] Capability helpers treat missing fields as unsupported.
-- [x] Unknown provider fields are preserved in `metadata`.
-- [x] Tests prove the contract is usable by a mock provider.
-- [x] `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
-- [x] Chinese progress tracker is updated with Phase 2.1 checkmarks and Review notes.
-- [x] A detailed Chinese commit is created after verification.
+- [ ] Provider registration, lookup, list, capability probe, and limited mode hooks exist.
+- [ ] Unknown provider id maps to `PROVIDER_NOT_FOUND`.
+- [ ] Capability schema mismatch can degrade to limited mode without crashing.
+- [ ] Provider list can emit data structures suitable for JSON output.
+- [ ] `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
+- [ ] Chinese progress tracker is updated with Phase 2.2 checkmarks and Review notes.
+- [ ] A detailed Chinese commit is created after verification.
 
 Risks and constraints:
 
-- Avoid overfitting the contract to OpenCode API shapes; provider-specific values must stay in `metadata` or `raw`.
-- Avoid implementing provider registry, config, logging, SQLite, or runtime behavior before their tracker items.
+- Avoid overfitting the registry to OpenCode API shapes; provider-specific values must stay in `metadata` or `raw`.
+- Avoid implementing config, logging, SQLite, or runtime behavior before their tracker items.
 - Keep types strict under `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`.
 - Keep the implementation small enough that later provider registry and OpenCodeProvider phases can consume it without refactoring.
 

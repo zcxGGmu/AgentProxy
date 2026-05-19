@@ -13,10 +13,11 @@
 
 - 当前处于：Phase 2.1 核心领域类型和稳定错误码已完成；Gate 2 尚未通过，下一步进入 Phase 2.2 Provider Registry。
 - 本轮启动基线：`9513f92 文档：同步最新开发状态与下次启动提示词`；提示词中提到的 `ecfd1bf` 已被后续文档提交取代。
-- 本轮阶段提交：`Phase 2.1：完成核心契约与稳定错误码`
+- 最新阶段实现提交：`fccb809 Phase 2.1：完成核心契约与稳定错误码`
 - Phase 0.2 / Phase 1 阶段提交：`e5eb0ce 阶段进展：完成 Phase 0.2 技术决策与 Phase 1 工程骨架`
 - 当前主要进度来源：本文档和 `docs/agentproxy-development-plan.md`
 - 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型和 `AgentProvider` 契约。
+- 当前工作区预期：阶段实现提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核。
 
 ### 已完成
 
@@ -33,7 +34,11 @@
 
 ### 未完成
 
-- [ ] Phase 2：Provider Registry、配置、日志、SQLite 存储尚未实现；Gate 2 仍未完成。
+- [ ] Phase 2.2 Provider Registry 尚未实现：注册机制、lookup、list、OpenCodeProvider 占位、capability probe、limited mode。
+- [ ] Phase 2.3 配置系统尚未实现：默认配置、全局/项目配置、env/CLI 覆盖、schema 校验、路径规范化。
+- [ ] Phase 2.4 日志与脱敏尚未实现：结构化 logger、correlationId、日志字段、secret redaction、stdout/stderr 分离。
+- [ ] Phase 2.5 SQLite 存储尚未实现：初始化、migration、providers/runtimes/sessions/session_events 表、CRUD、备份机制。
+- [ ] Gate 2 尚未通过：核心类型已完成，但配置、日志、存储基础仍未完成。
 - [ ] Phase 3：OpenCode runtime 生命周期尚未实现。
 - [ ] Phase 4：OpenCodeProvider 核心能力尚未实现。
 - [ ] Phase 5：CLI MVP 尚未实现。
@@ -48,7 +53,7 @@
 
 1. 先阅读 `tasks/lessons.md`，确认项目规则和长期习惯。
 2. 阅读本文档，定位第一个未完成任务。
-3. 从 Phase 2.2 Provider Registry 开始，先实现注册、lookup、list、OpenCodeProvider 占位和 capability probe/limited mode 的最小闭环。
+3. 从 Phase 2.2 Provider Registry 开始，先实现注册、lookup、list、OpenCodeProvider 占位和 capability probe/limited mode 的最小闭环；不要提前进入配置、日志、SQLite 或 OpenCode runtime 生命周期。
 4. 复用 Phase 2.1 已建立的 `AgentProvider`、capability schema、metadata escape hatch 和稳定错误码。
 5. 暂不实现 OpenCode runtime 生命周期，直到 Phase 3。
 6. 完成阶段后运行验证命令，更新本文档，创建详细中文 commit。
@@ -61,11 +66,11 @@
 再阅读 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/development-progress-tracker.zh.md
 和 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/agentproxy-development-plan.md。
 
-当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码已完成并提交，下一步从 Phase 2.2 Provider Registry 开始。
+当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码已完成并提交；最新阶段实现提交是 `fccb809 Phase 2.1：完成核心契约与稳定错误码`。下一步从 Phase 2.2 Provider Registry 开始。
 请先运行 `git status --short` 和 `git log -1 --oneline` 核对最新提交与工作区状态。
 
 请严格按照 docs/development-progress-tracker.zh.md 继续迭代，从第一个未完成项开始：
-Phase 2.2 Provider Registry。第一组建议只推进 provider 注册机制、provider lookup、provider list、OpenCodeProvider 占位实现、capability probe 占位流程，以及 capability schema 不兼容时的 limited mode。
+Phase 2.2 Provider Registry。第一组只推进 provider 注册机制、provider lookup、provider list、OpenCodeProvider 占位实现、capability probe 占位流程，以及 capability schema 不兼容时的 limited mode。
 
 要求：
 1. 不要重新规划已完成的架构方案，除非发现真实设计缺口。
@@ -76,6 +81,7 @@ Phase 2.2 Provider Registry。第一组建议只推进 provider 注册机制、p
 6. 每完成一个阶段任务后，运行适用验证命令，并使用详细中文 commit 信息提交一次。
 7. AgentProxy 必须保持薄代理和控制面定位，v1 只接入 OpenCode，不重写 Agent runtime。
 8. 重启会话后先复习 `tasks/lessons.md`，并自动延续阶段提交习惯，不需要用户再次提醒。
+9. Phase 2.2 不要实现 OpenCode runtime 生命周期、配置系统、日志系统或 SQLite 存储，只建立 registry 层最小闭环。
 ```
 
 ## 1. 使用规则
