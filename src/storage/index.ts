@@ -5,7 +5,13 @@ export {
   AGENTPROXY_SESSION_SOURCE_OF_TRUTH,
   AGENTPROXY_STORAGE_SCHEMA_MIGRATION_TABLE,
 } from "./constants.js";
+export {
+  INITIAL_STORAGE_MIGRATIONS,
+  listAppliedSqliteMigrations,
+  runSqliteMigrations,
+} from "./migrations.js";
 export { openAgentProxyStorage } from "./sqlite.js";
+export type { RunSqliteMigrationsOptions, SqliteMigration } from "./migrations.js";
 export type {
   AgentProxyStorage,
   AppliedMigration,

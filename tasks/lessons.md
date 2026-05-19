@@ -20,3 +20,5 @@
 - 使用 Commander 等 CLI 框架时，框架自身的 parse error / unknown option / unknown command stderr 也要接入脱敏输出通道，不能只包自写错误输出。
 - pnpm 10 会默认阻止 native 依赖的 build scripts；接入 `better-sqlite3` 这类 native 模块时，需要在 `pnpm-workspace.yaml` 用 `onlyBuiltDependencies` 显式允许，并验证 native binding 能实际加载。
 - SQLite session upsert 必须默认保留既有 tombstone；恢复/清除 tombstone 需要未来显式 API，不能被普通 provider sync 覆盖。
+- SQLite 破坏性 migration 的备份测试必须证明文件级恢复，而不能只证明单个 transaction 自动回滚；用两段式 migration 先提交可观察破坏，再让后续 migration 失败。
+- SQLite 文件恢复要把主库和 `-wal`、`-shm`、`-journal` sidecar 作为一组处理，并在成功迁移或成功恢复后清理临时备份，避免数据目录残留完整快照。

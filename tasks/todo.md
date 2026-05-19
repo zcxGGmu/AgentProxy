@@ -11,6 +11,42 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20
+
+Scope: advance only the remaining Phase 2.5 SQLite storage backup item from the Chinese progress tracker.
+
+Implementation checklist:
+
+- [x] Refactor SQLite migrations into an explicit migration list with destructive migration metadata.
+- [x] Add a file backup before any pending destructive migration is applied.
+- [x] Restore the pre-migration SQLite file and fail with `STORAGE_ERROR` when a destructive migration fails.
+- [x] Cover destructive migration rollback behavior with a focused storage test.
+- [x] Update the Chinese progress tracker and record verification evidence.
+- [x] Run verification and create a detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Use the existing accepted SQLite library: `better-sqlite3`.
+- Reuse the current TypeScript, Vitest, Biome, tsup, and Node.js `>=22.0.0` tooling.
+- Keep the existing Phase 2.5 schema and repository CRUD behavior intact.
+- Keep AgentProxy as a thin control plane: do not implement OpenCode runtime lifecycle, OpenCodeProvider core behavior, CLI MVP, TUI, provider sync workers, or transcript storage.
+
+Acceptance criteria for this iteration:
+
+- [x] Existing fresh database migration and repeated migration tests still pass.
+- [x] A pending destructive migration creates a temporary backup before applying destructive SQL.
+- [x] If a destructive migration fails, the SQLite database is restored to the pre-migration state.
+- [x] Failed destructive migration is reported as `STORAGE_ERROR`.
+- [x] `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
+- [x] Chinese progress tracker marks the Phase 2.5 backup item done and records Review evidence.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- Copying a live SQLite file must account for WAL/SHM/journal sidecar files; the implementation should checkpoint before backup and remove sidecars during restore when they were not part of the backup.
+- A destructive migration failure may leave the opened database handle unusable after restore; this is acceptable because the documented behavior is to restore and exit.
+- Backup support should stay small and tied to migrations; do not introduce an ORM or a general backup management feature in this iteration.
+
 ## Current Iteration - 2026-05-19
 
 Scope: advance only Phase 2.5 SQLite storage first group from the Chinese progress tracker.
@@ -60,7 +96,7 @@ Risks and constraints:
 - [x] Gate 0: v1 scope is locked: CLI/TUI plus OpenCode provider.
 - [x] Gate 0: architecture plan exists in `docs/agentproxy-development-plan.md`.
 - [x] Gate 1: TypeScript project skeleton is initialized and basic checks pass.
-- [ ] Gate 2: provider contracts and storage foundations are implemented.
+- [x] Gate 2: provider contracts and storage foundations are implemented.
 - [ ] Gate 3: OpenCode runtime can be started, attached, diagnosed, and stopped safely.
 - [ ] Gate 4: CLI MVP supports real run/resume/session workflows.
 - [ ] Gate 5: TUI MVP supports control-plane workflows without duplicating OpenCode TUI.
@@ -175,22 +211,22 @@ Acceptance criteria:
 
 ### 1.5 SQLite Storage
 
-- [ ] Select SQLite package.
-- [ ] Implement storage initialization.
-- [ ] Implement migration table.
-- [ ] Implement providers table.
-- [ ] Implement runtimes table.
-- [ ] Implement sessions table with tombstone fields.
-- [ ] Implement session_events table.
-- [ ] Add migration backup behavior for destructive changes.
-- [ ] Add repository functions for CRUD operations.
+- [x] Select SQLite package.
+- [x] Implement storage initialization.
+- [x] Implement migration table.
+- [x] Implement providers table.
+- [x] Implement runtimes table.
+- [x] Implement sessions table with tombstone fields.
+- [x] Implement session_events table.
+- [x] Add migration backup behavior for destructive changes.
+- [x] Add repository functions for CRUD operations.
 
 Acceptance criteria:
 
-- [ ] Fresh database migration passes.
-- [ ] Re-running migration is safe.
-- [ ] Session uniqueness on provider/session id is enforced.
-- [ ] Tombstone records are preserved.
+- [x] Fresh database migration passes.
+- [x] Re-running migration is safe.
+- [x] Session uniqueness on provider/session id is enforced.
+- [x] Tombstone records are preserved.
 
 ## Phase 2: Provider And Runtime Foundations
 
@@ -807,3 +843,4 @@ A task can be checked only when all applicable items are true:
 - 2026-05-19: Completed Phase 2.3 configuration resolver first group. Added built-in AgentProxy defaults, global/project/explicit config loading, env and CLI overrides, manual schema validation mapped to `CONFIG_INVALID`, `~` expansion, workspace path normalization, OpenCode passthrough-env boundaries, and focused config resolver tests. Code review found no blocking issues; follow-up fixes added port range validation, explicit config precedence tests, nested OpenCode config rejection tests, and aligned the default database filename with the storage constant. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: logging/redaction and SQLite storage are still pending, so Gate 2 remains open.
 - 2026-05-19: Completed Phase 2.4 logging and redaction first group. Added structured NDJSON logging, per-operation `correlationId`, provider/runtime/session/operation fields, stdout/stderr output helpers, default redaction for logger data/message, errors, command args, diagnostics, Commander parse errors, JSON-style inline secrets, env-var style inline secrets, and space-separated CLI secret flags. Code review found blocking leakage paths in logger messages, diagnostic stderr, inline env strings, and Commander parse errors; all were fixed with regression tests. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: SQLite storage is still pending, so Gate 2 remains open; no OpenCode runtime lifecycle was implemented.
 - 2026-05-19: Completed Phase 2.5 SQLite storage first group. Added `better-sqlite3`, `@types/better-sqlite3`, `pnpm-workspace.yaml` native build approval, SQLite opening/initialization, explicit migration tracking, providers/runtimes/sessions/session_events schema, repository CRUD, JSON metadata/payload persistence, `STORAGE_ERROR` mapping, and focused storage tests. Code review found that normal session upsert could clear an existing tombstone; this was fixed with SQL preservation logic and a regression test. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: destructive migration backup behavior is still pending; no OpenCode runtime lifecycle, OpenCodeProvider core behavior, CLI MVP, or TUI work was implemented.
+- 2026-05-20: Completed the Phase 2.5 destructive migration backup item. Added explicit SQLite migration descriptors in `src/storage/migrations.ts`, destructive migration temporary file backups for the main database plus WAL/SHM/journal sidecars, backup restore on migration failure, temporary backup cleanup after successful migration or restore, and `STORAGE_ERROR` failure mapping. Added focused storage tests that prove successful destructive migration cleanup, two-step failed destructive migration rollback, missing migration records, and preservation of pre-migration provider data. Verification passed with `pnpm exec vitest run tests/storage-sqlite.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Gate 2 is complete; no OpenCode runtime lifecycle, OpenCodeProvider core behavior, CLI MVP, or TUI work was implemented.

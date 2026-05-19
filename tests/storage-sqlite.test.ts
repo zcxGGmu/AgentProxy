@@ -1,14 +1,20 @@
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { AgentProxyError } from "../src/core/index.js";
+import { runSqliteMigrations, type SqliteMigration } from "../src/storage/migrations.js";
+import type { SqliteDatabaseConstructor } from "../src/storage/sqlite-types.js";
 import {
   AGENTPROXY_INITIAL_SCHEMA_MIGRATION_ID,
+  AGENTPROXY_STORAGE_SCHEMA_MIGRATION_TABLE,
   openAgentProxyStorage,
 } from "../src/storage/index.js";
 
 const tempRoots: string[] = [];
+const requireFromTest = createRequire(import.meta.url);
+const TestDatabase = requireFromTest("better-sqlite3") as SqliteDatabaseConstructor;
 
 async function createDatabasePath(): Promise<{ databasePath: string; workspacePath: string }> {
   const root = await mkdtemp(path.join(tmpdir(), "agentproxy-storage-test-"));
@@ -51,6 +57,144 @@ describe("SQLite storage", () => {
     const reopenedStorage = openAgentProxyStorage({ databasePath });
     expect(reopenedStorage.getAppliedMigrations()).toHaveLength(1);
     reopenedStorage.close();
+  });
+
+  it("backs up and restores the database when a destructive migration fails", async () => {
+    const { databasePath } = await createDatabasePath();
+    const storage = openAgentProxyStorage({ databasePath });
+    storage.providers.upsert({
+      id: "opencode",
+      displayName: "OpenCode",
+      enabled: true,
+      metadata: {},
+    });
+    storage.close();
+
+    const firstMigration: SqliteMigration = {
+      id: "9998_destructive_step_one",
+      name: "destructive_step_one",
+      destructive: true,
+      sql: `
+        UPDATE providers
+        SET display_name = 'Corrupted Provider'
+        WHERE id = 'opencode';
+      `,
+    };
+    const secondMigration: SqliteMigration = {
+      id: "9999_destructive_step_two_failure",
+      name: "destructive_step_two_failure",
+      destructive: true,
+      sql: `
+        INSERT INTO missing_destructive_migration_table(id)
+        VALUES ('force failure');
+      `,
+    };
+
+    const database = new TestDatabase(databasePath);
+    let migrationError: unknown;
+    try {
+      runSqliteMigrations({
+        database,
+        databasePath,
+        migrations: [firstMigration, secondMigration],
+      });
+    } catch (error) {
+      migrationError = error;
+    } finally {
+      if (database.open) {
+        database.close();
+      }
+    }
+
+    expect(migrationError).toBeInstanceOf(AgentProxyError);
+    if (migrationError instanceof AgentProxyError) {
+      expect(migrationError.code).toBe("STORAGE_ERROR");
+      expect(migrationError.operation).toBe("storage.migrations.run");
+    }
+
+    await expect(listTemporaryBackupEntries(databasePath)).resolves.toEqual([]);
+
+    const restoredDatabase = new TestDatabase(databasePath, { readonly: true });
+    try {
+      expect(
+        restoredDatabase
+          .prepare<{ display_name: string }>("SELECT display_name FROM providers WHERE id = ?")
+          .get("opencode"),
+      ).toEqual({ display_name: "OpenCode" });
+      expect(
+        restoredDatabase
+          .prepare<{ id: string }>(
+            `SELECT id FROM ${AGENTPROXY_STORAGE_SCHEMA_MIGRATION_TABLE} WHERE id = ?`,
+          )
+          .get(firstMigration.id),
+      ).toBeUndefined();
+      expect(
+        restoredDatabase
+          .prepare<{ id: string }>(
+            `SELECT id FROM ${AGENTPROXY_STORAGE_SCHEMA_MIGRATION_TABLE} WHERE id = ?`,
+          )
+          .get(secondMigration.id),
+      ).toBeUndefined();
+    } finally {
+      restoredDatabase.close();
+    }
+  });
+
+  it("removes temporary backups after a destructive migration succeeds", async () => {
+    const { databasePath } = await createDatabasePath();
+    const storage = openAgentProxyStorage({ databasePath });
+    storage.providers.upsert({
+      id: "opencode",
+      displayName: "OpenCode",
+      enabled: true,
+      metadata: {},
+    });
+    storage.close();
+
+    const migration: SqliteMigration = {
+      id: "9997_destructive_success",
+      name: "destructive_success",
+      destructive: true,
+      sql: `
+        UPDATE providers
+        SET display_name = 'OpenCode Provider'
+        WHERE id = 'opencode';
+      `,
+    };
+
+    const database = new TestDatabase(databasePath);
+    try {
+      expect(
+        runSqliteMigrations({
+          database,
+          databasePath,
+          migrations: [migration],
+        }),
+      ).toEqual(
+        expect.arrayContaining([
+          {
+            id: migration.id,
+            name: migration.name,
+            appliedAt: expect.any(String),
+          },
+        ]),
+      );
+    } finally {
+      database.close();
+    }
+
+    await expect(listTemporaryBackupEntries(databasePath)).resolves.toEqual([]);
+
+    const reopenedDatabase = new TestDatabase(databasePath, { readonly: true });
+    try {
+      expect(
+        reopenedDatabase
+          .prepare<{ display_name: string }>("SELECT display_name FROM providers WHERE id = ?")
+          .get("opencode"),
+      ).toEqual({ display_name: "OpenCode Provider" });
+    } finally {
+      reopenedDatabase.close();
+    }
   });
 
   it("persists providers and runtimes through basic repository CRUD", async () => {
@@ -316,3 +460,9 @@ describe("SQLite storage", () => {
     storage.close();
   });
 });
+
+async function listTemporaryBackupEntries(databasePath: string): Promise<string[]> {
+  const directoryEntries = await readdir(path.dirname(databasePath));
+  const backupEntryPrefix = `${path.basename(databasePath)}.backup-`;
+  return directoryEntries.filter((entry) => entry.startsWith(backupEntryPrefix));
+}

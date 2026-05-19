@@ -7,12 +7,12 @@ import {
   isProviderMetadata,
   type ProviderMetadata,
 } from "../core/index.js";
+import { AGENTPROXY_SESSION_SOURCE_OF_TRUTH } from "./constants.js";
 import {
-  AGENTPROXY_INITIAL_SCHEMA_MIGRATION_ID,
-  AGENTPROXY_INITIAL_SCHEMA_MIGRATION_NAME,
-  AGENTPROXY_SESSION_SOURCE_OF_TRUTH,
-  AGENTPROXY_STORAGE_SCHEMA_MIGRATION_TABLE,
-} from "./constants.js";
+  INITIAL_STORAGE_MIGRATIONS,
+  listAppliedSqliteMigrations,
+  runSqliteMigrations,
+} from "./migrations.js";
 import type {
   SqliteDatabase,
   SqliteDatabaseConstructor,
@@ -38,12 +38,6 @@ import type {
 const requireFromModule = createRequire(import.meta.url);
 
 let sqliteConstructor: SqliteDatabaseConstructor | undefined;
-
-interface MigrationRow {
-  id: string;
-  name: string;
-  applied_at: string;
-}
 
 interface ProviderRow {
   id: string;
@@ -146,46 +140,17 @@ class AgentProxySqliteStorage implements AgentProxyStorage {
   }
 
   runMigrations(): AppliedMigration[] {
-    return runStorageOperation("storage.migrations.run", () => {
-      ensureMigrationTable(this.database);
-      const applyInitialMigration = this.database.transaction(() => {
-        this.database.exec(INITIAL_STORAGE_SCHEMA_SQL);
-        this.database
-          .prepare(`
-            INSERT OR IGNORE INTO ${AGENTPROXY_STORAGE_SCHEMA_MIGRATION_TABLE}
-              (id, name, applied_at)
-            VALUES (?, ?, ?)
-          `)
-          .run(
-            AGENTPROXY_INITIAL_SCHEMA_MIGRATION_ID,
-            AGENTPROXY_INITIAL_SCHEMA_MIGRATION_NAME,
-            new Date().toISOString(),
-          );
-      });
-
-      applyInitialMigration();
-
-      return this.getAppliedMigrations();
+    return runSqliteMigrations({
+      database: this.database,
+      databasePath: this.databasePath,
+      migrations: INITIAL_STORAGE_MIGRATIONS,
     });
   }
 
   getAppliedMigrations(): AppliedMigration[] {
-    return runStorageOperation("storage.migrations.list", () => {
-      ensureMigrationTable(this.database);
-
-      return this.database
-        .prepare<MigrationRow>(`
-          SELECT id, name, applied_at
-          FROM ${AGENTPROXY_STORAGE_SCHEMA_MIGRATION_TABLE}
-          ORDER BY id ASC
-        `)
-        .all()
-        .map((row) => ({
-          id: row.id,
-          name: row.name,
-          appliedAt: row.applied_at,
-        }));
-    });
+    return runStorageOperation("storage.migrations.list", () =>
+      listAppliedSqliteMigrations(this.database),
+    );
   }
 
   close(): void {
@@ -554,16 +519,6 @@ function ensureDatabaseDirectory(databasePath: string): void {
   mkdirSync(path.dirname(databasePath), { recursive: true });
 }
 
-function ensureMigrationTable(database: SqliteDatabase): void {
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS ${AGENTPROXY_STORAGE_SCHEMA_MIGRATION_TABLE} (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      applied_at TEXT NOT NULL
-    );
-  `);
-}
-
 function providerRowToRecord(row: ProviderRow): StoredProviderRecord {
   const record: StoredProviderRecord = {
     id: row.id,
@@ -829,85 +784,3 @@ const SESSION_SELECT_SQL = `
 function SESSION_SELECT_SQL_WITH_WHERE(whereClause: string): string {
   return `${SESSION_SELECT_SQL} WHERE ${whereClause}`;
 }
-
-const INITIAL_STORAGE_SCHEMA_SQL = `
-  CREATE TABLE IF NOT EXISTS providers (
-    id TEXT PRIMARY KEY,
-    display_name TEXT NOT NULL,
-    enabled INTEGER NOT NULL DEFAULT 1,
-    last_seen_version TEXT,
-    last_health_status TEXT,
-    last_health_checked_at TEXT,
-    metadata_json TEXT NOT NULL DEFAULT '{}'
-  );
-
-  CREATE TABLE IF NOT EXISTS runtimes (
-    id TEXT PRIMARY KEY,
-    provider_id TEXT NOT NULL,
-    mode TEXT NOT NULL,
-    base_url TEXT,
-    hostname TEXT,
-    port INTEGER,
-    pid INTEGER,
-    workspace_path TEXT,
-    status TEXT NOT NULL,
-    started_at TEXT NOT NULL,
-    stopped_at TEXT,
-    metadata_json TEXT NOT NULL DEFAULT '{}'
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_runtimes_provider_id
-    ON runtimes(provider_id);
-
-  CREATE INDEX IF NOT EXISTS idx_runtimes_workspace_path
-    ON runtimes(workspace_path);
-
-  CREATE TABLE IF NOT EXISTS sessions (
-    id TEXT PRIMARY KEY,
-    provider_id TEXT NOT NULL,
-    provider_session_id TEXT NOT NULL,
-    workspace_path TEXT NOT NULL,
-    title TEXT,
-    status TEXT NOT NULL,
-    model TEXT,
-    runtime_id TEXT,
-    parent_session_id TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    last_run_at TEXT,
-    last_sync_at TEXT,
-    last_error TEXT,
-    deleted_at TEXT,
-    tombstone_reason TEXT,
-    source_of_truth TEXT NOT NULL DEFAULT 'provider_content_agentproxy_index',
-    metadata_json TEXT NOT NULL DEFAULT '{}',
-    UNIQUE(provider_id, provider_session_id)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_sessions_provider_id
-    ON sessions(provider_id);
-
-  CREATE INDEX IF NOT EXISTS idx_sessions_workspace_path
-    ON sessions(workspace_path);
-
-  CREATE INDEX IF NOT EXISTS idx_sessions_updated_at
-    ON sessions(updated_at);
-
-  CREATE INDEX IF NOT EXISTS idx_sessions_deleted_at
-    ON sessions(deleted_at);
-
-  CREATE TABLE IF NOT EXISTS session_events (
-    id TEXT PRIMARY KEY,
-    session_id TEXT NOT NULL,
-    provider_id TEXT NOT NULL,
-    event_type TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    payload_json TEXT NOT NULL
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_session_events_session_id_created_at
-    ON session_events(session_id, created_at);
-
-  CREATE INDEX IF NOT EXISTS idx_session_events_provider_id
-    ON session_events(provider_id);
-`;
