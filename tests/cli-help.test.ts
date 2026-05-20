@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Command } from "commander";
-import { AGENTPROXY_VERSION, createProgram, normalizeCliArgv } from "../src/cli/index.js";
+import {
+  AGENTPROXY_VERSION,
+  createProgram,
+  main,
+  mapCliErrorToExitCode,
+  normalizeCliArgv,
+} from "../src/cli/index.js";
+import { createAgentProxyError } from "../src/core/index.js";
 import { createOutputWriters } from "../src/logging/index.js";
 
 function createMemorySink(): { chunks: string[]; write: (chunk: string) => boolean } {
@@ -62,6 +69,25 @@ describe("agentproxy CLI placeholder", () => {
     expect(stderr.chunks.join("")).not.toContain("sk-cli-secret");
   });
 
+  it("maps Commander parse errors to the stable argument exit code", async () => {
+    const originalExitCode = process.exitCode;
+    const stdout = createMemorySink();
+    const stderr = createMemorySink();
+
+    try {
+      await main(["node", "agentproxy", "run", "--api-key=sk-cli-secret"], {
+        output: createOutputWriters({ stdout, stderr }),
+      });
+
+      expect(process.exitCode).toBe(2);
+      expect(stdout.chunks.join("")).toBe("");
+      expect(stderr.chunks.join("")).toContain("unknown option '--api-key=[REDACTED]'");
+      expect(stderr.chunks.join("")).not.toContain("sk-cli-secret");
+    } finally {
+      process.exitCode = originalExitCode;
+    }
+  });
+
   it("redacts secret-shaped Commander unknown command errors on stderr", async () => {
     const stdout = createMemorySink();
     const stderr = createMemorySink();
@@ -91,13 +117,127 @@ describe("agentproxy CLI placeholder", () => {
     try {
       await program.parseAsync(["node", "agentproxy", "doctor"]);
 
-      expect(process.exitCode).toBe(1);
+      expect(process.exitCode).toBe(6);
       expect(stdout.chunks.join("")).toBe("");
-      expect(stderr.chunks.join("")).toBe(
-        "agentproxy doctor is planned for a later phase and is not implemented yet.\n",
+      expect(stderr.chunks.join("")).toContain(
+        "CAPABILITY_UNSUPPORTED: agentproxy doctor is planned for a later phase and is not implemented yet.",
       );
     } finally {
       process.exitCode = originalExitCode;
     }
   });
+
+  it("allows every registered command and subcommand to render help", () => {
+    const program = createProgram();
+
+    for (const command of collectCommands(program)) {
+      expect(() => command.helpInformation()).not.toThrow();
+      expect(command.helpInformation()).toContain("Usage:");
+    }
+  });
+
+  it("parses global flags from nested commands", async () => {
+    const originalExitCode = process.exitCode;
+    const stdout = createMemorySink();
+    const stderr = createMemorySink();
+    const program = createProgram({
+      output: createOutputWriters({ stdout, stderr }),
+    });
+
+    try {
+      await program.parseAsync([
+        "node",
+        "agentproxy",
+        "sessions",
+        "list",
+        "--json",
+        "--provider",
+        "opencode",
+        "--workspace",
+        ".",
+        "--verbose",
+        "--debug",
+        "--config",
+        "./agentproxy.json",
+      ]);
+
+      expect(process.exitCode).toBe(6);
+      expect(stdout.chunks.join("")).toContain('"ok":false');
+      expect(stdout.chunks.join("")).toContain('"code":"CAPABILITY_UNSUPPORTED"');
+      expect(stderr.chunks.join("")).toBe("");
+    } finally {
+      process.exitCode = originalExitCode;
+    }
+  });
+
+  it("keeps planned command diagnostics on stderr in human mode", async () => {
+    const originalExitCode = process.exitCode;
+    const stdout = createMemorySink();
+    const stderr = createMemorySink();
+    const program = createProgram({
+      output: createOutputWriters({ stdout, stderr }),
+    });
+
+    try {
+      await program.parseAsync(["node", "agentproxy", "sessions", "list"]);
+
+      expect(process.exitCode).toBe(6);
+      expect(stdout.chunks.join("")).toBe("");
+      expect(stderr.chunks.join("")).toContain(
+        "CAPABILITY_UNSUPPORTED: agentproxy sessions list is planned",
+      );
+    } finally {
+      process.exitCode = originalExitCode;
+    }
+  });
+
+  it("maps AgentProxy errors to the planned stable exit-code table", () => {
+    expect(mapCliErrorToExitCode(new Error("generic"))).toBe(1);
+    expect(mapCliErrorToExitCode({ code: "commander.unknownOption", exitCode: 1 })).toBe(2);
+    expect(
+      mapCliErrorToExitCode(createAgentProxyError({ code: "CONFIG_INVALID", message: "config" })),
+    ).toBe(3);
+    expect(
+      mapCliErrorToExitCode(
+        createAgentProxyError({ code: "PROVIDER_NOT_FOUND", message: "provider" }),
+      ),
+    ).toBe(4);
+    expect(
+      mapCliErrorToExitCode(
+        createAgentProxyError({ code: "PROVIDER_UNAVAILABLE", message: "provider" }),
+      ),
+    ).toBe(4);
+    expect(
+      mapCliErrorToExitCode(
+        createAgentProxyError({ code: "RUNTIME_START_FAILED", message: "runtime" }),
+      ),
+    ).toBe(5);
+    expect(
+      mapCliErrorToExitCode(
+        createAgentProxyError({ code: "CAPABILITY_UNSUPPORTED", message: "capability" }),
+      ),
+    ).toBe(6);
+    expect(
+      mapCliErrorToExitCode(
+        createAgentProxyError({ code: "PERMISSION_DENIED", message: "permission" }),
+      ),
+    ).toBe(8);
+    expect(
+      mapCliErrorToExitCode(
+        createAgentProxyError({ code: "RUNTIME_HEALTH_FAILED", message: "connection" }),
+      ),
+    ).toBe(9);
+    expect(
+      mapCliErrorToExitCode(
+        createAgentProxyError({ code: "EVENT_STREAM_INTERRUPTED", message: "connection" }),
+      ),
+    ).toBe(9);
+    expect(
+      mapCliErrorToExitCode(createAgentProxyError({ code: "STORAGE_ERROR", message: "storage" })),
+    ).toBe(10);
+  });
 });
+
+function collectCommands(command: Command): Command[] {
+  return [command, ...command.commands.flatMap((child) => collectCommands(child))];
+}

@@ -17,17 +17,17 @@ Scope: advance only the first small Phase 5 CLI MVP task group: CLI framework fo
 
 Implementation checklist:
 
-- [ ] Confirm Phase 5 CLI contracts, current Commander setup, and reusable service boundaries before code changes.
-- [ ] Add focused CLI tests for global flags, per-command help availability, JSON error output, stdout/stderr separation, stable exit code mapping, and command routing behavior.
-- [ ] Refactor `src/cli/index.ts` only as needed to centralize CLI context, JSON/human error formatting, and exit-code handling.
-- [ ] Keep existing `agentproxy provider exec opencode -- <native args>` behavior intact, including provider stdout/stderr and original exit code preservation.
-- [ ] Leave planned workflow commands as non-implemented placeholders except where Phase 5.1 needs shared framework behavior.
-- [ ] Update `docs/development-progress-tracker.zh.md` Phase 5.1 checklist and Review notes after verification.
-- [ ] Run focused CLI tests and full project verification before creating one detailed Chinese commit.
+- [x] Confirm Phase 5 CLI contracts, current Commander setup, and reusable service boundaries before code changes.
+- [x] Add focused CLI tests for global flags, per-command help availability, JSON error output, stdout/stderr separation, stable exit code mapping, and command routing behavior.
+- [x] Refactor `src/cli/index.ts` only as needed to centralize CLI context, JSON/human error formatting, and exit-code handling.
+- [x] Keep existing `agentproxy provider exec opencode -- <native args>` behavior intact, including provider stdout/stderr and original exit code preservation.
+- [x] Leave planned workflow commands as non-implemented placeholders except where Phase 5.1 needs shared framework behavior.
+- [x] Update `docs/development-progress-tracker.zh.md` Phase 5.1 checklist and Review notes after verification.
+- [x] Run focused CLI tests and full project verification before creating one detailed Chinese commit.
 
 Dependencies confirmed before implementation:
 
-- Initial working tree is clean and `git log -1 --oneline` is `8e534e8 文档：同步 Gate 4 后续启动基线`.
+- Initial working tree is clean and `git log -1 --oneline` is `5669a57 文档：同步 Phase 5.1 启动前状态与计划`.
 - Per tracker rules, Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`, and latest Phase 4 implementation baseline remains `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`.
 - `docs/development-progress-tracker.zh.md` identifies Phase 5 CLI MVP as the first unfinished item and explicitly says not to enter TUI.
 - `docs/agentproxy-development-plan.md` records Commander as the selected CLI framework, the Phase 5 command matrix, global flags, stdout/stderr contract, JSON output contract, and stable exit-code table.
@@ -35,14 +35,14 @@ Dependencies confirmed before implementation:
 
 Acceptance criteria for this iteration:
 
-- [ ] Every registered command and subcommand exposes help without throwing.
-- [ ] Global flags `--provider`, `--workspace`, `--json`, `--verbose`, `--debug`, and `--config` are parsed consistently at the root command.
-- [ ] Human-mode errors and planned-command diagnostics go to stderr; normal output stays on stdout.
-- [ ] JSON-mode AgentProxy errors print one valid JSON object to stdout and do not mix diagnostics into stdout.
-- [ ] Stable exit-code mapping follows the plan table for config, provider, runtime, capability, permission, connection, storage, argument, and generic failures.
-- [ ] Commander parse errors are still redacted and map to argument error exit code `2`.
-- [ ] Existing `provider exec` tests still prove native args, provider stdout/stderr, env allowlist, and original exit code preservation.
-- [ ] Focused CLI tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+- [x] Every registered command and subcommand exposes help without throwing.
+- [x] Global flags `--provider`, `--workspace`, `--json`, `--verbose`, `--debug`, and `--config` are parsed consistently at the root command.
+- [x] Human-mode errors and planned-command diagnostics go to stderr; normal output stays on stdout.
+- [x] JSON-mode AgentProxy errors print one valid JSON object to stdout and do not mix diagnostics into stdout.
+- [x] Stable exit-code mapping follows the plan table for config, provider, runtime, capability, permission, connection, storage, argument, and generic failures.
+- [x] Commander parse errors are still redacted and map to argument error exit code `2`.
+- [x] Existing `provider exec` tests still prove native args, provider stdout/stderr, env allowlist, and original exit code preservation.
+- [x] Focused CLI tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
 
 Risks and constraints:
 
@@ -54,7 +54,11 @@ Risks and constraints:
 
 Review notes:
 
-- Pending implementation. This section is the pre-implementation check-in requested by project workflow rules.
+- 2026-05-21: Completed Phase 5.1 CLI Framework Foundation. Centralized CLI global option handling, human/JSON AgentProxy error formatting, stable exit-code mapping, and main parse error handling while keeping planned workflow commands as non-implemented placeholders and preserving `provider exec` passthrough behavior.
+- Added focused CLI coverage in `tests/cli-help.test.ts` and `tests/cli-provider-exec.test.ts` for nested global flags, per-command help rendering, JSON errors on stdout, human diagnostics on stderr, Commander parse error redaction with exit code `2`, stable exit code mapping, and redacted JSON provider lookup errors.
+- Verification passed: `pnpm exec vitest run tests/cli-help.test.ts tests/cli-provider-exec.test.ts`, `pnpm exec vitest run tests/cli-help.test.ts tests/cli-provider-exec.test.ts tests/config-resolver.test.ts tests/logging.test.ts`, `pnpm run typecheck`, `pnpm run test` (23 files, 172 tests), `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+- Code review found no correctness or regression findings. Residual boundary: real `doctor`, `run`, `sessions`, `runtime`, `config`, `chat`, TUI, and broader CLI MVP workflows remain intentionally unimplemented.
+- Pre-implementation check-in is superseded by the completed implementation and verification notes above.
 - 2026-05-21: User requested a documentation-only progress sync before implementation. `docs/development-progress-tracker.zh.md` now records Phase 5.1 as the next implementation task and explicitly keeps CLI MVP/TUI unfinished.
 
 ## Current Iteration - 2026-05-21 Documentation Sync After Gate 4

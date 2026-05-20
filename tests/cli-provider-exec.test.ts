@@ -191,4 +191,44 @@ describe("agentproxy provider exec", () => {
       process.exitCode = originalExitCode;
     }
   });
+
+  it("writes AgentProxy errors as redacted JSON on stdout in json mode", async () => {
+    const originalExitCode = process.exitCode;
+    const { root, workspacePath } = await createTempWorkspace();
+    const stdout = createMemorySink();
+    const stderr = createMemorySink();
+    const program = createProgram({
+      cwd: workspacePath,
+      homeDir: path.join(root, "home"),
+      env: { PATH: process.env.PATH ?? "" },
+      output: createOutputWriters({ stdout, stderr }),
+    });
+
+    try {
+      await program.parseAsync([
+        "node",
+        "agentproxy",
+        "provider",
+        "exec",
+        "OPENAI_API_KEY=sk-json-secret",
+        "--json",
+        "--",
+        "--version",
+      ]);
+
+      expect(process.exitCode).toBe(4);
+      expect(stderr.chunks.join("")).toBe("");
+      expect(stdout.chunks.join("")).not.toContain("sk-json-secret");
+      expect(JSON.parse(stdout.chunks.join(""))).toMatchObject({
+        ok: false,
+        error: {
+          code: "PROVIDER_NOT_FOUND",
+          providerId: "OPENAI_API_KEY=[REDACTED]",
+          operation: "provider.exec",
+        },
+      });
+    } finally {
+      process.exitCode = originalExitCode;
+    }
+  });
 });

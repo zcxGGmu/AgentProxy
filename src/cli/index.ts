@@ -8,7 +8,11 @@ import {
   type AgentProxyConfig,
 } from "../config/index.js";
 import { createAgentProxyError, isAgentProxyError } from "../core/index.js";
-import { createOutputWriters, type AgentProxyOutputWriters } from "../logging/index.js";
+import {
+  createOutputWriters,
+  redactValue,
+  type AgentProxyOutputWriters,
+} from "../logging/index.js";
 import { OPENCODE_PROVIDER_ID, OpenCodeProvider } from "../providers/opencode/index.js";
 import type { AgentProvider } from "../providers/types.js";
 
@@ -25,12 +29,48 @@ const plannedCoreWorkflows = [
   "agentproxy config get|set",
 ];
 
-function plannedAction(commandName: string, output: AgentProxyOutputWriters): () => void {
-  return () => {
-    output.writeDiagnostic(
-      `agentproxy ${commandName} is planned for a later phase and is not implemented yet.`,
+const globalOptionDefinitions = [
+  {
+    flags: "--provider <id>",
+    description: "Provider id to use.",
+    defaultValue: OPENCODE_PROVIDER_ID,
+  },
+  { flags: "--workspace <path>", description: "Workspace path.", defaultValue: "." },
+  { flags: "--json", description: "Print machine-readable JSON output." },
+  { flags: "--verbose", description: "Print more human-readable progress details." },
+  { flags: "--debug", description: "Print opt-in diagnostic details." },
+  { flags: "--config <path>", description: "Path to an AgentProxy config file." },
+] as const;
+
+type GlobalOptionName = "provider" | "workspace" | "json" | "verbose" | "debug" | "config";
+
+interface CliGlobalOptions {
+  provider: string;
+  workspace: string;
+  json: boolean;
+  verbose: boolean;
+  debug: boolean;
+  config?: string;
+}
+
+function plannedAction(
+  commandName: string,
+  output: AgentProxyOutputWriters,
+): (this: Command) => void {
+  return function (this: Command) {
+    handleCliError(
+      createAgentProxyError({
+        code: "CAPABILITY_UNSUPPORTED",
+        message: `agentproxy ${commandName} is planned for a later phase and is not implemented yet.`,
+        operation: commandName,
+        details: {
+          suggestion:
+            "Use provider passthrough for provider-native commands that are not abstracted yet.",
+        },
+      }),
+      output,
+      this,
     );
-    process.exitCode = 1;
   };
 }
 
@@ -56,13 +96,9 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
     .description("Thin control plane for Coding Agent runtimes. v1 targets OpenCode.")
     .version(AGENTPROXY_VERSION)
     .showHelpAfterError()
-    .showSuggestionAfterError()
-    .option("--provider <id>", "Provider id to use.", OPENCODE_PROVIDER_ID)
-    .option("--workspace <path>", "Workspace path.", ".")
-    .option("--json", "Print machine-readable JSON output.")
-    .option("--verbose", "Print more human-readable progress details.")
-    .option("--debug", "Print opt-in diagnostic details.")
-    .option("--config <path>", "Path to an AgentProxy config file.");
+    .showSuggestionAfterError();
+
+  addGlobalOptions(program, { includeDefaults: true });
 
   program.addHelpText(
     "after",
@@ -183,7 +219,27 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
     .description("Set an AgentProxy config value.")
     .action(plannedAction("config set", output));
 
+  addGlobalOptionsDeep(program, { includeDefaults: false });
+
   return program;
+}
+
+function addGlobalOptionsDeep(command: Command, options: { includeDefaults: boolean }): void {
+  for (const child of command.commands) {
+    addGlobalOptions(child, options);
+    addGlobalOptionsDeep(child, options);
+  }
+}
+
+function addGlobalOptions(command: Command, options: { includeDefaults: boolean }): void {
+  for (const definition of globalOptionDefinitions) {
+    if (options.includeDefaults && "defaultValue" in definition) {
+      command.option(definition.flags, definition.description, definition.defaultValue);
+      continue;
+    }
+
+    command.option(definition.flags, definition.description);
+  }
 }
 
 function createProviderExecAction(
@@ -192,12 +248,11 @@ function createProviderExecAction(
 ): (this: Command, providerId: string, nativeArgs?: string[]) => Promise<void> {
   return async function (this: Command, providerId, nativeArgs = []) {
     try {
-      const root = getRootCommand(this);
       const resolvedConfig = await resolveAgentProxyConfig({
         ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
         ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
         ...(options.env !== undefined ? { env: options.env } : {}),
-        cli: createCliConfigOverrides(root),
+        cli: createCliConfigOverrides(this),
       });
       const provider = createConfiguredProvider(providerId, resolvedConfig.config, options);
       const result = await provider.passthrough({
@@ -215,8 +270,7 @@ function createProviderExecAction(
       }
       process.exitCode = result.exitCode;
     } catch (error) {
-      output.writeDiagnostic(formatCliError(error));
-      process.exitCode = mapCliErrorToExitCode(error);
+      handleCliError(error, output, this);
     }
   };
 }
@@ -229,21 +283,69 @@ function getRootCommand(command: Command): Command {
   return current;
 }
 
-function createCliConfigOverrides(root: Command): AgentProxyCliConfigOverrides {
-  const options = root.opts<{
-    config?: string;
-    workspace?: string;
-  }>();
+function createCliConfigOverrides(command: Command): AgentProxyCliConfigOverrides {
+  const options = getCliGlobalOptions(command);
   const overrides: AgentProxyCliConfigOverrides = {};
 
-  if (root.getOptionValueSource("config") === "cli" && options.config !== undefined) {
+  if (getOptionValueSourceFromChain(command, "config") === "cli" && options.config !== undefined) {
     overrides.configPath = options.config;
   }
-  if (root.getOptionValueSource("workspace") === "cli" && options.workspace !== undefined) {
+  if (getOptionValueSourceFromChain(command, "workspace") === "cli") {
     overrides.workspacePath = options.workspace;
   }
 
   return overrides;
+}
+
+function getCliGlobalOptions(command: Command): CliGlobalOptions {
+  const provider = getOptionValueFromChain<string>(command, "provider") ?? OPENCODE_PROVIDER_ID;
+  const workspace = getOptionValueFromChain<string>(command, "workspace") ?? ".";
+  const config = getOptionValueFromChain<string>(command, "config");
+
+  return {
+    provider,
+    workspace,
+    json: Boolean(getOptionValueFromChain<boolean>(command, "json")),
+    verbose: Boolean(getOptionValueFromChain<boolean>(command, "verbose")),
+    debug: Boolean(getOptionValueFromChain<boolean>(command, "debug")),
+    ...(config !== undefined ? { config } : {}),
+  };
+}
+
+function getOptionValueFromChain<T>(command: Command, optionName: GlobalOptionName): T | undefined {
+  for (const candidate of getCommandChain(command)) {
+    if (candidate.getOptionValueSource(optionName) === "cli") {
+      return candidate.getOptionValue(optionName) as T | undefined;
+    }
+  }
+
+  return getRootCommand(command).getOptionValue(optionName) as T | undefined;
+}
+
+function getOptionValueSourceFromChain(
+  command: Command,
+  optionName: GlobalOptionName,
+): string | undefined {
+  for (const candidate of getCommandChain(command)) {
+    const source = candidate.getOptionValueSource(optionName);
+    if (source === "cli") {
+      return source;
+    }
+  }
+
+  return getRootCommand(command).getOptionValueSource(optionName);
+}
+
+function getCommandChain(command: Command): Command[] {
+  const chain: Command[] = [];
+  let current: Command | null = command;
+
+  while (current !== null) {
+    chain.push(current);
+    current = current.parent;
+  }
+
+  return chain;
 }
 
 function createConfiguredProvider(
@@ -281,6 +383,21 @@ function createConfiguredProvider(
   });
 }
 
+function handleCliError(error: unknown, output: AgentProxyOutputWriters, command?: Command): void {
+  process.exitCode = mapCliErrorToExitCode(error);
+
+  if (isCommanderError(error)) {
+    return;
+  }
+
+  if (command !== undefined && getCliGlobalOptions(command).json) {
+    output.writeJson(formatCliJsonError(error));
+    return;
+  }
+
+  output.writeDiagnostic(formatCliError(error));
+}
+
 function formatCliError(error: unknown): string {
   if (isAgentProxyError(error)) {
     const suggestion =
@@ -291,7 +408,34 @@ function formatCliError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function mapCliErrorToExitCode(error: unknown): number {
+function formatCliJsonError(error: unknown): unknown {
+  if (!isAgentProxyError(error)) {
+    return redactValue({
+      ok: false,
+      error: {
+        code: "UNKNOWN",
+        message: error instanceof Error ? error.message : String(error),
+      },
+    });
+  }
+
+  return redactValue({
+    ok: false,
+    error: {
+      code: error.code,
+      ...(error.providerId !== undefined ? { providerId: error.providerId } : {}),
+      ...(error.operation !== undefined ? { operation: error.operation } : {}),
+      message: error.message,
+      ...(typeof error.details?.suggestion === "string" ? { next: error.details.suggestion } : {}),
+    },
+  });
+}
+
+export function mapCliErrorToExitCode(error: unknown): number {
+  if (isCommanderError(error)) {
+    return error.exitCode === 0 ? 0 : 2;
+  }
+
   if (!isAgentProxyError(error)) {
     return 1;
   }
@@ -319,26 +463,55 @@ function mapCliErrorToExitCode(error: unknown): number {
   }
 }
 
+function isCommanderError(error: unknown): error is { code: string; exitCode: number } {
+  if (error === null || typeof error !== "object") {
+    return false;
+  }
+
+  const maybeCommanderError = error as { code?: unknown; exitCode?: unknown };
+  return (
+    typeof maybeCommanderError.code === "string" &&
+    maybeCommanderError.code.startsWith("commander.") &&
+    typeof maybeCommanderError.exitCode === "number"
+  );
+}
+
 export function normalizeCliArgv(argv: string[]): string[] {
   return argv[2] === "--" ? [argv[0] ?? "node", argv[1] ?? "agentproxy", ...argv.slice(3)] : argv;
 }
 
-export async function main(argv = process.argv): Promise<void> {
+function exitOverrideDeep(command: Command): void {
+  command.exitOverride();
+  for (const child of command.commands) {
+    exitOverrideDeep(child);
+  }
+}
+
+export async function main(argv = process.argv, options: CreateProgramOptions = {}): Promise<void> {
   const normalizedArgv = normalizeCliArgv(argv);
-  const program = createProgram();
+  const output = options.output ?? createOutputWriters();
+  const program = createProgram({ ...options, output });
+  exitOverrideDeep(program);
 
   if (normalizedArgv.length <= 2) {
     program.outputHelp();
+    process.exitCode = 0;
     return;
   }
 
-  await program.parseAsync(normalizedArgv);
+  try {
+    await program.parseAsync(normalizedArgv);
+  } catch (error) {
+    handleCliError(error, output, program);
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error: unknown) => {
-    const message = error instanceof Error ? error.message : String(error);
-    createOutputWriters().writeDiagnostic(message);
-    process.exitCode = 1;
+    const output = createOutputWriters();
+    process.exitCode = mapCliErrorToExitCode(error);
+    if (!isCommanderError(error)) {
+      output.writeDiagnostic(formatCliError(error));
+    }
   });
 }
