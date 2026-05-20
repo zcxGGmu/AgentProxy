@@ -44,3 +44,5 @@
 - 创建 session 后再发送初始 prompt 必须先持久化 provider-to-local 映射，再发送 prompt；否则 prompt 失败会留下 AgentProxy 不知道的 provider orphan session。
 - 使用本地 `parentSessionId` 创建子会话前必须验证 parent 存在、未 tombstone 且 provider 匹配，不能静默丢弃 parent 或复用已删除父会话。
 - provider 返回的 `parentProviderSessionId` 映射到本地 parent 时也必须避开 tombstone parent；不能只校验用户显式传入的 parentSessionId。
+- Message 事件流不能把 provider 的 step-ended 当成 session/message terminal；严格 message stream 只处理显式携带目标 `sessionID` 的 provider 事件，避免无归属 raw payload 被错误归到当前 session。
+- 本地 message lifecycle 在消费者提前 `return()` 或 signal abort 时也必须写回终态，不能让 session 长期卡在 `running`。

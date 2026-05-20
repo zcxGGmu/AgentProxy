@@ -87,13 +87,24 @@ type EventStreamResponse = Response & {
 };
 
 interface ProviderEventContext {
-  runtimeId: string;
+  runtimeId?: string;
   eventPath: string;
   providerSessionId?: string;
   agentproxySessionId?: string;
   metadata: ProviderMetadata;
   eventIdFactory: () => string;
   timestamp: string;
+}
+
+export interface StreamOpenCodeEventEnvelopesFromResponseInput {
+  runtimeId?: string;
+  eventPath?: string;
+  providerSessionId?: string;
+  agentproxySessionId?: string;
+  metadata?: ProviderMetadata;
+  signal?: AbortSignal;
+  eventIdFactory?: () => string;
+  now?: () => Date;
 }
 
 interface RuntimeStreamGuard {
@@ -506,6 +517,31 @@ export class OpenCodeEventStreamClient {
   }
 }
 
+export async function* streamOpenCodeEventEnvelopesFromResponse(
+  body: ReadableStream<Uint8Array>,
+  input: StreamOpenCodeEventEnvelopesFromResponseInput = {},
+): AsyncGenerator<AgentEventEnvelope> {
+  const eventPath = normalizeEventPath(input.eventPath ?? OPENCODE_EVENT_STREAM_PATH);
+  const eventIdFactory = input.eventIdFactory ?? defaultEventIdFactory;
+  const now = input.now ?? (() => new Date());
+
+  for await (const message of readServerSentEventMessages(body, input.signal)) {
+    yield mapOpenCodeSseMessageToEnvelope(message, {
+      ...(input.runtimeId !== undefined ? { runtimeId: input.runtimeId } : {}),
+      eventPath,
+      ...(input.providerSessionId !== undefined
+        ? { providerSessionId: input.providerSessionId }
+        : {}),
+      ...(input.agentproxySessionId !== undefined
+        ? { agentproxySessionId: input.agentproxySessionId }
+        : {}),
+      metadata: input.metadata ?? {},
+      eventIdFactory,
+      timestamp: now().toISOString(),
+    });
+  }
+}
+
 function buildRuntimeRegistry(
   options: OpenCodeEventStreamClientOptions,
   now: () => Date,
@@ -801,20 +837,25 @@ function mapOpenCodeSseMessageToEnvelope(
 ): AgentEventEnvelope {
   const providerEvent = unwrapProviderEvent(message.raw);
   const providerEventRecord = isRecord(providerEvent) ? providerEvent : undefined;
+  const providerEventKind = readString(providerEventRecord?.type);
   const providerEventType =
-    readString(providerEventRecord?.type) ?? message.sseEventName ?? "provider.unknown";
+    providerEventKind === "sync"
+      ? (readString(providerEventRecord?.name) ?? providerEventKind)
+      : (providerEventKind ?? message.sseEventName ?? "provider.unknown");
   const providerEventId =
     readString(providerEventRecord?.id) ?? message.sseId ?? context.eventIdFactory();
-  const properties = isRecord(providerEventRecord?.properties)
-    ? providerEventRecord.properties
-    : {};
-  const providerSessionId =
-    readString(properties.sessionID) ??
-    readString(properties.sessionId) ??
-    context.providerSessionId;
+  const properties = isRecord(providerEventRecord?.data)
+    ? providerEventRecord.data
+    : isRecord(providerEventRecord?.properties)
+      ? providerEventRecord.properties
+      : {};
+  const explicitProviderSessionId =
+    readString(properties.sessionID) ?? readString(properties.sessionId);
+  const providerSessionId = explicitProviderSessionId ?? context.providerSessionId;
   const eventMetadata = buildEventMetadata(context, {
     providerEventId,
     providerEventType,
+    ...(explicitProviderSessionId !== undefined ? { explicitProviderSessionId } : {}),
     ...(message.sseEventName !== undefined ? { sseEventName: message.sseEventName } : {}),
     ...(message.sseId !== undefined ? { sseId: message.sseId } : {}),
   });
@@ -856,6 +897,21 @@ function mapKnownOpenCodeEvent(
   if (providerEventType === "session.next.text.delta") {
     return mapSessionNextTextDelta(properties, metadata);
   }
+  if (providerEventType === "session.next.text.delta.1") {
+    return mapSessionNextTextDelta(properties, metadata);
+  }
+  if (providerEventType === "session.next.tool.called.1") {
+    return mapToolCalled(properties, metadata);
+  }
+  if (providerEventType === "session.next.tool.success.1") {
+    return mapToolFinished(properties, metadata);
+  }
+  if (providerEventType === "session.next.tool.failed.1") {
+    return mapToolFinished(properties, {
+      ...metadata,
+      providerToolStatus: "failed",
+    });
+  }
   if (providerEventType === "session.status") {
     return mapSessionStatus(properties, metadata);
   }
@@ -879,7 +935,14 @@ function mapKnownOpenCodeEvent(
   if (providerEventType === "file.edited") {
     return mapFileEdited(properties, metadata);
   }
-  if (providerEventType === "session.error" || providerEventType === "session.next.step.failed") {
+  if (providerEventType === "session.diff") {
+    return mapSessionDiff(properties, metadata);
+  }
+  if (
+    providerEventType === "session.error" ||
+    providerEventType === "session.next.step.failed" ||
+    providerEventType === "session.next.step.failed.1"
+  ) {
     return mapSessionError(properties, metadata);
   }
 
@@ -919,6 +982,41 @@ function mapSessionNextTextDelta(
     type: "message.delta",
     role: "assistant",
     delta,
+    metadata,
+  };
+}
+
+function mapToolCalled(
+  properties: Record<string, unknown>,
+  metadata: ProviderMetadata,
+): AgentEvent | undefined {
+  const toolCallId = readString(properties.callID) ?? readString(properties.callId);
+  const toolName = readString(properties.tool) ?? readString(properties.name);
+  if (toolCallId === undefined || toolName === undefined) {
+    return undefined;
+  }
+
+  return {
+    type: "tool.started",
+    toolCallId,
+    toolName,
+    metadata,
+  };
+}
+
+function mapToolFinished(
+  properties: Record<string, unknown>,
+  metadata: ProviderMetadata,
+): AgentEvent | undefined {
+  const toolCallId = readString(properties.callID) ?? readString(properties.callId);
+  if (toolCallId === undefined) {
+    return undefined;
+  }
+
+  return {
+    type: "tool.finished",
+    toolCallId,
+    toolName: readString(properties.tool) ?? readString(properties.name) ?? "unknown",
     metadata,
   };
 }
@@ -1027,6 +1125,22 @@ function mapFileEdited(
   };
 }
 
+function mapSessionDiff(
+  properties: Record<string, unknown>,
+  metadata: ProviderMetadata,
+): AgentEvent | undefined {
+  const diff = properties.diff;
+  if (diff === undefined) {
+    return undefined;
+  }
+
+  return {
+    type: "diff.updated",
+    diff: typeof diff === "string" ? diff : JSON.stringify(diff),
+    metadata,
+  };
+}
+
 function mapSessionError(
   properties: Record<string, unknown>,
   metadata: ProviderMetadata,
@@ -1103,6 +1217,7 @@ function buildEventMetadata(
   input: {
     providerEventId: string;
     providerEventType: string;
+    explicitProviderSessionId?: string;
     sseEventName?: string;
     sseId?: string;
   },
@@ -1110,10 +1225,13 @@ function buildEventMetadata(
   return {
     ...context.metadata,
     [OPENCODE_EVENT_STREAM_METADATA_KEY]: {
-      runtimeId: context.runtimeId,
       eventPath: context.eventPath,
+      ...(context.runtimeId !== undefined ? { runtimeId: context.runtimeId } : {}),
       providerEventId: input.providerEventId,
       providerEventType: input.providerEventType,
+      ...(input.explicitProviderSessionId !== undefined
+        ? { explicitProviderSessionId: input.explicitProviderSessionId }
+        : {}),
       ...(input.sseEventName !== undefined ? { sseEventName: input.sseEventName } : {}),
       ...(input.sseId !== undefined ? { sseId: input.sseId } : {}),
     },

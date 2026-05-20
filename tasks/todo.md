@@ -11,6 +11,59 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Phase 4.5 Message Send / Event Mapping
+
+Scope: advance only Phase 4.5 message sending and event mapping from the Chinese progress tracker. Do not implement CLI MVP commands, TUI, abort/delete/export/share/import, provider passthrough, permission approval APIs, or a new Agent runtime.
+
+Implementation checklist:
+
+- [x] Add focused provider tests for `OpenCodeProvider.sendMessage()` against fake `/session/:id/message` and `/event` endpoints.
+- [x] Add focused session service tests proving message dispatch updates the local session index and stores only sanitized event metadata.
+- [x] Reuse the existing OpenCode runtime SSE parser/mapping path for provider message streams instead of duplicating a second event model.
+- [x] Implement `OpenCodeProvider.sendMessage()` with conservative request/response error mapping, model parsing, and prompt text excluded from returned metadata/errors.
+- [x] Map message delta, tool start/finish, permission request/resolution, file update, diff update, raw provider events, and terminal completed/failed events.
+- [x] Add a small provider-agnostic message service that dispatches prompts through `AgentProvider.sendMessage()`, persists local session status, and appends sanitized event records.
+- [x] Update provider capability reporting only for implemented message/headless behavior.
+- [x] Update the Chinese progress tracker and record verification evidence.
+- [x] Run verification and create a detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Latest implementation baseline is `aaa3dee 阶段进展：完成 Phase 4.4 Session 创建与恢复`; latest working tree started clean after documentation commit `56a55ed`.
+- Reuse `AgentProvider.sendMessage(ctx)` and `SendMessageRequest` from `src/providers/types.ts`; no provider interface redesign is planned for this task group.
+- Reuse Phase 4.4 OpenCode session URL/model/request timeout/error mapping patterns and current OpenCode server API boundary `POST /session/{sessionID}/message`.
+- Reuse Phase 3.5 OpenCode `/event` SSE mapping and keep unknown provider events as `provider.raw_event`.
+- Reuse existing SQLite `sessions` and `session_events` repositories; no migration is planned.
+
+Acceptance criteria for this iteration:
+
+- [x] A healthy fake OpenCode runtime can accept a prompt through `OpenCodeProvider.sendMessage()` and return an async stream that completes after an idle/completed session event.
+- [x] Returned events include stable `message.delta`, `tool.started`, `tool.finished`, `permission.requested`, `permission.resolved`, `file.changed`, `diff.updated`, `provider.raw_event`, and terminal `session.completed` mappings where corresponding provider events are present.
+- [x] Permission request events are surfaced but no permission response/approval endpoint is called automatically.
+- [x] Missing/invalid runtime base URL maps to `PROVIDER_UNAVAILABLE`; `401`/`403` maps to `PERMISSION_DENIED`; `404` maps to `SESSION_NOT_FOUND`; prompt text, raw response bodies, URL query secrets, credentials, transcript deltas, and raw provider payloads do not leak into persisted metadata/errors.
+- [x] Message dispatch through the session service requires an existing non-tombstoned local session mapping, marks the session `running` while the message is active, and persists final `completed` or `failed` status.
+- [x] Session event records store only sanitized event metadata/projections, not full prompt text, message deltas, tool input/output, diffs, or raw provider payloads.
+- [x] Focused provider/message lifecycle tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+- [x] Chinese progress tracker marks Phase 4.5 done and records Review notes.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- OpenCode event shapes can evolve; mapper must accept stable scalar fields, keep unknown events as raw provider events, and avoid depending on provider-private payload structure.
+- Live event streams may carry transcript, diff, tool input/output, or filesystem content. These can be yielded to callers as live events when explicitly mapped, but storage must keep only sanitized projections.
+- `sendMessage()` must not auto-approve permissions; permission response remains a later explicit capability.
+- Positional prompt and stdin prompt are represented at this layer as an already-composed prompt string for future CLI wiring; this iteration must not implement CLI parsing.
+- This phase must not enter CLI MVP, TUI, provider passthrough, or session destructive operations.
+
+Review notes:
+
+- 2026-05-20: Added `tests/opencode-provider-messages.test.ts` and `tests/session-messages.test.ts`, then implemented `OpenCodeProvider.sendMessage()` and provider-agnostic `sendAgentProxyMessage()`.
+- Reused the Phase 3 SSE parser/envelope mapper by exporting `streamOpenCodeEventEnvelopesFromResponse()`, extended mapping for OpenCode sync tool events and `session.diff`, and kept unknown events as `provider.raw_event`.
+- Message dispatch subscribes to `/event` before posting to `/session/:id/message`, validates SSE media type, waits only for message response headers, and cancels response bodies/readers best-effort.
+- Local session message persistence requires a non-tombstoned mapping, marks sessions `running` then `completed`/`failed`, and appends sanitized event projections without prompt text, deltas, tool input/output, diffs, or raw payloads.
+- Code review fixes: `session.next.step.ended.1` no longer terminates message streams; strict message streams ignore provider events without explicit target `sessionID`; pre-aborted requests map to `opencode.provider.sendMessage`; early consumer `return()` marks the local session failed; `headlessRun` capability now requires event stream, create, resume, and message send support.
+- Verification passed: `pnpm exec vitest run tests/opencode-provider-messages.test.ts tests/session-messages.test.ts`, `pnpm exec vitest run tests/opencode-event-stream.test.ts tests/opencode-provider-health.test.ts tests/opencode-provider-sessions.test.ts tests/session-lifecycle.test.ts tests/session-messages.test.ts tests/opencode-provider-messages.test.ts`, `pnpm exec vitest run tests/opencode-provider-messages.test.ts tests/session-messages.test.ts tests/opencode-provider-health.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
 ## Current Iteration - 2026-05-20 Documentation Sync After Phase 4.4
 
 Scope: update only the project tracking documents after `aaa3dee 阶段进展：完成 Phase 4.4 Session 创建与恢复`. Do not implement Phase 4.5, CLI MVP, TUI, passthrough, or any runtime/provider behavior.

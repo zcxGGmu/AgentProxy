@@ -488,7 +488,11 @@ function buildCapabilities(input: {
     },
     interaction: {
       nativeTui: false,
-      headlessRun: false,
+      headlessRun:
+        runtimeEndpoint("eventStream") &&
+        runtimeEndpoint("sessionCreate") &&
+        runtimeEndpoint("sessionGet") &&
+        runtimeEndpoint("messageSend"),
       promptPrefill: false,
       slashCommands: false,
       permissions: false,

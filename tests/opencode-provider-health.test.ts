@@ -281,7 +281,7 @@ describe("OpenCodeProvider health and capability probing", () => {
     });
     expect(capabilities.interaction).toMatchObject({
       nativeTui: false,
-      headlessRun: false,
+      headlessRun: true,
       promptPrefill: false,
       slashCommands: false,
       permissions: false,
@@ -323,7 +323,7 @@ describe("OpenCodeProvider health and capability probing", () => {
     });
     expect(capabilities.interaction).toMatchObject({
       nativeTui: false,
-      headlessRun: false,
+      headlessRun: true,
       promptPrefill: false,
       slashCommands: false,
       permissions: false,
@@ -748,5 +748,61 @@ describe("OpenCodeProvider health and capability probing", () => {
     });
     expect(metadata).not.toContain("payload-secret-token");
     expect(metadata).not.toContain("secretPayload");
+  });
+
+  it("requires session create/resume, message send, and event stream for headlessRun capability", async () => {
+    const { binaryPath, workspacePath } = await createTestRoot();
+    const { baseUrl } = await startFakeOpenCodeServerWithHandler((request, response) => {
+      const url = new URL(request.url ?? "/", "http://127.0.0.1");
+
+      if (request.method === "GET" && url.pathname === "/global/health") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ healthy: true, version: "1.16.0" }));
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/event") {
+        response.writeHead(200, { "content-type": "text/event-stream" });
+        response.end();
+        return;
+      }
+
+      if (request.method === "OPTIONS" && url.pathname === "/session") {
+        response.writeHead(405, { allow: "GET, POST" });
+        response.end();
+        return;
+      }
+
+      if (request.method === "OPTIONS" && url.pathname.endsWith("/message")) {
+        response.writeHead(405, { allow: "POST" });
+        response.end();
+        return;
+      }
+
+      if (request.method === "OPTIONS" && url.pathname === "/session/__agentproxy_probe__") {
+        response.writeHead(405, { allow: "DELETE" });
+        response.end();
+        return;
+      }
+
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: "not found" }));
+    });
+    const provider = new OpenCodeProvider({
+      binary: binaryPath,
+      baseUrl,
+      requestTimeoutMs: 250,
+      sdkResolver: () => ({
+        moduleName: "@opencode-ai/sdk",
+        available: false,
+      }),
+    });
+
+    const capabilities = await provider.getCapabilities(providerContext(workspacePath));
+
+    expect(capabilities.runtime.sse).toBe(true);
+    expect(capabilities.sessions.create).toBe(true);
+    expect(capabilities.sessions.resume).toBe(false);
+    expect(capabilities.interaction.headlessRun).toBe(false);
   });
 });

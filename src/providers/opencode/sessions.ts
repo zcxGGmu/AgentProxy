@@ -1,8 +1,14 @@
-import { createAgentProxyError } from "../../core/errors.js";
+import { createAgentProxyError, isAgentProxyError } from "../../core/errors.js";
+import type { AgentEvent } from "../../core/events.js";
+import {
+  OPENCODE_EVENT_STREAM_PATH,
+  streamOpenCodeEventEnvelopesFromResponse,
+} from "../../runtimes/events.js";
 import type { ProviderSession } from "../../sessions/types.js";
 import type {
   ProviderContext,
   ResumeSessionRequest,
+  SendMessageRequest,
   SessionQuery,
   StartSessionRequest,
 } from "../types.js";
@@ -24,6 +30,7 @@ const OPENCODE_LIST_SESSIONS_OPERATION = "opencode.provider.listSessions";
 const OPENCODE_GET_SESSION_OPERATION = "opencode.provider.getSession";
 const OPENCODE_START_SESSION_OPERATION = "opencode.provider.startSession";
 const OPENCODE_RESUME_SESSION_OPERATION = "opencode.provider.resumeSession";
+const OPENCODE_SEND_MESSAGE_OPERATION = "opencode.provider.sendMessage";
 
 interface OpenCodeSessionListItem {
   id: string;
@@ -52,6 +59,10 @@ interface OpenCodeSessionPromptModel {
   providerID: string;
   modelID: string;
 }
+
+type EventStreamResponse = Response & {
+  body: ReadableStream<Uint8Array>;
+};
 
 export async function listOpenCodeSessions(
   options: OpenCodeProviderOptions,
@@ -168,6 +179,135 @@ export async function resumeOpenCodeSession(
         signal: context.signal,
         operation: OPENCODE_RESUME_SESSION_OPERATION,
       });
+}
+
+export function sendOpenCodeMessage(
+  options: OpenCodeProviderOptions,
+  context: SendMessageRequest,
+): AsyncIterable<AgentEvent> {
+  return sendOpenCodeMessageEvents(options, context);
+}
+
+async function* sendOpenCodeMessageEvents(
+  options: OpenCodeProviderOptions,
+  context: SendMessageRequest,
+): AsyncGenerator<AgentEvent> {
+  if (context.prompt.trim() === "") {
+    throw createSessionOperationError({
+      code: "CONFIG_INVALID",
+      operation: OPENCODE_SEND_MESSAGE_OPERATION,
+      message: "OpenCode message prompt must not be empty.",
+      failureReason: "empty_prompt",
+      providerSessionId: context.providerSessionId,
+      suggestion: "Pass a non-empty prompt before sending a message.",
+    });
+  }
+
+  if (context.attachments !== undefined && context.attachments.length > 0) {
+    throw createAgentProxyError({
+      code: "CAPABILITY_UNSUPPORTED",
+      message: "OpenCode message attachments are not supported by AgentProxy yet.",
+      providerId: OPENCODE_PROVIDER_ID,
+      operation: OPENCODE_SEND_MESSAGE_OPERATION,
+      details: {
+        providerSessionId: context.providerSessionId,
+        suggestion: "Send a text-only prompt or use provider passthrough once it is available.",
+      },
+    });
+  }
+
+  const requestTimeoutMs = validateRequestTimeout(
+    options.requestTimeoutMs ?? DEFAULT_SESSION_MUTATION_REQUEST_TIMEOUT_MS,
+  );
+  const baseUrl = resolveSessionMutationBaseUrl(options, context, OPENCODE_SEND_MESSAGE_OPERATION);
+  const fetchImplementation = options.fetchImplementation ?? fetch;
+  const eventResponse = await connectOpenCodeMessageEventStream({
+    baseUrl,
+    workspacePath: context.workspacePath,
+    requestTimeoutMs,
+    fetchImplementation,
+    signal: context.signal,
+  });
+
+  try {
+    await postOpenCodeMessage({
+      baseUrl,
+      context,
+      requestTimeoutMs,
+      fetchImplementation,
+    });
+
+    yield {
+      type: "session.status_changed",
+      from: "unknown",
+      to: "running",
+      metadata: {
+        opencode: {
+          message: {
+            accepted: true,
+          },
+        },
+      },
+    };
+
+    const agentproxySessionId = context.agentproxySessionId ?? context.sessionId;
+    for await (const envelope of streamOpenCodeEventEnvelopesFromResponse(eventResponse.body, {
+      ...(context.runtimeId !== undefined ? { runtimeId: context.runtimeId } : {}),
+      eventPath: OPENCODE_EVENT_STREAM_PATH,
+      providerSessionId: context.providerSessionId,
+      ...(agentproxySessionId !== undefined ? { agentproxySessionId } : {}),
+      metadata: context.metadata,
+      ...(context.signal !== undefined ? { signal: context.signal } : {}),
+    })) {
+      if (
+        envelope.providerSessionId !== undefined &&
+        envelope.providerSessionId !== context.providerSessionId
+      ) {
+        continue;
+      }
+      if (readExplicitProviderSessionId(envelope.metadata) !== context.providerSessionId) {
+        continue;
+      }
+
+      yield envelope.payload;
+
+      if (isTerminalMessageEvent(envelope.payload)) {
+        return;
+      }
+
+      if (envelope.payload.type === "session.status_changed" && envelope.payload.to === "idle") {
+        yield {
+          type: "session.completed",
+          status: "completed",
+          metadata: envelope.payload.metadata,
+        };
+        return;
+      }
+
+      if (envelope.payload.type === "error") {
+        yield {
+          type: "session.completed",
+          status: "failed",
+          metadata: envelope.payload.metadata,
+        };
+        return;
+      }
+    }
+
+    yield {
+      type: "session.completed",
+      status: "completed",
+      metadata: {
+        opencode: {
+          message: {
+            completedBy: "event_stream_closed",
+          },
+        },
+      },
+    };
+  } finally {
+    await cancelResponseBody(eventResponse);
+  }
 }
 
 async function trySendOpenCodePromptAsync(
@@ -423,6 +563,179 @@ async function sendOpenCodePromptAsync(input: {
   }
 
   return markPromptAccepted(input.providerSession, input.model);
+}
+
+async function connectOpenCodeMessageEventStream(input: {
+  baseUrl: string;
+  workspacePath: string | undefined;
+  requestTimeoutMs: number;
+  fetchImplementation: typeof fetch;
+  signal: AbortSignal | undefined;
+}): Promise<EventStreamResponse> {
+  try {
+    const response = await withRequestTimeout(
+      async (requestSignal) =>
+        await input.fetchImplementation(buildEventStreamUrl(input.baseUrl, input.workspacePath), {
+          headers: {
+            accept: "text/event-stream",
+          },
+          signal: requestSignal,
+        }),
+      input.requestTimeoutMs,
+      input.signal,
+    );
+
+    if (response.status === 401 || response.status === 403) {
+      await cancelResponseBody(response);
+      throw createSessionOperationError({
+        code: "PERMISSION_DENIED",
+        operation: OPENCODE_SEND_MESSAGE_OPERATION,
+        message: "OpenCode event stream requires authentication before sending messages.",
+        failureReason: "authentication_required",
+        status: response.status,
+        suggestion: "Authenticate OpenCode and retry message sending.",
+      });
+    }
+
+    if (!response.ok || response.body === null) {
+      await cancelResponseBody(response);
+      throw createSessionOperationError({
+        code: "PROVIDER_UNAVAILABLE",
+        operation: OPENCODE_SEND_MESSAGE_OPERATION,
+        message: "OpenCode event stream was unavailable before sending a message.",
+        failureReason: response.body === null ? "missing_response_body" : "unhealthy_response",
+        status: response.status,
+        suggestion: "Check the OpenCode runtime event stream before retrying.",
+      });
+    }
+
+    if (readMediaType(response.headers.get("content-type")) !== "text/event-stream") {
+      await cancelResponseBody(response);
+      throw createSessionOperationError({
+        code: "PROVIDER_UNAVAILABLE",
+        operation: OPENCODE_SEND_MESSAGE_OPERATION,
+        message: "OpenCode event stream returned an unexpected content type.",
+        failureReason: "unexpected_event_stream_content_type",
+        status: response.status,
+        suggestion: "Check that the OpenCode runtime exposes a valid SSE event endpoint.",
+      });
+    }
+
+    return response as EventStreamResponse;
+  } catch (error) {
+    if (isAgentProxyError(error) && error.operation === OPENCODE_SEND_MESSAGE_OPERATION) {
+      throw error;
+    }
+
+    throw createSessionOperationError({
+      code: "PROVIDER_UNAVAILABLE",
+      operation: OPENCODE_SEND_MESSAGE_OPERATION,
+      message: "OpenCode event stream request failed before sending a message.",
+      failureReason: input.signal?.aborted === true ? "aborted" : "event_stream_request_failed",
+      suggestion: "Verify that the OpenCode runtime is running and reachable.",
+    });
+  }
+}
+
+async function postOpenCodeMessage(input: {
+  baseUrl: string;
+  context: SendMessageRequest;
+  requestTimeoutMs: number;
+  fetchImplementation: typeof fetch;
+}): Promise<void> {
+  const promptModel = parsePromptModel(input.context.model, OPENCODE_SEND_MESSAGE_OPERATION);
+  const response = await fetchMessageResponse({
+    url: buildSessionOperationUrl(
+      input.baseUrl,
+      `${OPENCODE_SESSION_LIST_PATH}/${encodeURIComponent(input.context.providerSessionId)}/message`,
+      input.context.workspacePath,
+    ),
+    body: {
+      ...(promptModel !== undefined ? { model: promptModel } : {}),
+      parts: [
+        {
+          type: "text",
+          text: input.context.prompt,
+        },
+      ],
+    },
+    requestTimeoutMs: input.requestTimeoutMs,
+    fetchImplementation: input.fetchImplementation,
+    signal: input.context.signal,
+    providerSessionId: input.context.providerSessionId,
+  });
+
+  if (!response.ok) {
+    throw createSessionResponseError({
+      operation: OPENCODE_SEND_MESSAGE_OPERATION,
+      status: response.status,
+      providerSessionId: input.context.providerSessionId,
+    });
+  }
+}
+
+async function fetchMessageResponse(input: {
+  url: string;
+  body: Record<string, unknown>;
+  requestTimeoutMs: number;
+  fetchImplementation: typeof fetch;
+  signal: AbortSignal | undefined;
+  providerSessionId: string;
+}): Promise<Response> {
+  try {
+    return await withRequestTimeout(
+      async (requestSignal) => {
+        const response = await input.fetchImplementation(input.url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(input.body),
+          signal: requestSignal,
+        });
+        await cancelResponseBody(response);
+        return response;
+      },
+      input.requestTimeoutMs,
+      input.signal,
+    );
+  } catch {
+    throw createSessionOperationError({
+      code: "PROVIDER_UNAVAILABLE",
+      operation: OPENCODE_SEND_MESSAGE_OPERATION,
+      message: "OpenCode message request failed.",
+      failureReason: input.signal?.aborted === true ? "aborted" : "request_failed",
+      providerSessionId: input.providerSessionId,
+      suggestion: "Verify that the OpenCode runtime is running and reachable.",
+    });
+  }
+}
+
+function buildEventStreamUrl(baseUrl: string, workspacePath: string | undefined): string {
+  const url = new URL(`${baseUrl}${OPENCODE_EVENT_STREAM_PATH}`);
+  if (workspacePath !== undefined && workspacePath.trim() !== "") {
+    url.searchParams.set("directory", workspacePath);
+  }
+
+  return url.href;
+}
+
+function isTerminalMessageEvent(event: AgentEvent): boolean {
+  return event.type === "session.completed";
+}
+
+function readMediaType(value: string | null): string {
+  return value?.split(";", 1)[0]?.trim().toLowerCase() ?? "";
+}
+
+function readExplicitProviderSessionId(metadata: Record<string, unknown>): string | undefined {
+  const streamMetadata = metadata.agentproxyOpenCodeEventStream;
+  if (!isPlainObject(streamMetadata)) {
+    return undefined;
+  }
+
+  return readNonEmptyString(streamMetadata.explicitProviderSessionId);
 }
 
 async function fetchSessionJson(input: {

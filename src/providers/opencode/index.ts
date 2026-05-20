@@ -1,4 +1,5 @@
 import { createAgentProxyError } from "../../core/errors.js";
+import type { AgentEvent } from "../../core/events.js";
 import type { RuntimeHandle, RuntimeRequest } from "../../core/types.js";
 import type { ProviderSession } from "../../sessions/types.js";
 import { OPENCODE_PROVIDER_ID } from "./constants.js";
@@ -12,6 +13,7 @@ import {
   getOpenCodeSession,
   listOpenCodeSessions,
   resumeOpenCodeSession,
+  sendOpenCodeMessage,
   startOpenCodeSession,
 } from "./sessions.js";
 import type {
@@ -113,8 +115,8 @@ export class OpenCodeProvider implements AgentProvider {
     return resumeOpenCodeSession(this.#options, ctx);
   }
 
-  sendMessage(ctx: SendMessageRequest): AsyncIterable<never> {
-    return unsupportedOpenCodeEventStream(ctx.providerId);
+  sendMessage(ctx: SendMessageRequest): AsyncIterable<AgentEvent> {
+    return sendOpenCodeMessage(this.#options, ctx);
   }
 
   async abortSession(ctx: SessionActionRequest): Promise<void> {
@@ -157,16 +159,4 @@ function unsupportedOpenCodeOperation(operation: string, providerId = OPENCODE_P
     operation,
     providerId,
   });
-}
-
-function unsupportedOpenCodeEventStream(providerId: string): AsyncIterable<never> {
-  return {
-    [Symbol.asyncIterator](): AsyncIterator<never> {
-      return {
-        async next(): Promise<IteratorResult<never>> {
-          throw unsupportedOpenCodeOperation("provider.sendMessage", providerId);
-        },
-      };
-    },
-  };
 }

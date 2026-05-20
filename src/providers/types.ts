@@ -222,6 +222,7 @@ export interface SendMessageRequest extends ProviderContext {
   providerSessionId: string;
   agentproxySessionId?: string;
   prompt: string;
+  model?: string;
   attachments?: readonly unknown[];
 }
 
