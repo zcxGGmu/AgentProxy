@@ -11,6 +11,43 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Documentation Sync After Gate 4
+
+Scope: update only project tracking documents after `549a979 阶段进展：完成 Gate 4 汇总验证`. Do not implement Phase 5 CLI MVP, TUI, or runtime/provider behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit.
+- [x] Update `docs/development-progress-tracker.zh.md` so the latest Gate 4 baseline, completed items, unfinished items, and next startup prompt all point to Gate 4 as complete and Phase 5 CLI MVP as next.
+- [x] Record this documentation-only update in tracker Review notes.
+- [x] Run documentation-appropriate verification and create a detailed Chinese documentation commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree was clean and `git log -1 --oneline` was `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Gate 4 implementation/validation evidence already exists in the tracker Review; this task only replaces placeholder baseline text with the concrete commit and clarifies next-start instructions.
+- `docs/agentproxy-development-plan.md` remains the source plan and does not need architecture changes for this documentation sync.
+
+Acceptance criteria for this iteration:
+
+- [x] `git status --short` and `git log -1 --oneline` are checked and reflected in this documentation pass.
+- [x] The Chinese progress tracker clearly states completed phases through Gate 4, unfinished work starting at Phase 5 CLI MVP, and TUI still pending.
+- [x] The next-start prompt includes the concrete Gate 4 validation commit and instructs the next Codex session to start at Phase 5 CLI MVP only.
+- [x] The final answer gives the user a ready-to-send prompt.
+
+Risks and constraints:
+
+- Do not treat this documentation sync as a Phase 5 start.
+- Do not change source code, tests, provider behavior, CLI MVP, TUI, or completed implementation.
+- If this documentation update is committed, the next startup prompt must distinguish the documentation commit from the Gate 4 validation baseline.
+
+Review notes:
+
+- 2026-05-21: Confirmed initial `git status --short` was clean and `git log -1 --oneline` was `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Updated `docs/development-progress-tracker.zh.md` current status, startup baseline, unfinished item summary, Review entry, and next-start prompt to use Gate 4 as complete and Phase 5 CLI MVP as the first unfinished task.
+- Verification passed: `git diff --check` and `pnpm run format:check`.
+- This is documentation-only; no source code, tests, provider behavior, CLI MVP, TUI, or runtime behavior is changed.
+
 ## Current Iteration - 2026-05-21 Gate 4 Summary Validation
 
 Scope: validate and close Gate 4 only. Prove that the completed Phase 4.1-4.7 OpenCodeProvider provider-layer capabilities work together across health/capability, model listing, session sync, session create/resume, message streaming, session operations, and provider passthrough. Do not implement Phase 5 CLI MVP, TUI, new runtime behavior, permission approval, diff/revert/todo, or a new Agent runtime.
