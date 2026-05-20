@@ -318,27 +318,29 @@ describe("provider registry", () => {
     ]);
   });
 
-  it("registers the OpenCode placeholder provider in the default registry", async () => {
+  it("registers the OpenCode provider in the default registry", async () => {
     const registry = createDefaultProviderRegistry();
 
     const provider = registry.getProvider(OPENCODE_PROVIDER_ID);
     const probe = await registry.probeCapabilities(OPENCODE_PROVIDER_ID);
+    const list = registry.listProviders();
 
     expect(provider.displayName).toBe("OpenCode");
     expect(probe.mode).toBe("available");
-    expect(probe.capabilities.metadata.capabilitySource).toBe("phase-2-placeholder");
-    expect(registry.listProviders()).toEqual([
-      {
-        id: OPENCODE_PROVIDER_ID,
-        displayName: "OpenCode",
-        mode: "available",
-        capabilitySchemaVersion: CAPABILITY_SCHEMA_VERSION,
-        compatibleSchema: true,
-        metadata: {
-          capabilitySource: "phase-2-placeholder",
-          provider: OPENCODE_PROVIDER_ID,
-        },
+    expect(probe.capabilities.metadata.capabilitySource).toBe("phase-4-runtime-probe");
+    expect(probe.capabilities.metadata.agentproxyOpenCodeProviderProbe).toBeDefined();
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({
+      id: OPENCODE_PROVIDER_ID,
+      displayName: "OpenCode",
+      mode: "available",
+      capabilitySchemaVersion: CAPABILITY_SCHEMA_VERSION,
+      compatibleSchema: true,
+      metadata: {
+        capabilitySource: "phase-4-runtime-probe",
+        provider: OPENCODE_PROVIDER_ID,
       },
-    ]);
+    });
+    expect(list[0]?.metadata.agentproxyOpenCodeProviderProbe).toBeDefined();
   });
 });

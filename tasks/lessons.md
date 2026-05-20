@@ -35,3 +35,5 @@
 - 更新 `tasks/todo.md` 当前迭代计划时必须保留历史迭代记录，只在顶部插入或更新当前小节，不能整文件替换成当前任务。
 - runtime 诊断应先做成可复用服务层，再由未来 CLI/TUI doctor 包装；Gate 验证可以复用服务层证明 start/connect/event/stop 闭环，不要为了诊断提前实现 CLI MVP。
 - runtime 诊断里的 timeout 必须覆盖 response body 读取，SSE 检查要精确匹配 media type，并用 best-effort cleanup，避免诊断挂住或让清理错误覆盖稳定错误码。
+- Provider capability probe 不能把 health 成功等同于 API/method 能力可用；带 method 语义的 endpoint 必须明确证明目标 method 支持，且 capability 不得提前声明尚未实现的 AgentProvider 操作。
+- Provider health/capability metadata 不应回传 provider-controlled 原始 header 或 payload；只保留规范化 media type、白名单 allow methods 和脱敏后的稳定诊断字段。

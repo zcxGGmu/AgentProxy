@@ -11,6 +11,56 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Phase 4.1 OpenCodeProvider Health / Capability
+
+Scope: advance only OpenCodeProvider health and capability probing from the Chinese progress tracker.
+
+Implementation checklist:
+
+- [x] Add focused tests for OpenCodeProvider binary, runtime health, server API, SSE, and SDK availability probing.
+- [x] Implement a small provider-layer OpenCode probe that reuses Phase 3 runtime constants and does not start/stop runtimes.
+- [x] Update `OpenCodeProvider.getCapabilities()` to return runtime-overridden capabilities, provider version, and provider-specific metadata.
+- [x] Update `OpenCodeProvider.healthCheck()` to return healthy/degraded/unhealthy status with stable sanitized metadata.
+- [x] Keep the implementation limited to provider health/capability; do not implement model listing, session sync, message sending, CLI MVP, or TUI.
+- [x] Update the Chinese progress tracker and record verification evidence.
+- [x] Run verification and create a detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Reuse Phase 3.1 `probeOpenCodeBinary()` for binary and OpenCode version detection.
+- Reuse Phase 3.3 `/global/health` health path and Phase 3.5 `/event` SSE path constants for runtime probes.
+- Use Node.js built-in `fetch`, `AbortController`, and `createRequire`; do not add dependencies for this small task group.
+- Treat `@opencode-ai/sdk` as an optional availability probe only in this iteration; do not call SDK APIs yet.
+- Accept a configured or context-provided runtime base URL for probing; do not create a new runtime manager path in provider code.
+- Preserve provider-specific probe details under metadata and avoid promoting unstable OpenCode fields into global contracts.
+
+Acceptance criteria for this iteration:
+
+- [x] With a supported fake OpenCode binary and fake healthy server, `healthCheck()` returns `healthy` and includes OpenCode version metadata.
+- [x] With no runtime base URL but a supported binary, `healthCheck()` returns `degraded` instead of throwing.
+- [x] With a missing or invalid binary and no healthy runtime, `healthCheck()` returns `unhealthy` with a stable provider-unavailable diagnostic.
+- [x] `getCapabilities()` reports static binary-backed lifecycle capabilities and enables runtime `openApi`/`sse` flags only when the runtime probe proves the server endpoints; session/message/TUI endpoint probes stay in metadata until those AgentProvider operations are implemented.
+- [x] SDK availability is explicitly reported in capabilities and metadata without requiring `@opencode-ai/sdk` to be installed.
+- [x] Probe errors and URLs are sanitized: no query secrets, URL credentials, raw provider payloads, or provider-controlled raw headers leak into returned metadata.
+- [x] `pnpm exec vitest run tests/opencode-provider-health.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
+- [x] Chinese progress tracker marks the Phase 4.1 health/capability group done and records Review notes.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- This does not implement `providers inspect`; the current CLI still has a planned placeholder until Phase 5.
+- Real OpenCode API shape may need later smoke calibration; this iteration uses conservative endpoint reachability and fake server tests.
+- Runtime probing must be read-only and must not create sessions, mutate config, approve permissions, or start/stop processes.
+- OpenCodeProvider must remain a thin API adapter and not infer or duplicate OpenCode runtime internals.
+
+Review notes:
+
+- 2026-05-20: Added `src/providers/opencode/probe.ts`, wired `OpenCodeProvider.getCapabilities()` and `healthCheck()` to provider-layer probes, and added `tests/opencode-provider-health.test.ts`.
+- The probe reuses Phase 3 OpenCode binary, `/global/health`, and `/event` boundaries; it does not start/stop runtimes, create sessions, send messages, approve permissions, or enter CLI/TUI.
+- Code review fixes: covered health body timeout in the same abort lifecycle as fetch, required `OPTIONS Allow` proof for mutating endpoint methods, stopped inferring OpenAPI from health alone, kept unimplemented session/message/TUI AgentProvider operations out of top-level capabilities, and normalized provider-controlled headers to `mediaType`/allow method lists.
+- Verification passed: `pnpm exec vitest run tests/opencode-provider-health.test.ts tests/provider-registry.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, `git diff --check`.
+- Remaining risk: `providers inspect` CLI acceptance remains unimplemented by design until the CLI phase; real OpenCode API shape still needs later smoke calibration.
+
 ## Current Iteration - 2026-05-20 Phase 3 Runtime Diagnostics / Gate 3
 
 Scope: advance only OpenCode runtime diagnostics and Gate 3 aggregation from the Chinese progress tracker.

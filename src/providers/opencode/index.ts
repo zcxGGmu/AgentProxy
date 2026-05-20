@@ -2,6 +2,11 @@ import { createAgentProxyError } from "../../core/errors.js";
 import type { RuntimeHandle, RuntimeRequest } from "../../core/types.js";
 import type { ProviderSession } from "../../sessions/types.js";
 import { OPENCODE_PROVIDER_ID } from "./constants.js";
+import {
+  OPENCODE_PROVIDER_PROBE_METADATA_KEY,
+  type OpenCodeProviderOptions,
+  probeOpenCodeProvider,
+} from "./probe.js";
 import type {
   AgentProvider,
   ExportResult,
@@ -22,7 +27,6 @@ import type {
   ShareResult,
   StartSessionRequest,
 } from "../types.js";
-import { CAPABILITY_SCHEMA_VERSION, normalizeProviderCapabilities } from "../types.js";
 
 export { OPENCODE_PROVIDER_ID } from "./constants.js";
 export {
@@ -30,35 +34,48 @@ export {
   normalizeOpenCodeVersion,
   probeOpenCodeBinary,
 } from "./binary.js";
+export {
+  OPENCODE_PROVIDER_PROBE_METADATA_KEY,
+  OPENCODE_SDK_MODULE_NAME,
+} from "./probe.js";
 export type {
   OpenCodeBinaryProbe,
   OpenCodeBinarySource,
   ProbeOpenCodeBinaryOptions,
 } from "./binary.js";
+export type {
+  OpenCodeProviderOptions,
+  OpenCodeProviderProbeReport,
+  OpenCodeSdkProbe,
+  OpenCodeSdkResolver,
+} from "./probe.js";
 
 export class OpenCodeProvider implements AgentProvider {
   readonly id = OPENCODE_PROVIDER_ID;
   readonly displayName = "OpenCode";
-  readonly metadata = {
-    capabilitySource: "phase-2-placeholder",
-    provider: OPENCODE_PROVIDER_ID,
-  };
+  readonly metadata: Record<string, unknown>;
 
-  async getCapabilities(_ctx: ProviderContext): Promise<ProviderCapabilities> {
-    return normalizeProviderCapabilities({
-      schemaVersion: CAPABILITY_SCHEMA_VERSION,
-      metadata: this.metadata,
-    });
+  #options: OpenCodeProviderOptions;
+
+  constructor(options: OpenCodeProviderOptions = {}) {
+    this.#options = options;
+    this.metadata = {
+      capabilitySource: "phase-4-runtime-probe",
+      provider: OPENCODE_PROVIDER_ID,
+      [OPENCODE_PROVIDER_PROBE_METADATA_KEY]: {
+        availability: "probed",
+      },
+    };
+  }
+
+  async getCapabilities(ctx: ProviderContext): Promise<ProviderCapabilities> {
+    const report = await probeOpenCodeProvider(this.#options, ctx, this.metadata);
+    return report.capabilities;
   }
 
   async healthCheck(ctx: ProviderContext): Promise<ProviderHealth> {
-    return {
-      providerId: ctx.providerId,
-      status: "unknown",
-      checkedAt: new Date().toISOString(),
-      message: "OpenCode runtime probing is not implemented in Phase 2.2.",
-      metadata: this.metadata,
-    };
+    const report = await probeOpenCodeProvider(this.#options, ctx, this.metadata);
+    return report.health;
   }
 
   async ensureRuntime(_ctx: RuntimeRequest): Promise<RuntimeHandle> {
