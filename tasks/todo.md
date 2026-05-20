@@ -11,6 +11,49 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Gate 4 Summary Validation
+
+Scope: validate and close Gate 4 only. Prove that the completed Phase 4.1-4.7 OpenCodeProvider provider-layer capabilities work together across health/capability, model listing, session sync, session create/resume, message streaming, session operations, and provider passthrough. Do not implement Phase 5 CLI MVP, TUI, new runtime behavior, permission approval, diff/revert/todo, or a new Agent runtime.
+
+Implementation checklist:
+
+- [x] Confirm the working tree and latest commit, treating `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough` as the latest Phase 4 implementation baseline when the newest commit is documentation-only.
+- [x] Run a focused Phase 4 provider/session/passthrough validation matrix.
+- [x] Run the full project quality gate: typecheck, test, lint, format check, build, and diff whitespace check.
+- [x] Update the Chinese progress tracker to mark Gate 4 done, record verification evidence, and set the next unfinished item to Phase 5 without implementing Phase 5.
+- [x] Run final documentation-appropriate checks after tracker updates.
+- [x] Create a detailed Chinese commit for Gate 4 validation.
+
+Dependencies confirmed before implementation:
+
+- Working tree starts clean on documentation commit `22dd84a 文档：明确 Phase 4.7 后续启动基线`; latest Phase 4 implementation baseline remains `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`.
+- Phase 4.1-4.7 implementation and focused tests already exist; Gate 4 should prefer verification and progress tracking over new behavior.
+- `docs/development-progress-tracker.zh.md` is the primary execution checklist, and `docs/agentproxy-development-plan.md` remains the source plan.
+- Existing npm scripts are `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`.
+
+Acceptance criteria for this iteration:
+
+- [x] Focused Phase 4 tests pass for provider health/capability, model listing, session sync, lifecycle, message streaming, session operations, provider passthrough, provider registry, and CLI passthrough boundary.
+- [x] Full verification passes: `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+- [x] Gate 4 is marked done in `docs/development-progress-tracker.zh.md`, with Review notes listing exact verification commands and results.
+- [x] Latest status and next-start instructions move to Phase 5 as the first unfinished item, while explicitly saying Phase 5 CLI MVP and TUI were not implemented during Gate 4.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- Gate 4 is provider-layer validation, not a license to start CLI MVP or TUI.
+- Existing Phase 4 tests use fake OpenCode server/binary coverage; real OpenCode smoke calibration remains a later compatibility risk unless a real runtime is explicitly available and requested.
+- Do not broaden the provider contract or add abstractions unless validation reveals a real blocker.
+
+Review notes:
+
+- 2026-05-21: Confirmed initial `git status --short` was clean and `git log -1 --oneline` was `22dd84a 文档：明确 Phase 4.7 后续启动基线`; latest Phase 4 implementation baseline remains `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`.
+- Gate 4 focused validation passed: `pnpm exec vitest run tests/opencode-provider-health.test.ts tests/opencode-provider-models.test.ts tests/opencode-provider-sessions.test.ts tests/session-sync.test.ts tests/session-lifecycle.test.ts tests/opencode-provider-messages.test.ts tests/session-messages.test.ts tests/opencode-provider-session-actions.test.ts tests/session-actions.test.ts tests/opencode-provider-passthrough.test.ts tests/cli-provider-exec.test.ts tests/provider-registry.test.ts tests/opencode-event-stream.test.ts` (13 files, 80 tests).
+- Full verification passed before tracker updates: `pnpm run typecheck`, `pnpm run test` (23 files, 166 tests), `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+- Updated `docs/development-progress-tracker.zh.md` to mark Gate 4 done, move the first unfinished item to Phase 5 CLI MVP, and explicitly preserve the boundary that Gate 4 did not implement Phase 5 CLI MVP or TUI.
+- Residual risk: tests use fake OpenCode server/binary coverage; real OpenCode smoke calibration remains a later compatibility task.
+- 2026-05-21: Created the detailed Chinese commit for Gate 4 validation after verification.
+
 ## Current Iteration - 2026-05-20 Phase 4.7 Provider Passthrough
 
 Scope: advance only Phase 4.7 provider passthrough. Implement the narrow `agentproxy provider exec opencode -- <native args>` escape hatch and OpenCode provider passthrough plumbing. Do not implement broader CLI MVP commands, TUI, permission approval, diff/revert/todo operations, runtime lifecycle changes, or a new Agent runtime.
