@@ -11,6 +11,56 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Phase 4.6 Session Operations
+
+Scope: advance only Phase 4.6 session operation provider/service layer. Do not implement CLI MVP commands, TUI, provider passthrough, permission approval flows, diff/revert/todo operations, or a new Agent runtime.
+
+Implementation checklist:
+
+- [x] Add focused provider tests for OpenCode abort, delete, share, unshare, sanitized export, raw export confirmation, and import.
+- [x] Implement OpenCodeProvider session operations using OpenCode server APIs where documented and OpenCode CLI only for native export/import.
+- [x] Add a provider-agnostic session operations service for local confirmation gates, tombstone writes, metadata updates, and import mapping persistence.
+- [x] Keep export/import/share payloads out of SQLite; store only sanitized operation metadata and stable IDs.
+- [x] Update provider capability reporting only for operations implemented in this iteration.
+- [x] Update the Chinese progress tracker and record verification evidence.
+- [x] Run verification and create a detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Latest working tree started clean on documentation commit `a45aef8`; latest Phase 4 implementation baseline remains `76a976f 阶段进展：完成 Phase 4.5 Message 发送与事件映射`.
+- Reuse existing `AgentProvider` operation contracts in `src/providers/types.ts`; only optional confirmation fields may be added if needed for raw export safety.
+- Reuse current OpenCode HTTP helpers in `src/providers/opencode/sessions.ts` for runtime URL resolution, timeout handling, request error mapping, session response parsing, and metadata whitelisting.
+- OpenCode server docs expose `POST /session/:id/abort`, `DELETE /session/:id`, `POST /session/:id/share`, and `DELETE /session/:id/share`; official CLI docs expose `opencode export [sessionID] --sanitize` and `opencode import <file-or-share-url>`.
+- Reuse existing SQLite `sessions` repository and `markDeleted()` tombstone path; no migration is planned.
+
+Acceptance criteria for this iteration:
+
+- [x] Fake OpenCode runtime can abort, delete, share, and unshare sessions through `OpenCodeProvider` with stable error mapping for auth, missing runtime, not found, and malformed responses.
+- [x] Export defaults to sanitized output, returns `sanitized: true`, parses JSON data, and never persists exported transcript/file payloads.
+- [x] Raw export is rejected unless an explicit raw confirmation flag is set, then returns `sanitized: false`.
+- [x] Import uses OpenCode native import behavior, maps or validates the imported provider session id, and persists only a local AgentProxy index projection.
+- [x] Provider-agnostic delete requires explicit confirmation, calls provider delete, and writes a local tombstone without reviving existing tombstones.
+- [x] Provider-agnostic share/unshare updates local sharing metadata without storing public share URLs in SQLite.
+- [x] Prompt text, raw export data, import source URLs, share URLs, raw provider response bodies, URL credentials, and query secrets do not leak into persisted records or stable errors.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+- [x] Chinese progress tracker marks Phase 4.6 done and records Review notes.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- OpenCode export/import are CLI-backed because the current server API list does not expose export/import endpoints; keep this as a narrow provider operation, not generic passthrough.
+- OpenCode import stdout format may evolve; accept JSON/session-id shapes conservatively and fail closed when the imported session id cannot be identified.
+- `share` returns a live URL to the caller, but SQLite should store only `shared: true/false` style metadata because share URLs may grant access.
+- Confirmation gates belong in the AgentProxy session service layer; CLI/TUI can wire `--yes` or prompts later without changing provider behavior.
+- This phase must not add CLI/TUI workflows or expand completed Phase 4.1-4.5 behavior beyond shared helper reuse.
+
+Review notes:
+
+- 2026-05-20: Added provider and session operation tests, then implemented OpenCode abort/delete/share/unshare through server API and export/import through a narrow native OpenCode CLI operation boundary.
+- Added `src/sessions/actions.ts` for provider-agnostic confirmation gates, delete tombstones, import mapping persistence, and share/unshare metadata updates without storing share URLs or export payloads.
+- Updated capability probing to expose implemented abort/delete/export/import/share/unshare only when the required OpenCode server endpoint or binary boundary is available.
+- Verification passed: `pnpm exec vitest run tests/opencode-provider-session-actions.test.ts tests/session-actions.test.ts tests/opencode-provider-health.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
 ## Current Iteration - 2026-05-20 Documentation Sync After Phase 4.5
 
 Scope: update only project tracking documents after `76a976f 阶段进展：完成 Phase 4.5 Message 发送与事件映射`. Do not implement Phase 4.6, provider passthrough, CLI MVP, TUI, or runtime/provider behavior.

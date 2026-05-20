@@ -141,6 +141,8 @@ function allowHeaderForProbePath(url: string): string | undefined {
       return "GET, POST";
     case "/session/__agentproxy_probe__":
       return "GET, PATCH, DELETE";
+    case "/session/__agentproxy_probe__/abort":
+      return "POST";
     case "/session/__agentproxy_probe__/fork":
       return "POST";
     case "/session/__agentproxy_probe__/share":
@@ -251,9 +253,13 @@ describe("OpenCodeProvider health and capability probing", () => {
       list: true,
       create: true,
       resume: true,
+      abort: true,
       fork: false,
-      delete: false,
-      share: false,
+      delete: true,
+      export: true,
+      import: true,
+      share: true,
+      unshare: true,
       diff: false,
       revert: false,
       todo: false,
@@ -268,6 +274,18 @@ describe("OpenCodeProvider health and capability probing", () => {
             supported: true,
           },
           sessionGet: {
+            supported: true,
+          },
+          sessionAbort: {
+            supported: true,
+          },
+          sessionDelete: {
+            supported: true,
+          },
+          sessionShare: {
+            supported: true,
+          },
+          sessionUnshare: {
             supported: true,
           },
           messageSend: {
@@ -295,7 +313,7 @@ describe("OpenCodeProvider health and capability probing", () => {
     });
   });
 
-  it("does not advertise unimplemented AgentProvider operations as top-level capabilities", async () => {
+  it("advertises implemented session operations only when the required boundary is available", async () => {
     const { binaryPath, workspacePath } = await createTestRoot();
     const { baseUrl } = await startFakeOpenCodeServer();
     const provider = new OpenCodeProvider({
@@ -314,9 +332,13 @@ describe("OpenCodeProvider health and capability probing", () => {
       list: true,
       create: true,
       resume: true,
+      abort: true,
       fork: false,
-      delete: false,
-      share: false,
+      delete: true,
+      export: true,
+      import: true,
+      share: true,
+      unshare: true,
       diff: false,
       revert: false,
       todo: false,
@@ -337,10 +359,16 @@ describe("OpenCodeProvider health and capability probing", () => {
           sessionGet: {
             supported: true,
           },
+          sessionAbort: {
+            supported: true,
+          },
           sessionDelete: {
             supported: true,
           },
           sessionShare: {
+            supported: true,
+          },
+          sessionUnshare: {
             supported: true,
           },
           tuiPromptPrefill: {

@@ -46,3 +46,4 @@
 - provider 返回的 `parentProviderSessionId` 映射到本地 parent 时也必须避开 tombstone parent；不能只校验用户显式传入的 parentSessionId。
 - Message 事件流不能把 provider 的 step-ended 当成 session/message terminal；严格 message stream 只处理显式携带目标 `sessionID` 的 provider 事件，避免无归属 raw payload 被错误归到当前 session。
 - 本地 message lifecycle 在消费者提前 `return()` 或 signal abort 时也必须写回终态，不能让 session 长期卡在 `running`。
+- Session export/import 如果只能走 provider 原生命令，应保持为窄 provider operation，不等同于通用 passthrough；raw export 必须有独立确认，export payload、import source 和 share URL 不落 SQLite。

@@ -10,11 +10,17 @@ import {
   probeOpenCodeProvider,
 } from "./probe.js";
 import {
+  abortOpenCodeSession,
+  deleteOpenCodeSession,
+  exportOpenCodeSession,
   getOpenCodeSession,
+  importOpenCodeSession,
   listOpenCodeSessions,
   resumeOpenCodeSession,
   sendOpenCodeMessage,
+  shareOpenCodeSession,
   startOpenCodeSession,
+  unshareOpenCodeSession,
 } from "./sessions.js";
 import type {
   AgentProvider,
@@ -120,27 +126,27 @@ export class OpenCodeProvider implements AgentProvider {
   }
 
   async abortSession(ctx: SessionActionRequest): Promise<void> {
-    throw unsupportedOpenCodeOperation("provider.abortSession", ctx.providerId);
+    return abortOpenCodeSession(this.#options, ctx);
   }
 
   async deleteSession(ctx: SessionActionRequest): Promise<void> {
-    throw unsupportedOpenCodeOperation("provider.deleteSession", ctx.providerId);
+    return deleteOpenCodeSession(this.#options, ctx);
   }
 
   async exportSession(ctx: ExportSessionRequest): Promise<ExportResult> {
-    throw unsupportedOpenCodeOperation("provider.exportSession", ctx.providerId);
+    return exportOpenCodeSession(this.#options, ctx);
   }
 
   async importSession(ctx: ImportSessionRequest): Promise<ProviderSession> {
-    throw unsupportedOpenCodeOperation("provider.importSession", ctx.providerId);
+    return importOpenCodeSession(this.#options, ctx);
   }
 
   async shareSession(ctx: SessionActionRequest): Promise<ShareResult> {
-    throw unsupportedOpenCodeOperation("provider.shareSession", ctx.providerId);
+    return shareOpenCodeSession(this.#options, ctx);
   }
 
   async unshareSession(ctx: SessionActionRequest): Promise<void> {
-    throw unsupportedOpenCodeOperation("provider.unshareSession", ctx.providerId);
+    return unshareOpenCodeSession(this.#options, ctx);
   }
 
   async openNativeTui(ctx: NativeTuiRequest): Promise<NativeTuiResult> {

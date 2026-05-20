@@ -18,11 +18,13 @@ export interface SessionCapabilities {
   list: boolean;
   create: boolean;
   resume: boolean;
+  abort: boolean;
   fork: boolean;
   delete: boolean;
   export: boolean;
   import: boolean;
   share: boolean;
+  unshare: boolean;
   diff: boolean;
   revert: boolean;
   todo: boolean;
@@ -81,11 +83,13 @@ const DEFAULT_PROVIDER_CAPABILITIES: ProviderCapabilities = {
     list: false,
     create: false,
     resume: false,
+    abort: false,
     fork: false,
     delete: false,
     export: false,
     import: false,
     share: false,
+    unshare: false,
     diff: false,
     revert: false,
     todo: false,
@@ -233,6 +237,7 @@ export interface SessionActionRequest extends ProviderContext {
 export interface ExportSessionRequest extends SessionActionRequest {
   sanitize?: boolean;
   raw?: boolean;
+  rawConfirmed?: boolean;
 }
 
 export interface ExportResult {

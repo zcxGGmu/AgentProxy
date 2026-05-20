@@ -102,9 +102,11 @@ type OpenCodeProviderEndpointId =
   | "sessionCreate"
   | "sessionGet"
   | "sessionStatus"
+  | "sessionAbort"
   | "sessionDelete"
   | "sessionFork"
   | "sessionShare"
+  | "sessionUnshare"
   | "sessionDiff"
   | "sessionTodo"
   | "sessionRevert"
@@ -477,11 +479,13 @@ function buildCapabilities(input: {
       list: runtimeEndpoint("sessionList"),
       create: runtimeEndpoint("sessionCreate"),
       resume: runtimeEndpoint("sessionGet"),
+      abort: runtimeEndpoint("sessionAbort"),
       fork: false,
-      delete: false,
-      export: false,
-      import: false,
-      share: false,
+      delete: runtimeEndpoint("sessionDelete"),
+      export: binaryAvailable,
+      import: binaryAvailable,
+      share: runtimeEndpoint("sessionShare"),
+      unshare: runtimeEndpoint("sessionUnshare"),
       diff: false,
       revert: false,
       todo: false,
@@ -541,6 +545,12 @@ function endpointProbeInputs(): EndpointProbeInput[] {
       path: "/session/status",
     },
     {
+      id: "sessionAbort",
+      path: `/session/${PROBE_SESSION_ID}/abort`,
+      method: "OPTIONS",
+      requiredAllowMethod: "POST",
+    },
+    {
       id: "sessionDelete",
       path: `/session/${PROBE_SESSION_ID}`,
       method: "OPTIONS",
@@ -557,6 +567,12 @@ function endpointProbeInputs(): EndpointProbeInput[] {
       path: `/session/${PROBE_SESSION_ID}/share`,
       method: "OPTIONS",
       requiredAllowMethod: "POST",
+    },
+    {
+      id: "sessionUnshare",
+      path: `/session/${PROBE_SESSION_ID}/share`,
+      method: "OPTIONS",
+      requiredAllowMethod: "DELETE",
     },
     {
       id: "sessionDiff",

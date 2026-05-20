@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import { createAgentProxyError, isAgentProxyError } from "../../core/errors.js";
 import type { AgentEvent } from "../../core/events.js";
 import {
@@ -6,12 +7,18 @@ import {
 } from "../../runtimes/events.js";
 import type { ProviderSession } from "../../sessions/types.js";
 import type {
+  ExportResult,
+  ExportSessionRequest,
+  ImportSessionRequest,
   ProviderContext,
   ResumeSessionRequest,
   SendMessageRequest,
+  SessionActionRequest,
   SessionQuery,
+  ShareResult,
   StartSessionRequest,
 } from "../types.js";
+import { probeOpenCodeBinary } from "./binary.js";
 import { OPENCODE_PROVIDER_ID } from "./constants.js";
 import {
   cancelResponseBody,
@@ -31,6 +38,14 @@ const OPENCODE_GET_SESSION_OPERATION = "opencode.provider.getSession";
 const OPENCODE_START_SESSION_OPERATION = "opencode.provider.startSession";
 const OPENCODE_RESUME_SESSION_OPERATION = "opencode.provider.resumeSession";
 const OPENCODE_SEND_MESSAGE_OPERATION = "opencode.provider.sendMessage";
+const OPENCODE_ABORT_SESSION_OPERATION = "opencode.provider.abortSession";
+const OPENCODE_DELETE_SESSION_OPERATION = "opencode.provider.deleteSession";
+const OPENCODE_EXPORT_SESSION_OPERATION = "opencode.provider.exportSession";
+const OPENCODE_IMPORT_SESSION_OPERATION = "opencode.provider.importSession";
+const OPENCODE_SHARE_SESSION_OPERATION = "opencode.provider.shareSession";
+const OPENCODE_UNSHARE_SESSION_OPERATION = "opencode.provider.unshareSession";
+const DEFAULT_SESSION_CLI_REQUEST_TIMEOUT_MS = 30_000;
+const OPENCODE_CLI_MAX_BUFFER_BYTES = 16 * 1024 * 1024;
 
 interface OpenCodeSessionListItem {
   id: string;
@@ -188,6 +203,179 @@ export function sendOpenCodeMessage(
   return sendOpenCodeMessageEvents(options, context);
 }
 
+export async function abortOpenCodeSession(
+  options: OpenCodeProviderOptions,
+  context: SessionActionRequest,
+): Promise<void> {
+  await runOpenCodeSessionVoidAction({
+    options,
+    context,
+    operation: OPENCODE_ABORT_SESSION_OPERATION,
+    method: "POST",
+    path: `${OPENCODE_SESSION_LIST_PATH}/${encodeURIComponent(context.providerSessionId)}/abort`,
+  });
+}
+
+export async function deleteOpenCodeSession(
+  options: OpenCodeProviderOptions,
+  context: SessionActionRequest,
+): Promise<void> {
+  await runOpenCodeSessionVoidAction({
+    options,
+    context,
+    operation: OPENCODE_DELETE_SESSION_OPERATION,
+    method: "DELETE",
+    path: `${OPENCODE_SESSION_LIST_PATH}/${encodeURIComponent(context.providerSessionId)}`,
+  });
+}
+
+export async function shareOpenCodeSession(
+  options: OpenCodeProviderOptions,
+  context: SessionActionRequest,
+): Promise<ShareResult> {
+  const responseBody = await runOpenCodeSessionJsonAction({
+    options,
+    context,
+    operation: OPENCODE_SHARE_SESSION_OPERATION,
+    method: "POST",
+    path: `${OPENCODE_SESSION_LIST_PATH}/${encodeURIComponent(context.providerSessionId)}/share`,
+  });
+  const url = readShareUrl(responseBody);
+  if (url === undefined) {
+    throw createSessionOperationError({
+      code: "PROVIDER_UNAVAILABLE",
+      operation: OPENCODE_SHARE_SESSION_OPERATION,
+      message: "OpenCode share response did not include a share URL.",
+      failureReason: "unexpected_share_response",
+      providerSessionId: context.providerSessionId,
+      suggestion: "Upgrade or restart OpenCode, then retry sharing the session.",
+    });
+  }
+
+  return {
+    providerId: OPENCODE_PROVIDER_ID,
+    providerSessionId: context.providerSessionId,
+    url,
+    metadata: {
+      opencode: {
+        share: {
+          shared: true,
+        },
+      },
+    },
+  };
+}
+
+export async function unshareOpenCodeSession(
+  options: OpenCodeProviderOptions,
+  context: SessionActionRequest,
+): Promise<void> {
+  await runOpenCodeSessionVoidAction({
+    options,
+    context,
+    operation: OPENCODE_UNSHARE_SESSION_OPERATION,
+    method: "DELETE",
+    path: `${OPENCODE_SESSION_LIST_PATH}/${encodeURIComponent(context.providerSessionId)}/share`,
+  });
+}
+
+export async function exportOpenCodeSession(
+  options: OpenCodeProviderOptions,
+  context: ExportSessionRequest,
+): Promise<ExportResult> {
+  const raw = context.raw === true || context.sanitize === false;
+  if (context.raw === true && context.sanitize === true) {
+    throw createSessionOperationError({
+      code: "CONFIG_INVALID",
+      operation: OPENCODE_EXPORT_SESSION_OPERATION,
+      message: "OpenCode export cannot be both raw and sanitized.",
+      failureReason: "conflicting_export_flags",
+      providerSessionId: context.providerSessionId,
+      suggestion: "Choose either sanitized export or raw export, not both.",
+    });
+  }
+  if (raw && context.rawConfirmed !== true) {
+    throw createSessionOperationError({
+      code: "CONFIG_INVALID",
+      operation: OPENCODE_EXPORT_SESSION_OPERATION,
+      message: "Raw OpenCode session export requires explicit confirmation.",
+      failureReason: "raw_export_requires_confirmation",
+      providerSessionId: context.providerSessionId,
+      suggestion:
+        "Confirm raw export only when you accept that transcript data may contain secrets.",
+    });
+  }
+
+  const result = await runOpenCodeCli({
+    options,
+    context,
+    operation: OPENCODE_EXPORT_SESSION_OPERATION,
+    args: ["export", context.providerSessionId, ...(raw ? [] : ["--sanitize"])],
+    providerSessionId: context.providerSessionId,
+  });
+
+  return {
+    providerId: OPENCODE_PROVIDER_ID,
+    providerSessionId: context.providerSessionId,
+    sanitized: !raw,
+    data: parseCliJsonOrText(result.stdout),
+    metadata: {
+      opencode: {
+        export: {
+          sanitized: !raw,
+          source: "cli",
+        },
+      },
+    },
+  };
+}
+
+export async function importOpenCodeSession(
+  options: OpenCodeProviderOptions,
+  context: ImportSessionRequest,
+): Promise<ProviderSession> {
+  const result = await runOpenCodeCli({
+    options,
+    context,
+    operation: OPENCODE_IMPORT_SESSION_OPERATION,
+    args: ["import", context.source],
+  });
+  const parsed = parseCliJson(result.stdout);
+  const importedSession =
+    parseSessionListItem(parsed) ??
+    (isPlainObject(parsed) ? parseSessionListItem(parsed.session) : undefined) ??
+    (isPlainObject(parsed) ? parseSessionListItem(parsed.data) : undefined);
+  if (importedSession !== undefined) {
+    return withImportMetadata(mapOpenCodeSession(importedSession, undefined));
+  }
+
+  const importedSessionId =
+    readImportedSessionId(parsed) ?? readImportedSessionIdFromText(result.stdout);
+  if (importedSessionId === undefined) {
+    throw createSessionOperationError({
+      code: "PROVIDER_UNAVAILABLE",
+      operation: OPENCODE_IMPORT_SESSION_OPERATION,
+      message: "OpenCode import output did not include an imported session id.",
+      failureReason: "unexpected_import_response",
+      suggestion: "Retry with a newer OpenCode version or import through provider passthrough.",
+    });
+  }
+
+  const runtimeBaseUrl = resolveRuntimeBaseUrl(options, context);
+  if (runtimeBaseUrl !== undefined) {
+    const fetched = await getOpenCodeSession(options, context, importedSessionId);
+    return withImportMetadata(fetched);
+  }
+
+  return withImportMetadata({
+    providerId: OPENCODE_PROVIDER_ID,
+    providerSessionId: importedSessionId,
+    ...(context.workspacePath !== undefined ? { workspacePath: context.workspacePath } : {}),
+    status: "unknown",
+    metadata: {},
+  });
+}
+
 async function* sendOpenCodeMessageEvents(
   options: OpenCodeProviderOptions,
   context: SendMessageRequest,
@@ -322,6 +510,226 @@ async function trySendOpenCodePromptAsync(
       status: readPromptFailureStatus(error),
     });
   }
+}
+
+async function runOpenCodeSessionVoidAction(input: {
+  options: OpenCodeProviderOptions;
+  context: SessionActionRequest;
+  operation: string;
+  method: "POST" | "DELETE";
+  path: string;
+}): Promise<void> {
+  await runOpenCodeSessionJsonAction(input);
+}
+
+async function runOpenCodeSessionJsonAction(input: {
+  options: OpenCodeProviderOptions;
+  context: SessionActionRequest;
+  operation: string;
+  method: "POST" | "DELETE";
+  path: string;
+}): Promise<unknown> {
+  const requestTimeoutMs = validateRequestTimeout(
+    input.options.requestTimeoutMs ?? DEFAULT_SESSION_MUTATION_REQUEST_TIMEOUT_MS,
+  );
+  const baseUrl = resolveSessionMutationBaseUrl(input.options, input.context, input.operation);
+  const { response, responseBody } = await fetchSessionJson({
+    url: buildSessionOperationUrl(baseUrl, input.path, input.context.workspacePath),
+    method: input.method,
+    requestTimeoutMs,
+    fetchImplementation: input.options.fetchImplementation ?? fetch,
+    signal: input.context.signal,
+    operation: input.operation,
+    providerSessionId: input.context.providerSessionId,
+  });
+
+  if (!response.ok) {
+    throw createSessionResponseError({
+      operation: input.operation,
+      status: response.status,
+      providerSessionId: input.context.providerSessionId,
+    });
+  }
+
+  return responseBody;
+}
+
+async function runOpenCodeCli(input: {
+  options: OpenCodeProviderOptions;
+  context: ProviderContext;
+  operation: string;
+  args: readonly string[];
+  providerSessionId?: string | undefined;
+}): Promise<{ stdout: string; stderr: string }> {
+  const binaryPath = resolveOpenCodeCliBinary(input.options, input.context, input.operation);
+  const requestTimeoutMs = validateRequestTimeout(
+    input.options.requestTimeoutMs ?? DEFAULT_SESSION_CLI_REQUEST_TIMEOUT_MS,
+  );
+  const env = {
+    ...process.env,
+    ...(input.options.env ?? {}),
+  };
+  const cwd = input.context.workspacePath ?? input.options.cwd;
+
+  try {
+    return await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+      execFile(
+        binaryPath,
+        [...input.args],
+        {
+          ...(cwd !== undefined ? { cwd } : {}),
+          env,
+          encoding: "utf8",
+          maxBuffer: OPENCODE_CLI_MAX_BUFFER_BYTES,
+          timeout: requestTimeoutMs,
+        },
+        (error, stdout, stderr) => {
+          if (error !== null) {
+            reject(error);
+            return;
+          }
+
+          resolve({
+            stdout,
+            stderr,
+          });
+        },
+      );
+    });
+  } catch {
+    throw createSessionOperationError({
+      code: "PROVIDER_UNAVAILABLE",
+      operation: input.operation,
+      message: "OpenCode native session command failed.",
+      failureReason: input.context.signal?.aborted === true ? "aborted" : "cli_failed",
+      providerSessionId: input.providerSessionId,
+      suggestion: "Verify that OpenCode is installed and retry the session operation.",
+    });
+  }
+}
+
+function resolveOpenCodeCliBinary(
+  options: OpenCodeProviderOptions,
+  context: ProviderContext,
+  operation: string,
+): string {
+  try {
+    const probeOptions: Parameters<typeof probeOpenCodeBinary>[0] = {};
+    if (options.binary !== undefined) {
+      probeOptions.binary = options.binary;
+    }
+    if (options.env !== undefined) {
+      probeOptions.env = options.env;
+    }
+    const cwd = context.workspacePath ?? options.cwd;
+    if (cwd !== undefined) {
+      probeOptions.cwd = cwd;
+    }
+
+    return probeOpenCodeBinary(probeOptions).resolvedPath;
+  } catch {
+    throw createSessionOperationError({
+      code: "PROVIDER_UNAVAILABLE",
+      operation,
+      message: "OpenCode binary is required for native session operations.",
+      failureReason: "binary_unavailable",
+      suggestion: "Install OpenCode or configure providers.opencode.binary before retrying.",
+    });
+  }
+}
+
+function parseCliJsonOrText(value: string): unknown {
+  const parsed = parseCliJson(value);
+  return parsed === undefined ? value : parsed;
+}
+
+function parseCliJson(value: string): unknown {
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return undefined;
+  }
+}
+
+function readShareUrl(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim() !== "") {
+    return value;
+  }
+  if (!isPlainObject(value)) {
+    return undefined;
+  }
+
+  const direct =
+    readNonEmptyString(value.url) ??
+    readNonEmptyString(value.shareUrl) ??
+    readNonEmptyString(value.shareURL) ??
+    readNonEmptyString(value.link);
+  if (direct !== undefined) {
+    return direct;
+  }
+
+  return isPlainObject(value.share)
+    ? (readNonEmptyString(value.share.url) ??
+        readNonEmptyString(value.share.shareUrl) ??
+        readNonEmptyString(value.share.shareURL))
+    : undefined;
+}
+
+function readImportedSessionId(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim() !== "") {
+    return value.trim();
+  }
+  if (!isPlainObject(value)) {
+    return undefined;
+  }
+
+  return (
+    readNonEmptyString(value.id) ??
+    readNonEmptyString(value.sessionID) ??
+    readNonEmptyString(value.sessionId) ??
+    readNonEmptyString(value.providerSessionId) ??
+    (isPlainObject(value.session) ? readImportedSessionId(value.session) : undefined) ??
+    (isPlainObject(value.data) ? readImportedSessionId(value.data) : undefined)
+  );
+}
+
+function readImportedSessionIdFromText(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    return undefined;
+  }
+
+  const exact = trimmed.match(/^[A-Za-z0-9_-]{3,}$/u);
+  if (exact !== null) {
+    return exact[0];
+  }
+
+  const labeled = trimmed.match(/\b(?:sessionID|sessionId|id)\s*[:=]\s*([A-Za-z0-9_-]{3,})\b/u);
+  return labeled?.[1];
+}
+
+function withImportMetadata(session: ProviderSession): ProviderSession {
+  const opencodeMetadata = isPlainObject(session.metadata.opencode)
+    ? session.metadata.opencode
+    : {};
+
+  return {
+    ...session,
+    metadata: {
+      ...session.metadata,
+      opencode: {
+        ...opencodeMetadata,
+        import: {
+          source: "cli",
+        },
+      },
+    },
+  };
 }
 
 async function fetchAndMapOpenCodeSession(input: {
@@ -475,7 +883,7 @@ async function fetchOpenCodeSessionList(input: {
 async function fetchOpenCodeSessionMutation(input: {
   baseUrl: string;
   path: string;
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "DELETE";
   body?: Record<string, unknown> | undefined;
   workspacePath: string | undefined;
   requestTimeoutMs: number;
@@ -740,7 +1148,7 @@ function readExplicitProviderSessionId(metadata: Record<string, unknown>): strin
 
 async function fetchSessionJson(input: {
   url: string;
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "DELETE";
   body?: Record<string, unknown> | undefined;
   requestTimeoutMs: number;
   fetchImplementation: typeof fetch;
