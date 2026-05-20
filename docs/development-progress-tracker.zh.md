@@ -11,14 +11,14 @@
 
 ### 当前阶段
 
-- 当前处于：Phase 3.4 Attached Runtime 已完成实现和验证；Gate 3 尚未通过，下一步从 Phase 3.5 Event Stream 开始。
-- 当前启动基线：最新阶段实现提交 `90b71f0 阶段进展：完成 Phase 3.4 Attached Runtime`。
-- 最新阶段实现提交：`90b71f0 阶段进展：完成 Phase 3.4 Attached Runtime`。
-- 前一阶段实现基线：`23e79ca 阶段进展：完成 Phase 3.3 Managed Runtime`。
+- 当前处于：Phase 3.5 Event Stream 已完成实现和验证；Gate 3 尚未通过，下一步处理 runtime 诊断和 Gate 3 汇总验证。
+- 当前启动基线：本次 Phase 3.5 Event Stream 实现提交；若尚未提交，上一阶段实现基线仍为 `90b71f0 阶段进展：完成 Phase 3.4 Attached Runtime`。
+- 最新阶段实现提交：本次 Phase 3.5 Event Stream commit，提交后以 `git log -1 --oneline` 为准。
+- 前一阶段实现基线：`90b71f0 阶段进展：完成 Phase 3.4 Attached Runtime`。
 - Phase 0.2 / Phase 1 阶段提交：`e5eb0ce 阶段进展：完成 Phase 0.2 技术决策与 Phase 1 工程骨架`
 - 当前主要进度来源：本文档和 `docs/agentproxy-development-plan.md`
-- 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层、provider registry 最小闭环、配置解析层最小闭环、日志/脱敏第一组、SQLite 存储、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime 和 Phase 3.4 Attached Runtime：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型、`AgentProvider` 契约、provider 注册/lookup/list、capability probe、schema mismatch limited mode、OpenCodeProvider 占位实现、AgentProxy 默认配置、全局/项目/显式配置读取、env/CLI 覆盖、schema 校验、路径规范化、OpenCode 配置隔离、结构化 NDJSON logger、correlationId、标准日志字段、redaction、stdout/stderr 分离、Commander parse error 脱敏、`better-sqlite3` 接入、数据库初始化、migration 版本表、providers/runtimes/sessions/session_events 表、基础 repository CRUD、重复 migration 安全性、session 唯一约束、tombstone 保留、破坏性 migration 备份/失败恢复、从配置或 `PATH` 定位 `opencode`、执行 `--version`、规范化 OpenCode 版本号、最低支持版本检查、缺失/不可执行 binary 和低版本的 `PROVIDER_UNAVAILABLE` 错误映射、Runtime Registry managed/attached 元数据持久化、状态机状态记录、runtime list 查询、metadata-only stale cleanup、managed `opencode serve` 子进程启动、默认 `127.0.0.1` 绑定、端口冲突选择空闲端口、`/global/health` 等待、启动失败/health 超时映射、仅停止当前 AgentProxy 拥有的 managed 子进程和子进程退出状态回写、显式 attached server URL 连接、registry attached runtime 重新健康检查、OpenCode-like health response 校验、非 localhost warning 元数据和 attached detach-only 停止保护。
-- 当前第一个未完成项：Phase 3.5 Event Stream，包含连接 OpenCode event stream、事件 envelope 转换、断线检测、reconnect/backoff 和 `EVENT_STREAM_INTERRUPTED` 映射。
+- 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层、provider registry 最小闭环、配置解析层最小闭环、日志/脱敏第一组、SQLite 存储、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime、Phase 3.4 Attached Runtime 和 Phase 3.5 Event Stream：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型、`AgentProvider` 契约、provider 注册/lookup/list、capability probe、schema mismatch limited mode、OpenCodeProvider 占位实现、AgentProxy 默认配置、全局/项目/显式配置读取、env/CLI 覆盖、schema 校验、路径规范化、OpenCode 配置隔离、结构化 NDJSON logger、correlationId、标准日志字段、redaction、stdout/stderr 分离、Commander parse error 脱敏、`better-sqlite3` 接入、数据库初始化、migration 版本表、providers/runtimes/sessions/session_events 表、基础 repository CRUD、重复 migration 安全性、session 唯一约束、tombstone 保留、破坏性 migration 备份/失败恢复、从配置或 `PATH` 定位 `opencode`、执行 `--version`、规范化 OpenCode 版本号、最低支持版本检查、缺失/不可执行 binary 和低版本的 `PROVIDER_UNAVAILABLE` 错误映射、Runtime Registry managed/attached 元数据持久化、状态机状态记录、runtime list 查询、metadata-only stale cleanup、managed `opencode serve` 子进程启动、默认 `127.0.0.1` 绑定、端口冲突选择空闲端口、`/global/health` 等待、启动失败/health 超时映射、仅停止当前 AgentProxy 拥有的 managed 子进程和子进程退出状态回写、显式 attached server URL 连接、registry attached runtime 重新健康检查、OpenCode-like health response 校验、非 localhost warning 元数据和 attached detach-only 停止保护、OpenCode `/event` SSE 连接、AgentProxy event envelope 转换、未知事件 `provider.raw_event` 保留、stream interruption 检测、runtime `degraded`/`reconnecting`/`healthy` 状态回写、有限 reconnect/backoff、重连后 session status 补偿 hook 和 `EVENT_STREAM_INTERRUPTED` 映射。
+- 当前第一个未完成项：Phase 3 runtime 诊断和 Gate 3 汇总验证；不要提前实现 OpenCodeProvider 核心能力、CLI MVP 或 TUI。
 - 当前工作区预期：本次文档同步提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核最新提交。若最新提交是后续文档同步提交，应继续以 `90b71f0` 作为最近阶段实现基线。
 
 ### 已完成
@@ -43,10 +43,11 @@
 - [x] 完成 Phase 3.2 Runtime Registry，包含 storage-backed `RuntimeRegistry`、managed/attached runtime metadata、状态机状态、base URL/host/port/PID/workspace/mode/timestamp 记录、runtime list 查询和 metadata-only stale cleanup。
 - [x] 完成 Phase 3.3 Managed Runtime，包含 managed `opencode serve` 子进程启动、默认绑定 `127.0.0.1`、端口冲突选择空闲端口、等待 `/global/health`、启动失败和 health 超时捕获、仅停止当前 AgentProxy 拥有的 managed 进程、子进程退出状态更新。
 - [x] 完成 Phase 3.4 Attached Runtime，包含显式 server URL attached 连接、registry 中 attached runtime 健康重连、OpenCode-like health response 校验、非 localhost warning 和 attached detach-only 停止保护。
+- [x] 完成 Phase 3.5 Event Stream，包含 OpenCode `/event` SSE 连接、AgentProxy event envelope 转换、未知事件保留、断线检测、runtime degraded/reconnecting/healthy 状态回写、有限 reconnect/backoff、重连后 session status 补偿 hook 和 `EVENT_STREAM_INTERRUPTED` 映射。
 
 ### 未完成
 
-- [ ] Phase 3：OpenCode runtime 生命周期后续项尚未实现，包括 event stream、runtime 诊断和 Gate 3 汇总验证。
+- [ ] Phase 3：OpenCode runtime 生命周期后续项尚未实现，包括 runtime 诊断和 Gate 3 汇总验证。
 - [ ] Phase 4：OpenCodeProvider 核心能力尚未实现。
 - [ ] Phase 5：CLI MVP 尚未实现。
 - [ ] Phase 6：TUI MVP 尚未实现。
@@ -60,7 +61,7 @@
 
 1. 先阅读 `tasks/lessons.md`，确认项目规则和长期习惯。
 2. 阅读本文档，定位第一个未完成任务。
-3. 从 Phase 3.5 Event Stream 开始处理 OpenCode event stream 连接、事件 envelope 转换、断线检测、reconnect/backoff 和 `EVENT_STREAM_INTERRUPTED` 映射；不要提前实现 OpenCodeProvider 核心能力、CLI MVP 或 TUI。
+3. 从 Phase 3 runtime 诊断和 Gate 3 汇总验证继续；不要提前实现 OpenCodeProvider 核心能力、CLI MVP 或 TUI。
 4. 复用 Phase 2.1 已建立的 `AgentProvider`、capability schema、metadata escape hatch 和稳定错误码。
 5. 继续保持 AgentProxy 的薄代理和控制面定位，不复制 OpenCode agent runtime 内部逻辑。
 6. 完成阶段后运行验证命令，更新本文档，创建详细中文 commit。
@@ -73,11 +74,11 @@
 再阅读 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/development-progress-tracker.zh.md
 和 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/agentproxy-development-plan.md。
 
-当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组、Phase 2.5 SQLite 存储含破坏性 migration 备份机制、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime、Phase 3.4 Attached Runtime 已完成并验证；Gate 2 已通过，Gate 3 尚未通过。最新阶段实现提交是 `90b71f0 阶段进展：完成 Phase 3.4 Attached Runtime`。如果 `git log -1 --oneline` 显示的是后续文档同步提交，请继续以 `90b71f0` 作为最近阶段实现基线。下一步从 Phase 3.5 Event Stream 开始；只处理 event stream 连接、事件 envelope、断线检测、重连/backoff 和错误映射，不要提前进入 OpenCodeProvider 核心能力、CLI MVP 或 TUI。
+当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组、Phase 2.5 SQLite 存储含破坏性 migration 备份机制、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime、Phase 3.4 Attached Runtime、Phase 3.5 Event Stream 已完成并验证；Gate 2 已通过，Gate 3 尚未通过。最新阶段实现提交是 Phase 3.5 Event Stream commit，以 `git log -1 --oneline` 为准。下一步从 Phase 3 runtime 诊断和 Gate 3 汇总验证开始；不要提前进入 OpenCodeProvider 核心能力、CLI MVP 或 TUI。
 请先运行 `git status --short` 和 `git log -1 --oneline` 核对最新提交与工作区状态。
 
 请严格按照 docs/development-progress-tracker.zh.md 继续迭代，从第一个未完成项开始：
-Phase 3.5 Event Stream。Phase 3.4 已完成显式 attached server URL 连接、registry 中 attached runtime 健康重连、目标 server best-effort OpenCode-like health 校验、attached stop/detach-only 保护和非 localhost warning；下一步只处理 OpenCode event stream 连接、事件 envelope 转换、断线检测、reconnect/backoff 和 `EVENT_STREAM_INTERRUPTED` 映射。
+Phase 3 runtime 诊断和 Gate 3 汇总验证。Phase 3.5 已完成 OpenCode `/event` SSE 连接、AgentProxy event envelope 转换、未知事件保留、断线检测、有限 reconnect/backoff、runtime 状态回写、session status 补偿 hook 和 `EVENT_STREAM_INTERRUPTED` 映射；下一步不要实现 OpenCodeProvider 核心能力、CLI MVP 或 TUI。
 
 要求：
 1. 不要重新规划已完成的架构方案，除非发现真实设计缺口。
@@ -88,7 +89,7 @@ Phase 3.5 Event Stream。Phase 3.4 已完成显式 attached server URL 连接、
 6. 每完成一个阶段任务后，运行适用验证命令，并使用详细中文 commit 信息提交一次。
 7. AgentProxy 必须保持薄代理和控制面定位，v1 只接入 OpenCode，不重写 Agent runtime。
 8. 重启会话后先复习 `tasks/lessons.md`，并自动延续阶段提交习惯，不需要用户再次提醒。
-9. Phase 2.4、Phase 2.5、Phase 3.1、Phase 3.2、Phase 3.3 和 Phase 3.4 已完成，不要回退或扩展它们；下一步只处理 Phase 3.5 Event Stream，不要实现 OpenCodeProvider 核心能力、CLI MVP 或 TUI。
+9. Phase 2.4、Phase 2.5、Phase 3.1、Phase 3.2、Phase 3.3、Phase 3.4 和 Phase 3.5 已完成，不要回退或扩展它们；下一步只处理 Phase 3 runtime 诊断和 Gate 3 汇总验证，不要实现 OpenCodeProvider 核心能力、CLI MVP 或 TUI。
 ```
 
 ## 1. 使用规则
@@ -388,19 +389,19 @@ Phase 3.5 Event Stream。Phase 3.4 已完成显式 attached server URL 连接、
 
 ### 6.5 Event Stream
 
-- [ ] 连接 OpenCode event stream。
-- [ ] 将 provider 事件映射为 AgentProxy event envelope。
-- [ ] 保留未知 raw event。
-- [ ] 检测 stream interruption。
-- [ ] interruption 后进入 `degraded`。
-- [ ] 实现有限重连。
-- [ ] 重连后用 session status 补偿状态。
+- [x] 连接 OpenCode event stream。
+- [x] 将 provider 事件映射为 AgentProxy event envelope。
+- [x] 保留未知 raw event。
+- [x] 检测 stream interruption。
+- [x] interruption 后进入 `degraded`。
+- [x] 实现有限重连。
+- [x] 重连后用 session status 补偿状态。
 
 验收标准：
 
-- [ ] event stream 断开不会立即把 session 标记为 failed。
-- [ ] unknown event 不被丢弃。
-- [ ] fake server 测试覆盖重连。
+- [x] event stream 断开不会立即把 session 标记为 failed。
+- [x] unknown event 不被丢弃。
+- [x] fake server 测试覆盖重连。
 
 ## 7. Phase 4：OpenCodeProvider 核心能力
 
@@ -989,3 +990,4 @@ Phase 3.5 Event Stream。Phase 3.4 已完成显式 attached server URL 连接、
 - 2026-05-20：同步 Phase 3.3 完成后的最新开发状态与下次启动提示词；明确最新阶段实现提交为 `23e79ca 阶段进展：完成 Phase 3.3 Managed Runtime`，Gate 3 尚未通过，第一个未完成项为 Phase 3.4 Attached Runtime；若后续最新提交是文档同步提交，应继续以 `23e79ca` 作为最近阶段实现基线。
 - 2026-05-20：完成 Phase 3.4 Attached Runtime；新增 `src/runtimes/attached.ts` 并扩展 `src/runtimes/index.ts`，实现 OpenCode attached runtime manager：支持显式 `serverUrl` 输入并规范化为不含 query/hash/credentials 的 base URL，拒绝带 username/password 的 server URL，连接 `/global/health` 并对 `{ healthy: true, version }` 形态做 best-effort OpenCode-like 校验，连接成功后以 `attached` mode 和 `healthy` status 写入 `RuntimeRegistry`。支持从 registry 中重新发现已有 attached runtime 并做 health revalidation；非 localhost attached URL 会通过 `onWarning` 和 runtime metadata 暴露 `NON_LOCALHOST_ATTACHED_RUNTIME` warning；`stopAttachedRuntime` 只把本地 OpenCode attached runtime 记录转为 `detached` 并记录 `detach_only`，不启动、不 kill、不回收外部进程。新增 `tests/opencode-attached-runtime.test.ts`，使用真实本地 HTTP fake OpenCode health endpoint 覆盖显式 server URL、registry 重新 attach、active managed runtimeId 碰撞保护、并发 attached runtimeId reservation、pre-aborted signal、非 OpenCode-looking health 拒绝、非 localhost warning 脱敏、attached detach-only stop、非 OpenCode provider detach 拒绝、URL credentials 拒绝脱敏和 invalid URL 不保留原始 cause。代码和安全复审未发现阻断问题。验证命令：`pnpm exec vitest run tests/opencode-attached-runtime.test.ts`、`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`，结果均通过。未解决风险：Gate 3 尚未通过；本阶段未实现 event stream、runtime 诊断、OpenCodeProvider 核心 session/model/message 能力、CLI MVP 或 TUI；OpenCode health body 形态仍需后续 real OpenCode smoke test 校准；远程 attached URL 是显式信任边界，本地 CLI 之外的调用方后续需要 opt-in 或 allowlist；runtimeId reservation 仍是进程内保护，多进程共享 SQLite 时需要 DB 级协调。
 - 2026-05-20：同步 Phase 3.4 完成后的最新开发状态与下次启动提示词；明确最新阶段实现提交为 `90b71f0 阶段进展：完成 Phase 3.4 Attached Runtime`，Gate 3 尚未通过，第一个未完成项为 Phase 3.5 Event Stream；若后续最新提交是文档同步提交，应继续以 `90b71f0` 作为最近阶段实现基线。
+- 2026-05-20：完成 Phase 3.5 Event Stream；新增 `src/runtimes/events.ts` 并扩展 `src/runtimes/index.ts`，实现 runtime 层 `OpenCodeEventStreamClient`：按 OpenCode 官方 `/event` SSE 路由建立事件流连接，使用内置 `fetch` 和 Web Stream 解析 SSE，不新增依赖；将保守识别的 `message.part.delta`、`session.next.text.delta`、`session.status`、`permission.*`、`file.edited` 和 session error 事件转换为稳定 `AgentEventEnvelope`，未知事件保留为 `provider.raw_event` 并保留 `raw`；断线时写回 runtime `degraded`，有限 backoff 重连时写回 `reconnecting`，重连成功恢复 `healthy`，并提供 session status 补偿 hook；重试耗尽映射为 `EVENT_STREAM_INTERRUPTED` 且错误详情不包含 URL query secret。新增 `tests/opencode-event-stream.test.ts`，使用真实本地 HTTP fake SSE server 覆盖 `/event` 连接、envelope 包装、未知事件保留、断线不把 session 标记为 failed、有限重连、状态补偿 hook、重试耗尽错误映射、stopped/detached/replaced runtime 不被事件流复活、提前取消会关闭 SSE 连接、current/legacy permission 字段兼容和非法 retry/timeout 选项拒绝。代码审查后修复 runtime generation guard、reader cancellation、permission 字段兼容和数值选项校验。验证命令：`pnpm exec vitest run tests/opencode-event-stream.test.ts`、`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`，结果均通过。未解决风险：Gate 3 尚未通过；本阶段未实现 runtime 诊断、OpenCodeProvider 核心 session/model/message 能力、CLI MVP 或 TUI；后续仍需 real OpenCode smoke test 校准生产事件 payload 和 session status 补偿语义。

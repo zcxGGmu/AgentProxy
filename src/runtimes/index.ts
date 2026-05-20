@@ -13,6 +13,18 @@ export type {
   StopOpenCodeAttachedRuntimeInput,
 } from "./attached.js";
 export {
+  OPENCODE_EVENT_STREAM_METADATA_KEY,
+  OPENCODE_EVENT_STREAM_PATH,
+  OPENCODE_GLOBAL_EVENT_STREAM_PATH,
+  OpenCodeEventStreamClient,
+} from "./events.js";
+export type {
+  OpenCodeEventStreamClientOptions,
+  OpenCodeEventStreamRuntimeMetadata,
+  OpenCodeEventStreamStatusCompensationInput,
+  StreamOpenCodeRuntimeEventsInput,
+} from "./events.js";
+export {
   OPENCODE_MANAGED_RUNTIME_DEFAULT_HOSTNAME,
   OPENCODE_MANAGED_RUNTIME_DEFAULT_PORT,
   OPENCODE_MANAGED_RUNTIME_HEALTH_PATH,

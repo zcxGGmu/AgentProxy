@@ -11,6 +11,60 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Phase 3.5
+
+Scope: advance only OpenCode runtime event stream handling from the Chinese progress tracker.
+
+Implementation checklist:
+
+- [x] Add focused tests for connecting to a fake OpenCode SSE event stream.
+- [x] Add tests proving provider events are wrapped in AgentProxy event envelopes.
+- [x] Add tests proving unknown provider events map to `provider.raw_event` and retain `raw`.
+- [x] Add tests proving stream interruption marks the runtime `degraded` without failing any session.
+- [x] Add tests proving finite reconnect/backoff transitions through `reconnecting` and recovers to `healthy`.
+- [x] Add tests proving exhausted reconnect attempts map to `EVENT_STREAM_INTERRUPTED`.
+- [x] Implement a small OpenCode event stream client around `/event` SSE parsing, conservative event mapping, runtime status updates, and finite reconnect.
+- [x] Keep the implementation limited to event stream lifecycle; do not implement OpenCodeProvider session behavior, CLI MVP, or TUI.
+- [x] Update the Chinese progress tracker and record verification evidence.
+- [x] Run verification and create a detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Reuse Phase 3.2 `RuntimeRegistry` for runtime status transitions: `healthy` -> `degraded` -> `reconnecting` -> `healthy` or interruption failure.
+- Reuse Phase 2.1 `AgentEventEnvelope`, `AgentEvent`, provider metadata escape hatch, and stable `EVENT_STREAM_INTERRUPTED` error code.
+- Use OpenCode's documented SSE routes: `/event` for instance events, with `/global/event` reserved as the global route.
+- Use Node.js built-in `fetch`, `ReadableStream`, `TextDecoder`, `AbortController`, and timers; do not add new runtime dependencies.
+- Treat provider event schema as unstable: map a small conservative set and preserve unknown events as `provider.raw_event`.
+- Do not persist full raw events to SQLite in this phase to avoid transcript or secret duplication.
+
+Acceptance criteria for this iteration:
+
+- [x] A healthy OpenCode runtime record can subscribe to `/event` and yield AgentProxy event envelopes.
+- [x] Known provider event shapes can be converted into stable AgentProxy payloads without depending on OpenCode internals.
+- [x] Unknown provider event shapes are not dropped and become `provider.raw_event`.
+- [x] Stream interruption marks the runtime `degraded`, but does not mark sessions failed.
+- [x] Finite reconnect/backoff marks the runtime `reconnecting`, reconnects, and returns to `healthy` when the stream resumes.
+- [x] Exhausted reconnect attempts throw an `EVENT_STREAM_INTERRUPTED` `AgentProxyError` with sanitized details.
+- [x] `pnpm exec vitest run tests/opencode-event-stream.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
+- [x] Chinese progress tracker marks the Phase 3.5 event-stream group done and records Review notes.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- OpenCode event payload shape may change; mapping must stay conservative and route unfamiliar data to `provider.raw_event`.
+- SSE interruption is a transport/runtime degradation, not a session failure.
+- Runtime metadata must be merged under a dedicated key and must not overwrite managed or attached metadata.
+- Error details and metadata must avoid raw auth headers, URL credentials, query secrets, and unbounded raw event payloads.
+- Do not implement OpenCodeProvider core session/model/message APIs, CLI MVP, TUI, runtime diagnostics, or Gate 3 aggregation in this iteration.
+
+Review notes:
+
+- 2026-05-20: Added `src/runtimes/events.ts`, exported it from `src/runtimes/index.ts`, and added `tests/opencode-event-stream.test.ts`.
+- Implemented a runtime-layer `OpenCodeEventStreamClient` for documented `/event` SSE subscription, conservative AgentProxy envelope mapping, unknown event preservation as `provider.raw_event`, runtime `degraded`/`reconnecting`/`healthy` updates, finite reconnect/backoff, optional session-status compensation callback after reconnect, and exhausted reconnect mapping to `EVENT_STREAM_INTERRUPTED` with sanitized details.
+- Code review fixes: added runtime generation guard before status writes so an active stream cannot resurrect stopped/detached/replaced records, cancel SSE readers on early consumer return, support current and legacy OpenCode permission event field names with safe decision mapping, and validate retry/timeout numeric options.
+- Verification passed: `pnpm exec vitest run tests/opencode-event-stream.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`.
+- Remaining risk: Gate 3 still needs runtime diagnostics and a later real OpenCode smoke test to confirm production event payload and session-status compensation semantics; no OpenCodeProvider core behavior, CLI MVP, or TUI work was implemented.
+
 ## Current Iteration - 2026-05-20 Phase 3.4
 
 Scope: advance only OpenCode attached runtime lifecycle from the Chinese progress tracker.

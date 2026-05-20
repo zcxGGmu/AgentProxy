@@ -30,3 +30,5 @@
 - Attached runtime 的 server URL 不能把 username/password/query secrets 落入 registry、warning 或错误详情；存储前要规范化并剥离 query/hash，URL credentials 应拒绝或留给后续显式 auth 配置处理。
 - URL 解析失败时不要把原始 `TypeError` 作为 `cause` 传给错误对象；Node 的 URL 错误可能携带原始 input，调试日志 inspect cause 时会泄露 secret。
 - Attached runtime 连接也必须像 managed 启动一样做 runtimeId reservation，并且只允许 revalidate 同一个 registry attached 候选，避免覆盖 active managed runtime 或并发写乱 ownership metadata。
+- OpenCode SSE 中 `/event` 是实例事件流，`/global/event` 是全局包装事件流；AgentProxy 事件流应放在 runtime 层，保守映射已知事件、保留未知 `provider.raw_event`，不要提前塞进 OpenCodeProvider 核心 session API。
+- Event stream 状态写回必须绑定 runtime generation（如 startedAt/baseUrl/mode）并在消费者提前 `return()` 时 cancel SSE reader，避免复活已 stopped/detached runtime 或泄漏长连接。
