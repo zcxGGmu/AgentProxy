@@ -11,6 +11,45 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Documentation Sync After Phase 5.1
+
+Scope: update only project tracking documents after `4ce1687 阶段进展：完成 Phase 5.1 CLI Framework Foundation`. Do not implement Phase 5.2 `doctor`, `run`, `sessions`, `runtime`, `config`, TUI, provider behavior, or runtime behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit.
+- [x] Update `docs/development-progress-tracker.zh.md` so the latest Phase 5.1 implementation baseline, completed items, unfinished items, and next startup prompt all point to Phase 5.2 `doctor` as next.
+- [x] Record this documentation-only update in tracker Review notes.
+- [x] Run documentation-appropriate verification and create a detailed Chinese documentation commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean and `git log -1 --oneline` is `4ce1687 阶段进展：完成 Phase 5.1 CLI Framework Foundation`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Latest Phase 4 implementation baseline remains `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`.
+- Latest Phase 5 implementation baseline is `4ce1687 阶段进展：完成 Phase 5.1 CLI Framework Foundation`.
+- `docs/agentproxy-development-plan.md` remains the source plan and does not need architecture changes for this documentation sync.
+
+Acceptance criteria for this iteration:
+
+- [x] `git status --short` and `git log -1 --oneline` are checked and reflected in this documentation pass.
+- [x] The Chinese progress tracker clearly states completed phases through Phase 5.1, unfinished work starting at Phase 5.2 `doctor`, and TUI still pending.
+- [x] The next-start prompt includes the concrete Phase 5.1 implementation commit and instructs the next Codex session to start at Phase 5.2 `doctor` only.
+- [x] The final answer gives the user a ready-to-send prompt.
+
+Risks and constraints:
+
+- Do not treat this documentation sync as a Phase 5.2 start.
+- Do not change source code, tests, provider behavior, CLI behavior, TUI, or completed implementation.
+- If this documentation update is committed, the next startup prompt must distinguish the documentation commit from the latest Phase 5.1 implementation baseline.
+
+Review notes:
+
+- 2026-05-21: Confirmed initial `git status --short` was clean and `git log -1 --oneline` was `4ce1687 阶段进展：完成 Phase 5.1 CLI Framework Foundation`.
+- Updated `docs/development-progress-tracker.zh.md` latest status, baseline fields, completed/unfinished summaries, Review entry, and next-start prompt to use Phase 5.1 as complete and Phase 5.2 `doctor` as the first unfinished task.
+- Verification passed: `git diff --check` and `pnpm run format:check`.
+- This is documentation-only; no source code, tests, provider behavior, runtime behavior, CLI behavior, Phase 5.2, or TUI work is changed.
+
 ## Current Iteration - 2026-05-21 Phase 5.1 CLI Framework Foundation
 
 Scope: advance only the first small Phase 5 CLI MVP task group: CLI framework foundation. Finish shared CLI parsing/output/error behavior for later commands without implementing `doctor`, `run`, `sessions`, `runtime`, `config`, TUI, or new provider/runtime behavior.
