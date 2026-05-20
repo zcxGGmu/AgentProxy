@@ -11,6 +11,43 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Documentation Sync After Phase 4.5
+
+Scope: update only project tracking documents after `76a976f 阶段进展：完成 Phase 4.5 Message 发送与事件映射`. Do not implement Phase 4.6, provider passthrough, CLI MVP, TUI, or runtime/provider behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit.
+- [x] Update `docs/development-progress-tracker.zh.md` so the latest implementation baseline, completed items, unfinished items, and next startup prompt all point to Phase 4.5 as complete and Phase 4.6 as next.
+- [x] Record this documentation-only update in tracker Review notes.
+- [x] Run documentation-appropriate verification and create a detailed Chinese documentation commit.
+
+Dependencies confirmed before implementation:
+
+- The latest implementation commit is `76a976f 阶段进展：完成 Phase 4.5 Message 发送与事件映射`.
+- Phase 4.5 implementation and verification evidence already exists in the tracker Review; this task only replaces placeholder baseline text with the concrete commit and clarifies the next-start instructions.
+- `docs/agentproxy-development-plan.md` remains the source plan and does not need architecture changes for this documentation sync.
+
+Acceptance criteria for this iteration:
+
+- [x] `git status --short` and `git log -1 --oneline` are checked and reflected in this documentation pass.
+- [x] The Chinese progress tracker clearly states completed phases through Phase 4.5, unfinished work starting at Phase 4.6, and Gate 4 still pending.
+- [x] The next-start prompt includes the concrete Phase 4.5 implementation commit and instructs the next Codex session to start at Phase 4.6 only.
+- [x] The final answer gives the user a ready-to-send prompt.
+
+Risks and constraints:
+
+- Do not treat this documentation sync as a Phase 4.6 start.
+- Do not change source code, tests, provider behavior, CLI MVP, TUI, passthrough, or completed implementation.
+- If this documentation update is committed, the next startup prompt must distinguish the documentation commit from the latest implementation baseline.
+
+Review notes:
+
+- 2026-05-20: Confirmed initial `git status --short` was clean and `git log -1 --oneline` was `76a976f 阶段进展：完成 Phase 4.5 Message 发送与事件映射`.
+- Updated `docs/development-progress-tracker.zh.md` latest implementation commit, startup baseline, unfinished item summary, Review entry, and next-start prompt to use Phase 4.5 as complete and Phase 4.6 as the first unfinished task.
+- Verification passed: `git diff --check`, `pnpm run format:check`, and placeholder scan for stale Phase 4.5 baseline text.
+- This was documentation-only; no source code, tests, provider behavior, CLI MVP, TUI, passthrough, or Phase 4.6 work was changed.
+
 ## Current Iteration - 2026-05-20 Phase 4.5 Message Send / Event Mapping
 
 Scope: advance only Phase 4.5 message sending and event mapping from the Chinese progress tracker. Do not implement CLI MVP commands, TUI, abort/delete/export/share/import, provider passthrough, permission approval APIs, or a new Agent runtime.
