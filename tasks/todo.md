@@ -11,6 +11,52 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Phase 5.1 CLI Framework Foundation
+
+Scope: advance only the first small Phase 5 CLI MVP task group: CLI framework foundation. Finish shared CLI parsing/output/error behavior for later commands without implementing `doctor`, `run`, `sessions`, `runtime`, `config`, TUI, or new provider/runtime behavior.
+
+Implementation checklist:
+
+- [ ] Confirm Phase 5 CLI contracts, current Commander setup, and reusable service boundaries before code changes.
+- [ ] Add focused CLI tests for global flags, per-command help availability, JSON error output, stdout/stderr separation, stable exit code mapping, and command routing behavior.
+- [ ] Refactor `src/cli/index.ts` only as needed to centralize CLI context, JSON/human error formatting, and exit-code handling.
+- [ ] Keep existing `agentproxy provider exec opencode -- <native args>` behavior intact, including provider stdout/stderr and original exit code preservation.
+- [ ] Leave planned workflow commands as non-implemented placeholders except where Phase 5.1 needs shared framework behavior.
+- [ ] Update `docs/development-progress-tracker.zh.md` Phase 5.1 checklist and Review notes after verification.
+- [ ] Run focused CLI tests and full project verification before creating one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean and `git log -1 --oneline` is `8e534e8 文档：同步 Gate 4 后续启动基线`.
+- Per tracker rules, Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`, and latest Phase 4 implementation baseline remains `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`.
+- `docs/development-progress-tracker.zh.md` identifies Phase 5 CLI MVP as the first unfinished item and explicitly says not to enter TUI.
+- `docs/agentproxy-development-plan.md` records Commander as the selected CLI framework, the Phase 5 command matrix, global flags, stdout/stderr contract, JSON output contract, and stable exit-code table.
+- Existing CLI already has Commander wiring, global flags, help/version, planned command placeholders, stable error-code mapping, and implemented Phase 4.7 `provider exec`; this iteration should harden shared behavior rather than broaden command functionality.
+
+Acceptance criteria for this iteration:
+
+- [ ] Every registered command and subcommand exposes help without throwing.
+- [ ] Global flags `--provider`, `--workspace`, `--json`, `--verbose`, `--debug`, and `--config` are parsed consistently at the root command.
+- [ ] Human-mode errors and planned-command diagnostics go to stderr; normal output stays on stdout.
+- [ ] JSON-mode AgentProxy errors print one valid JSON object to stdout and do not mix diagnostics into stdout.
+- [ ] Stable exit-code mapping follows the plan table for config, provider, runtime, capability, permission, connection, storage, argument, and generic failures.
+- [ ] Commander parse errors are still redacted and map to argument error exit code `2`.
+- [ ] Existing `provider exec` tests still prove native args, provider stdout/stderr, env allowlist, and original exit code preservation.
+- [ ] Focused CLI tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
+Risks and constraints:
+
+- Do not implement `agentproxy doctor`, `run`, `sessions *`, `runtime *`, `config *`, or `chat` behavior in this task group.
+- Do not enter TUI or add native TUI launcher behavior.
+- Do not change completed Phase 2.4, Phase 2.5, Phase 3, Gate 3, Phase 4.1-4.7, or Gate 4 semantics.
+- Preserve AgentProxy's thin control-plane role; v1 still only connects to OpenCode and does not reimplement agent runtime behavior.
+- JSON error output must not leak secrets through inline args, config paths with credentials, URL query strings, or provider diagnostic details.
+
+Review notes:
+
+- Pending implementation. This section is the pre-implementation check-in requested by project workflow rules.
+- 2026-05-21: User requested a documentation-only progress sync before implementation. `docs/development-progress-tracker.zh.md` now records Phase 5.1 as the next implementation task and explicitly keeps CLI MVP/TUI unfinished.
+
 ## Current Iteration - 2026-05-21 Documentation Sync After Gate 4
 
 Scope: update only project tracking documents after `549a979 阶段进展：完成 Gate 4 汇总验证`. Do not implement Phase 5 CLI MVP, TUI, or runtime/provider behavior.
