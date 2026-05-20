@@ -11,6 +11,51 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Phase 3.3
+
+Scope: advance only OpenCode managed runtime lifecycle from the Chinese progress tracker.
+
+Implementation checklist:
+
+- [x] Add focused tests for managed `opencode serve` startup with default `127.0.0.1` binding.
+- [x] Add a port conflict test proving an occupied configured port is skipped without killing the owner.
+- [x] Add tests for `/global/health` wait success, startup exit failure, and health timeout failure.
+- [x] Add tests for stopping only AgentProxy-owned managed child processes and refusing attached runtime stop.
+- [x] Add a child exit test proving runtime status and exit metadata are updated.
+- [x] Implement a small OpenCode managed runtime manager around child process spawn, health polling, stop, and registry updates.
+- [x] Keep the implementation limited to managed runtime lifecycle; do not implement attached runtime, OpenCodeProvider session behavior, CLI MVP, or TUI.
+- [x] Update the Chinese progress tracker and record verification evidence.
+- [x] Run verification and create a detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Reuse Phase 3.1 `probeOpenCodeBinary()` to resolve and validate the OpenCode binary before starting `serve`.
+- Reuse Phase 3.2 `RuntimeRegistry` for all runtime status and metadata updates.
+- Reuse existing stable error codes: `RUNTIME_START_FAILED`, `RUNTIME_HEALTH_FAILED`, `PROVIDER_UNAVAILABLE`, and `CAPABILITY_UNSUPPORTED`.
+- Use Node.js built-in `child_process`, `net`, and global `fetch`; do not add new runtime dependencies.
+- Keep default managed host as `127.0.0.1` and default port as `4096`.
+- Treat managed ownership as in-memory child process ownership for this iteration; do not kill attached or historical registry-only PIDs.
+
+Acceptance criteria for this iteration:
+
+- [x] Managed OpenCode runtime starts through `opencode serve --hostname 127.0.0.1 --port <port>` and reaches `healthy` after `/global/health` succeeds.
+- [x] If the requested port is already occupied, AgentProxy chooses a free port and does not kill the occupying process.
+- [x] If `opencode serve` exits before health succeeds, the runtime is marked `failed` with exit metadata.
+- [x] If `/global/health` does not become healthy before timeout, the runtime is marked `failed` and the owned child process is terminated.
+- [x] Stopping an owned managed runtime transitions through `stopping` and ends in `stopped`.
+- [x] Attached runtimes are not killed or marked stopped by managed stop logic.
+- [x] Unexpected child process exit after healthy updates the registry to `failed` with exit code/signal metadata.
+- [x] `pnpm exec vitest run tests/opencode-managed-runtime.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
+- [x] Chinese progress tracker marks the Phase 3.3 managed-runtime group done and records Review notes.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- This iteration must not implement attached runtime selection, explicit `--server-url`, provider core session APIs, passthrough, CLI MVP, or TUI.
+- Port selection has an unavoidable small bind race between probing a free port and the child process binding it; failures must still map to startup/health errors cleanly.
+- Child process stderr/stdout must not be treated as trusted structured state; do not parse OpenCode logs to infer runtime health.
+- Runtime ownership should stay conservative: only the child processes started by the current manager instance can be stopped.
+
 ## Current Iteration - 2026-05-20 Phase 3.2
 
 Scope: advance only Runtime Registry metadata from the Chinese progress tracker.

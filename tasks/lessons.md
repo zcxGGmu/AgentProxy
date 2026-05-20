@@ -25,3 +25,5 @@
 - 探测用户显式配置的 binary 时，相对路径必须按调用方 `cwd` 解析成绝对路径再执行，不能经 `normalize("./cmd")` 退化成裸命令导致被 `PATH` 劫持。
 - 外部命令探测要让 `PATH` 查找和实际执行共用同一个 effective env，并兼容 `PATH`/`Path` 键；fake binary 测试应覆盖相对路径优先、不可执行、非零退出和不可解析版本输出。
 - Runtime Registry 只做 metadata cleanup 时也要维护状态一致性：runtime 重新进入 active 状态必须清除旧 `stoppedAt`，stale TTL 必须校验为正有限值，避免启动协调时把新 runtime 误标记为 stale。
+- Managed runtime 停止必须基于当前 AgentProxy 进程实际拥有的 child process，而不是 registry 中的历史 PID；attached 或 registry-only runtime 只能更新/拒绝本地记录，不能被 kill。
+- Managed runtime 启动前必须用同步 reservation 拒绝 active/runtimeId 并发冲突，并且 health 成功后要确认 child process 在短稳定窗口内未退出，避免旧 child 污染新状态或死进程被写成 `healthy`。
