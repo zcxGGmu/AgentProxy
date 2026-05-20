@@ -82,7 +82,7 @@ interface EndpointProbeMetadata {
   failureReason?: string;
 }
 
-interface NormalizedRuntimeUrl {
+export interface NormalizedRuntimeUrl {
   baseUrl: string;
   failureReason?: string;
 }
@@ -693,7 +693,7 @@ function isHttpMethod(value: string): boolean {
   return ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"].includes(value);
 }
 
-function resolveRuntimeBaseUrl(
+export function resolveRuntimeBaseUrl(
   options: OpenCodeProviderOptions,
   context: ProviderContext,
 ): string | undefined {
@@ -705,7 +705,7 @@ function resolveRuntimeBaseUrl(
   );
 }
 
-function normalizeRuntimeBaseUrl(rawBaseUrl: string): NormalizedRuntimeUrl {
+export function normalizeRuntimeBaseUrl(rawBaseUrl: string): NormalizedRuntimeUrl {
   let parsed: URL;
   try {
     parsed = new URL(rawBaseUrl);
@@ -763,7 +763,7 @@ function readOpenCodeHealthVersion(value: unknown): string | undefined {
     : undefined;
 }
 
-async function withRequestTimeout<T>(
+export async function withRequestTimeout<T>(
   callback: (signal: AbortSignal) => Promise<T>,
   timeoutMs: number,
   signal: AbortSignal | undefined,
@@ -796,7 +796,7 @@ async function withRequestTimeout<T>(
   }
 }
 
-async function cancelResponseBody(response: Response): Promise<void> {
+export async function cancelResponseBody(response: Response): Promise<void> {
   try {
     const cancelPromise = response.body?.cancel();
     if (cancelPromise === undefined) {
@@ -820,7 +820,7 @@ function readMediaType(contentType: string): string {
   return contentType.split(";", 1)[0]?.trim().toLowerCase() ?? "";
 }
 
-function validateRequestTimeout(value: number): number {
+export function validateRequestTimeout(value: number): number {
   if (Number.isFinite(value) && value > 0) {
     return value;
   }

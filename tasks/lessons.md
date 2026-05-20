@@ -37,3 +37,4 @@
 - runtime 诊断里的 timeout 必须覆盖 response body 读取，SSE 检查要精确匹配 media type，并用 best-effort cleanup，避免诊断挂住或让清理错误覆盖稳定错误码。
 - Provider capability probe 不能把 health 成功等同于 API/method 能力可用；带 method 语义的 endpoint 必须明确证明目标 method 支持，且 capability 不得提前声明尚未实现的 AgentProvider 操作。
 - Provider health/capability metadata 不应回传 provider-controlled 原始 header 或 payload；只保留规范化 media type、白名单 allow methods 和脱敏后的稳定诊断字段。
+- OpenCode `/provider` 当前 provider 字段使用 `api` 而不是 `source`；映射模型列表时只白名单保留 provider/model metadata，并把 `limit.context/output` 收窄为数字，避免 provider-controlled `options`、`headers` 或异常对象泄漏。

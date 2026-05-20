@@ -11,6 +11,53 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Phase 4.2 Model / Provider List
+
+Scope: advance only OpenCodeProvider model listing from the Chinese progress tracker. Do not implement CLI provider commands, doctor checks, session sync, message sending, passthrough, or TUI.
+
+Implementation checklist:
+
+- [x] Add focused tests for OpenCodeProvider `listModels()` against a fake `/provider` endpoint.
+- [x] Map OpenCode provider/model response data into stable `ModelRef` records.
+- [x] Preserve provider-specific provider/model fields under metadata without leaking auth headers or raw credentials.
+- [x] Handle unauthenticated provider state and empty model lists with stable, actionable diagnostics.
+- [x] Keep the implementation provider-layer only; do not add CLI wrappers or session behavior.
+- [x] Update the Chinese progress tracker and record verification evidence.
+- [x] Run verification and create a detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Reuse Phase 4.1 runtime base URL resolution and request timeout semantics where possible.
+- Use OpenCode `GET /provider` as the read-only model/provider list boundary.
+- Use existing `ModelRef` contract: `id`, `providerId`, `displayName`, optional `family`, optional `contextWindowTokens`, and metadata.
+- Use stable `ProviderContext.metadata` for runtime base URL input; do not start or stop runtimes from provider code.
+- Use Node.js built-in `fetch` and AbortController; do not add dependencies for this task group.
+
+Acceptance criteria for this iteration:
+
+- [x] Healthy fake OpenCode runtime with `/provider` data returns model refs using `provider/model` ids.
+- [x] Model display name, provider family/API, context window, and provider/model metadata are preserved in a stable JSON-safe shape.
+- [x] Missing or invalid runtime base URL maps to `PROVIDER_UNAVAILABLE` with an actionable diagnostic instead of crashing.
+- [x] `401` or `403` provider-list responses map to `PERMISSION_DENIED` with unauthenticated diagnostics and no raw provider payload leak.
+- [x] Empty provider/model responses return an empty array without throwing.
+- [x] `pnpm exec vitest run tests/opencode-provider-models.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check` pass.
+- [x] Chinese progress tracker marks Phase 4.2 done and records Review notes.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- OpenCode `/provider` response shape may evolve; parser must be conservative and keep unknown fields in metadata rather than promoting them to global contract fields.
+- Provider/model endpoint may expose auth state; returned errors must be actionable but must not include raw response bodies, credentials, headers, or query secrets.
+- This phase only implements `OpenCodeProvider.listModels()`; CLI `provider list`, doctor `provider list`, model selection persistence, and session workflows remain later phases.
+- AgentProxy remains a thin control plane and must not implement model provider behavior or infer provider internals beyond response mapping.
+
+Review notes:
+
+- 2026-05-20: Added `src/providers/opencode/models.ts`, wired `OpenCodeProvider.listModels()` through it, and added `tests/opencode-provider-models.test.ts`.
+- The implementation reads only `GET /provider`, maps native OpenCode provider/model data into `ModelRef`, preserves a white-listed `metadata.opencode` shape, and keeps `options`/`headers` out of metadata.
+- Code review fixes: aligned fake payload and parser with current OpenCode `api` field, narrowed `limit.context`/`limit.output` to positive integers, added invalid credential URL coverage, and kept unauthenticated responses mapped to `PERMISSION_DENIED`.
+- Verification passed: `pnpm exec vitest run tests/opencode-provider-models.test.ts tests/opencode-provider-health.test.ts tests/provider-registry.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
 ## Current Iteration - 2026-05-20 Phase 4.1 OpenCodeProvider Health / Capability
 
 Scope: advance only OpenCodeProvider health and capability probing from the Chinese progress tracker.

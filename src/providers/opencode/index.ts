@@ -2,6 +2,7 @@ import { createAgentProxyError } from "../../core/errors.js";
 import type { RuntimeHandle, RuntimeRequest } from "../../core/types.js";
 import type { ProviderSession } from "../../sessions/types.js";
 import { OPENCODE_PROVIDER_ID } from "./constants.js";
+import { listOpenCodeModels } from "./models.js";
 import {
   OPENCODE_PROVIDER_PROBE_METADATA_KEY,
   type OpenCodeProviderOptions,
@@ -87,7 +88,7 @@ export class OpenCodeProvider implements AgentProvider {
   }
 
   async listModels(ctx: ProviderContext): Promise<ModelRef[]> {
-    throw unsupportedOpenCodeOperation("provider.listModels", ctx.providerId);
+    return listOpenCodeModels(this.#options, ctx);
   }
 
   async listSessions(ctx: ProviderContext, _query?: SessionQuery): Promise<ProviderSession[]> {
