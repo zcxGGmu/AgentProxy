@@ -13,7 +13,7 @@
 
 - 当前处于：Phase 4.1 OpenCodeProvider Health 与 Capability provider-layer 已完成实现和验证；Gate 4 未通过，下一步继续 Phase 4.2 Model 与 Provider 列表。
 - 最新文档同步提交：`8120023 文档：同步 Gate 3 完成状态与下次启动提示`。
-- 最新 Phase 4 阶段实现提交：`a36cf8b 阶段进展：完成 Phase 4.1 OpenCodeProvider Health 与 Capability`。
+- 最新 Phase 4 阶段实现提交：`9b33178 阶段进展：完成 Phase 4.1 OpenCodeProvider Health 与 Capability`。
 - 当前启动基线：`31e5b34 阶段进展：完成 Phase 3 runtime 诊断与 Gate 3 验证`。
 - 最新阶段实现提交：`31e5b34 阶段进展：完成 Phase 3 runtime 诊断与 Gate 3 验证`。
 - 前一阶段实现基线：`a9edb4a 阶段进展：完成 Phase 3.5 Event Stream`。
@@ -93,7 +93,7 @@
 再阅读 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/development-progress-tracker.zh.md
 和 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/agentproxy-development-plan.md。
 
-当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组、Phase 2.5 SQLite 存储含破坏性 migration 备份机制、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime、Phase 3.4 Attached Runtime、Phase 3.5 Event Stream、Phase 3 runtime 诊断和 Gate 3 汇总验证、Phase 4.1 OpenCodeProvider Health 与 Capability provider-layer 已完成并验证；Gate 2 和 Gate 3 已通过，Gate 4 尚未通过。最新 Phase 4 阶段实现提交是 `a36cf8b 阶段进展：完成 Phase 4.1 OpenCodeProvider Health 与 Capability`。如果 `git log -1 --oneline` 显示的是后续文档同步提交，请继续以该 Phase 4.1 提交作为最近阶段实现基线。下一步从 Phase 4.2 Model 与 Provider 列表开始；不要提前进入 CLI MVP 或 TUI。
+当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组、Phase 2.5 SQLite 存储含破坏性 migration 备份机制、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime、Phase 3.4 Attached Runtime、Phase 3.5 Event Stream、Phase 3 runtime 诊断和 Gate 3 汇总验证、Phase 4.1 OpenCodeProvider Health 与 Capability provider-layer 已完成并验证；Gate 2 和 Gate 3 已通过，Gate 4 尚未通过。最新 Phase 4 阶段实现提交是 `9b33178 阶段进展：完成 Phase 4.1 OpenCodeProvider Health 与 Capability`。如果 `git log -1 --oneline` 显示的是后续文档同步提交，请继续以该 Phase 4.1 提交作为最近阶段实现基线。下一步从 Phase 4.2 Model 与 Provider 列表开始；不要提前进入 CLI MVP 或 TUI。
 请先运行 `git status --short` 和 `git log -1 --oneline` 核对最新提交与工作区状态。
 
 请严格按照 docs/development-progress-tracker.zh.md 继续迭代，从第一个未完成项开始：
