@@ -12,14 +12,14 @@
 ### 当前阶段
 
 - 当前处于：Phase 3.1 OpenCode Binary 探测已完成实现和验证；Gate 3 尚未通过，下一步从 Phase 3.2 Runtime Registry 开始。
-- 当前启动基线：本轮 Phase 3.1 提交完成后，以 `git log -1 --oneline` 显示的 Phase 3.1 阶段实现提交作为最新阶段实现基线。
-- 最新阶段实现提交：本轮 Phase 3.1 提交，提交哈希以 `git log -1 --oneline` 为准。
+- 当前启动基线：最新阶段实现提交 `a001f95 阶段进展：完成 Phase 3.1 OpenCode Binary 探测`。
+- 最新阶段实现提交：`a001f95 阶段进展：完成 Phase 3.1 OpenCode Binary 探测`。
 - 前一阶段实现基线：`be38473 阶段进展：完成 Phase 2.5 破坏性 migration 备份机制`。
 - Phase 0.2 / Phase 1 阶段提交：`e5eb0ce 阶段进展：完成 Phase 0.2 技术决策与 Phase 1 工程骨架`
 - 当前主要进度来源：本文档和 `docs/agentproxy-development-plan.md`
 - 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层、provider registry 最小闭环、配置解析层最小闭环、日志/脱敏第一组、SQLite 存储和 Phase 3.1 OpenCode Binary 探测：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型、`AgentProvider` 契约、provider 注册/lookup/list、capability probe、schema mismatch limited mode、OpenCodeProvider 占位实现、AgentProxy 默认配置、全局/项目/显式配置读取、env/CLI 覆盖、schema 校验、路径规范化、OpenCode 配置隔离、结构化 NDJSON logger、correlationId、标准日志字段、redaction、stdout/stderr 分离、Commander parse error 脱敏、`better-sqlite3` 接入、数据库初始化、migration 版本表、providers/runtimes/sessions/session_events 表、基础 repository CRUD、重复 migration 安全性、session 唯一约束、tombstone 保留、破坏性 migration 备份/失败恢复、从配置或 `PATH` 定位 `opencode`、执行 `--version`、规范化 OpenCode 版本号、最低支持版本检查、缺失/不可执行 binary 和低版本的 `PROVIDER_UNAVAILABLE` 错误映射。
 - 当前第一个未完成项：Phase 3.2 Runtime Registry，包含持久化 managed/attached runtime 元数据、状态机状态、base URL/host/port/PID/workspace/mode/timestamp、stale runtime cleanup 和 runtime list 查询。
-- 当前工作区预期：本轮 Phase 3.1 提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核最新提交。若最新提交是后续文档同步提交，应继续以最新阶段实现提交作为最近阶段实现基线。
+- 当前工作区预期：本次文档同步提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核最新提交。若最新提交是后续文档同步提交，应继续以 `a001f95` 作为最近阶段实现基线。
 
 ### 已完成
 
@@ -71,7 +71,7 @@
 再阅读 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/development-progress-tracker.zh.md
 和 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/agentproxy-development-plan.md。
 
-当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组、Phase 2.5 SQLite 存储含破坏性 migration 备份机制、Phase 3.1 OpenCode Binary 探测已完成并验证；Gate 2 已通过，Gate 3 尚未通过。最新阶段实现提交为本轮 Phase 3.1 提交，提交哈希以 `git log -1 --oneline` 为准。下一步从 Phase 3.2 Runtime Registry 开始；只处理 managed/attached runtime metadata、状态机状态、base URL/host/port/PID/workspace/mode/timestamp、stale cleanup 和 runtime list，不要提前进入 managed runtime 启动、attached health check、OpenCodeProvider 核心能力、CLI MVP 或 TUI。
+当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组、Phase 2.5 SQLite 存储含破坏性 migration 备份机制、Phase 3.1 OpenCode Binary 探测已完成并验证；Gate 2 已通过，Gate 3 尚未通过。最新阶段实现提交是 `a001f95 阶段进展：完成 Phase 3.1 OpenCode Binary 探测`。如果 `git log -1 --oneline` 显示的是后续文档同步提交，请继续以 `a001f95` 作为最近阶段实现基线。下一步从 Phase 3.2 Runtime Registry 开始；只处理 managed/attached runtime metadata、状态机状态、base URL/host/port/PID/workspace/mode/timestamp、stale cleanup 和 runtime list，不要提前进入 managed runtime 启动、attached health check、OpenCodeProvider 核心能力、CLI MVP 或 TUI。
 请先运行 `git status --short` 和 `git log -1 --oneline` 核对最新提交与工作区状态。
 
 请严格按照 docs/development-progress-tracker.zh.md 继续迭代，从第一个未完成项开始：
@@ -86,7 +86,7 @@ Phase 3.2 Runtime Registry。Phase 3.1 已完成从配置或 `PATH` 定位 `open
 6. 每完成一个阶段任务后，运行适用验证命令，并使用详细中文 commit 信息提交一次。
 7. AgentProxy 必须保持薄代理和控制面定位，v1 只接入 OpenCode，不重写 Agent runtime。
 8. 重启会话后先复习 `tasks/lessons.md`，并自动延续阶段提交习惯，不需要用户再次提醒。
-9. Phase 2.4 和 Phase 2.5 已完成，不要回退或扩展它们；Phase 3 起步不要实现 OpenCodeProvider 核心能力、CLI MVP 或 TUI，只处理 runtime 生命周期的第一个小范围任务组。
+9. Phase 2.4、Phase 2.5 和 Phase 3.1 已完成，不要回退或扩展它们；下一步只处理 Phase 3.2 Runtime Registry，不要实现 managed runtime 启动、attached health check、OpenCodeProvider 核心能力、CLI MVP 或 TUI。
 ```
 
 ## 1. 使用规则
@@ -980,3 +980,4 @@ Phase 3.2 Runtime Registry。Phase 3.1 已完成从配置或 `PATH` 定位 `open
 - 2026-05-20：完成 Phase 2.5 破坏性 migration 备份机制；新增 `src/storage/migrations.ts`，将 SQLite migration 抽为显式 descriptor 列表，支持 pending destructive migration 前临时备份 SQLite 主文件及 WAL/SHM/journal sidecar，失败时关闭连接、恢复备份并以 `STORAGE_ERROR` 退出，成功迁移或成功恢复后清理临时备份；更新 `src/storage/sqlite.ts` 和 `src/storage/index.ts` 复用 migration runner，并在 `tests/storage-sqlite.test.ts` 覆盖 destructive migration 成功清理、两段式 destructive migration 失败回滚、迁移记录不落库和升级前 provider 数据保留。验证命令：`pnpm exec vitest run tests/storage-sqlite.test.ts`、`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`，结果均通过。Gate 2 已通过；本阶段未实现 OpenCode runtime 生命周期、OpenCodeProvider 核心能力、CLI MVP 或 TUI。
 - 2026-05-20：同步最新开发状态与下次启动提示词；明确最新阶段实现提交为 `be38473 阶段进展：完成 Phase 2.5 破坏性 migration 备份机制`，Gate 2 已通过，第一个未完成项为 Phase 3.1 OpenCode Binary 探测；若后续最新提交是文档同步提交，应继续以 `be38473` 作为最近阶段实现基线。
 - 2026-05-20：完成 Phase 3.1 OpenCode Binary 探测；新增 `src/providers/opencode/binary.ts` 和 `src/providers/opencode/constants.ts`，实现从配置或 `PATH` 定位 `opencode`、执行 `--version`、规范化版本号、最低支持版本 `1.0.0` 检查、缺失/不可执行 binary、`--version` 失败、不可解析版本输出和低版本的 `PROVIDER_UNAVAILABLE` 映射，并给出安装或升级建议；新增 `tests/opencode-binary.test.ts`，使用 fake binary 覆盖默认 PATH、显式绝对路径、显式命令名、显式相对路径优先、普通/v 前缀/带预发布版本输出、缺失、不可执行、非零退出、不可解析输出和低版本。代码审查发现显式 `./opencode` 曾可能被 `PATH` 劫持，已修复为相对路径按 `cwd` 解析为绝对路径，并让 PATH 查找和执行共用 effective env、兼容 `PATH`/`Path`。验证命令：`pnpm exec vitest run tests/opencode-binary.test.ts`、`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`，结果均通过。未解决风险：Gate 3 尚未通过；本阶段未实现 Runtime Registry、managed/attached runtime 启停、OpenCodeProvider 核心能力、CLI MVP 或 TUI。
+- 2026-05-20：同步 Phase 3.1 完成后的最新开发状态与下次启动提示词；明确最新阶段实现提交为 `a001f95 阶段进展：完成 Phase 3.1 OpenCode Binary 探测`，Gate 3 尚未通过，第一个未完成项为 Phase 3.2 Runtime Registry；若后续最新提交是文档同步提交，应继续以 `a001f95` 作为最近阶段实现基线。
