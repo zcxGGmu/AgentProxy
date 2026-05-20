@@ -11,6 +11,57 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Phase 3.4
+
+Scope: advance only OpenCode attached runtime lifecycle from the Chinese progress tracker.
+
+Implementation checklist:
+
+- [x] Add focused tests for explicit attached `serverUrl` registration and `/global/health` success.
+- [x] Add tests for registry-discovered healthy OpenCode server attachment.
+- [x] Add tests for unhealthy or non-OpenCode-looking targets mapping to `RUNTIME_HEALTH_FAILED`.
+- [x] Add tests proving non-localhost attached URLs produce a clear warning without leaking credentials.
+- [x] Add tests proving attached runtime stop/detach only updates local registry metadata and never kills a process.
+- [x] Implement a small OpenCode attached runtime manager around URL parsing, health probing, OpenCode-looking response validation, warning metadata, and registry updates.
+- [x] Keep the implementation limited to attached runtime lifecycle; do not implement OpenCodeProvider session behavior, event stream, CLI MVP, or TUI.
+- [x] Update the Chinese progress tracker and record verification evidence.
+- [x] Run verification and create a detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Reuse Phase 3.2 `RuntimeRegistry` for attached runtime records and detach state updates.
+- Reuse Phase 3.3 health path `/global/health` and stable runtime status model.
+- Reuse stable error codes: `CONFIG_INVALID` for invalid server URLs and `RUNTIME_HEALTH_FAILED` for unreachable or unhealthy targets.
+- Use Node.js built-in `fetch`, `URL`, and HTTP test servers; do not add new runtime dependencies.
+- Store warning/source/health validation details in runtime metadata; do not add SQLite columns or migrations.
+- Treat explicit `--server-url` semantics as API input named `serverUrl` for this phase; do not implement CLI commands yet.
+
+Acceptance criteria for this iteration:
+
+- [x] An explicit attached server URL can be validated, health-checked through `/global/health`, and persisted as an attached healthy runtime.
+- [x] A healthy attached runtime already present in registry can be rediscovered and revalidated without starting `opencode serve`.
+- [x] Attachment only succeeds when the target health response is successful and looks like OpenCode health data as far as this phase can verify.
+- [x] Non-localhost attached server URLs record and expose a clear warning while still allowing explicit attachment.
+- [x] Attached runtime stop/detach transitions the local record to `detached` and does not kill or mutate any external process.
+- [x] `pnpm exec vitest run tests/opencode-attached-runtime.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
+- [x] Chinese progress tracker marks the Phase 3.4 attached-runtime group done and records Review notes.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- OpenCode health response shape may vary; validation should be conservative but not overly specific, and must not parse TUI/stdout.
+- Remote server URLs may contain credentials; warnings and errors must avoid leaking usernames, passwords, or query secrets.
+- Remote attached URLs are a local explicit trust boundary in this phase; future non-CLI callers need opt-in or allowlist before accepting untrusted input.
+- Do not start or stop external processes in attached mode; all stop behavior is registry-only detach.
+- Do not change Phase 3.3 managed runtime behavior except for extracting tiny reusable health helpers if needed.
+
+Review notes:
+
+- 2026-05-20: Added `src/runtimes/attached.ts`, exported it from `src/runtimes/index.ts`, and added `tests/opencode-attached-runtime.test.ts`.
+- Code/security review fixes: added active runtimeId reservation, managed-id collision protection, pre-aborted signal handling, OpenCode provider-only detach, and invalid URL parsing without raw `cause` leakage.
+- Verification passed: `pnpm exec vitest run tests/opencode-attached-runtime.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`.
+- Remaining risk: Gate 3 still needs event stream, runtime diagnostics, and a later real OpenCode smoke test to confirm the exact production health body shape; same-id reservation is currently process-local and would need DB-level coordination for multi-process attach.
+
 ## Current Iteration - 2026-05-20 Phase 3.3
 
 Scope: advance only OpenCode managed runtime lifecycle from the Chinese progress tracker.

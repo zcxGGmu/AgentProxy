@@ -27,3 +27,6 @@
 - Runtime Registry 只做 metadata cleanup 时也要维护状态一致性：runtime 重新进入 active 状态必须清除旧 `stoppedAt`，stale TTL 必须校验为正有限值，避免启动协调时把新 runtime 误标记为 stale。
 - Managed runtime 停止必须基于当前 AgentProxy 进程实际拥有的 child process，而不是 registry 中的历史 PID；attached 或 registry-only runtime 只能更新/拒绝本地记录，不能被 kill。
 - Managed runtime 启动前必须用同步 reservation 拒绝 active/runtimeId 并发冲突，并且 health 成功后要确认 child process 在短稳定窗口内未退出，避免旧 child 污染新状态或死进程被写成 `healthy`。
+- Attached runtime 的 server URL 不能把 username/password/query secrets 落入 registry、warning 或错误详情；存储前要规范化并剥离 query/hash，URL credentials 应拒绝或留给后续显式 auth 配置处理。
+- URL 解析失败时不要把原始 `TypeError` 作为 `cause` 传给错误对象；Node 的 URL 错误可能携带原始 input，调试日志 inspect cause 时会泄露 secret。
+- Attached runtime 连接也必须像 managed 启动一样做 runtimeId reservation，并且只允许 revalidate 同一个 registry attached 候选，避免覆盖 active managed runtime 或并发写乱 ownership metadata。

@@ -1,4 +1,18 @@
 export {
+  OPENCODE_ATTACHED_RUNTIME_HEALTH_PATH,
+  OPENCODE_ATTACHED_RUNTIME_METADATA_KEY,
+  OpenCodeAttachedRuntimeManager,
+} from "./attached.js";
+export type {
+  AttachOpenCodeRuntimeFromRegistryInput,
+  AttachOpenCodeRuntimeInput,
+  OpenCodeAttachedRuntimeHealthMetadata,
+  OpenCodeAttachedRuntimeManagerOptions,
+  OpenCodeAttachedRuntimeMetadata,
+  OpenCodeAttachedRuntimeWarning,
+  StopOpenCodeAttachedRuntimeInput,
+} from "./attached.js";
+export {
   OPENCODE_MANAGED_RUNTIME_DEFAULT_HOSTNAME,
   OPENCODE_MANAGED_RUNTIME_DEFAULT_PORT,
   OPENCODE_MANAGED_RUNTIME_HEALTH_PATH,
