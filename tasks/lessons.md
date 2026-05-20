@@ -24,3 +24,4 @@
 - SQLite 文件恢复要把主库和 `-wal`、`-shm`、`-journal` sidecar 作为一组处理，并在成功迁移或成功恢复后清理临时备份，避免数据目录残留完整快照。
 - 探测用户显式配置的 binary 时，相对路径必须按调用方 `cwd` 解析成绝对路径再执行，不能经 `normalize("./cmd")` 退化成裸命令导致被 `PATH` 劫持。
 - 外部命令探测要让 `PATH` 查找和实际执行共用同一个 effective env，并兼容 `PATH`/`Path` 键；fake binary 测试应覆盖相对路径优先、不可执行、非零退出和不可解析版本输出。
+- Runtime Registry 只做 metadata cleanup 时也要维护状态一致性：runtime 重新进入 active 状态必须清除旧 `stoppedAt`，stale TTL 必须校验为正有限值，避免启动协调时把新 runtime 误标记为 stale。

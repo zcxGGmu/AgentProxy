@@ -11,15 +11,15 @@
 
 ### 当前阶段
 
-- 当前处于：Phase 3.1 OpenCode Binary 探测已完成实现和验证；Gate 3 尚未通过，下一步从 Phase 3.2 Runtime Registry 开始。
-- 当前启动基线：最新阶段实现提交 `a001f95 阶段进展：完成 Phase 3.1 OpenCode Binary 探测`。
-- 最新阶段实现提交：`a001f95 阶段进展：完成 Phase 3.1 OpenCode Binary 探测`。
-- 前一阶段实现基线：`be38473 阶段进展：完成 Phase 2.5 破坏性 migration 备份机制`。
+- 当前处于：Phase 3.2 Runtime Registry 已完成实现和验证；Gate 3 尚未通过，下一步从 Phase 3.3 Managed Runtime 开始。
+- 当前启动基线：本轮 Phase 3.2 Runtime Registry 阶段实现提交；若后续最新提交是文档同步提交，应继续以最近的 Phase 3.2 阶段实现提交作为基线。
+- 最新阶段实现提交：本轮 Phase 3.2 Runtime Registry 阶段实现提交。
+- 前一阶段实现基线：`a001f95 阶段进展：完成 Phase 3.1 OpenCode Binary 探测`。
 - Phase 0.2 / Phase 1 阶段提交：`e5eb0ce 阶段进展：完成 Phase 0.2 技术决策与 Phase 1 工程骨架`
 - 当前主要进度来源：本文档和 `docs/agentproxy-development-plan.md`
-- 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层、provider registry 最小闭环、配置解析层最小闭环、日志/脱敏第一组、SQLite 存储和 Phase 3.1 OpenCode Binary 探测：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型、`AgentProvider` 契约、provider 注册/lookup/list、capability probe、schema mismatch limited mode、OpenCodeProvider 占位实现、AgentProxy 默认配置、全局/项目/显式配置读取、env/CLI 覆盖、schema 校验、路径规范化、OpenCode 配置隔离、结构化 NDJSON logger、correlationId、标准日志字段、redaction、stdout/stderr 分离、Commander parse error 脱敏、`better-sqlite3` 接入、数据库初始化、migration 版本表、providers/runtimes/sessions/session_events 表、基础 repository CRUD、重复 migration 安全性、session 唯一约束、tombstone 保留、破坏性 migration 备份/失败恢复、从配置或 `PATH` 定位 `opencode`、执行 `--version`、规范化 OpenCode 版本号、最低支持版本检查、缺失/不可执行 binary 和低版本的 `PROVIDER_UNAVAILABLE` 错误映射。
-- 当前第一个未完成项：Phase 3.2 Runtime Registry，包含持久化 managed/attached runtime 元数据、状态机状态、base URL/host/port/PID/workspace/mode/timestamp、stale runtime cleanup 和 runtime list 查询。
-- 当前工作区预期：本次文档同步提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核最新提交。若最新提交是后续文档同步提交，应继续以 `a001f95` 作为最近阶段实现基线。
+- 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层、provider registry 最小闭环、配置解析层最小闭环、日志/脱敏第一组、SQLite 存储、Phase 3.1 OpenCode Binary 探测和 Phase 3.2 Runtime Registry：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型、`AgentProvider` 契约、provider 注册/lookup/list、capability probe、schema mismatch limited mode、OpenCodeProvider 占位实现、AgentProxy 默认配置、全局/项目/显式配置读取、env/CLI 覆盖、schema 校验、路径规范化、OpenCode 配置隔离、结构化 NDJSON logger、correlationId、标准日志字段、redaction、stdout/stderr 分离、Commander parse error 脱敏、`better-sqlite3` 接入、数据库初始化、migration 版本表、providers/runtimes/sessions/session_events 表、基础 repository CRUD、重复 migration 安全性、session 唯一约束、tombstone 保留、破坏性 migration 备份/失败恢复、从配置或 `PATH` 定位 `opencode`、执行 `--version`、规范化 OpenCode 版本号、最低支持版本检查、缺失/不可执行 binary 和低版本的 `PROVIDER_UNAVAILABLE` 错误映射、Runtime Registry managed/attached 元数据持久化、状态机状态记录、runtime list 查询和 metadata-only stale cleanup。
+- 当前第一个未完成项：Phase 3.3 Managed Runtime，包含以子进程启动 `opencode serve`、默认绑定 `127.0.0.1`、端口冲突处理、等待 `/global/health`、启动失败/超时捕获、仅停止 managed 进程和子进程退出状态更新。
+- 当前工作区预期：本次 Phase 3.2 阶段实现提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核最新提交。若最新提交是后续文档同步提交，应继续以最近的 Phase 3.2 阶段实现提交作为基线。
 
 ### 已完成
 
@@ -40,10 +40,10 @@
 - [x] 完成 Phase 2.5 破坏性 migration 备份机制，包含显式 migration descriptor、破坏性迁移前 SQLite 临时文件备份、WAL/SHM/journal sidecar 处理、失败恢复、临时备份清理和 `STORAGE_ERROR` 映射。
 - [x] Gate 2 已通过：核心类型、Provider Registry、配置系统、日志与 SQLite 存储基础均已完成并验证。
 - [x] 完成 Phase 3.1 OpenCode Binary 探测，包含配置或 `PATH` 定位 `opencode`、执行 `--version`、版本号规范化、最低支持版本 `1.0.0` 检查、缺失 binary 和低版本错误映射、安装/升级建议、fake binary 测试覆盖。
+- [x] 完成 Phase 3.2 Runtime Registry，包含 storage-backed `RuntimeRegistry`、managed/attached runtime metadata、状态机状态、base URL/host/port/PID/workspace/mode/timestamp 记录、runtime list 查询和 metadata-only stale cleanup。
 
 ### 未完成
 
-- [ ] Phase 3.2：Runtime Registry 尚未实现，包括 managed/attached runtime 元数据、状态机状态、base URL、host、port、PID、workspace、mode、timestamp、stale cleanup 和 runtime list。
 - [ ] Phase 3：OpenCode runtime 生命周期后续项尚未实现，包括 managed/attached 区分、启动、连接、health check、停止和进程回收。
 - [ ] Phase 4：OpenCodeProvider 核心能力尚未实现。
 - [ ] Phase 5：CLI MVP 尚未实现。
@@ -58,7 +58,7 @@
 
 1. 先阅读 `tasks/lessons.md`，确认项目规则和长期习惯。
 2. 阅读本文档，定位第一个未完成任务。
-3. 从 Phase 3.2 Runtime Registry 开始处理 managed/attached runtime metadata、状态机状态和 list/cleanup，不要提前实现 OpenCodeProvider 核心能力、CLI MVP 或 TUI。
+3. 从 Phase 3.3 Managed Runtime 开始处理 managed runtime 启动、health check、停止和进程状态更新；不要提前实现 OpenCodeProvider 核心能力、CLI MVP 或 TUI。
 4. 复用 Phase 2.1 已建立的 `AgentProvider`、capability schema、metadata escape hatch 和稳定错误码。
 5. 继续保持 AgentProxy 的薄代理和控制面定位，不复制 OpenCode agent runtime 内部逻辑。
 6. 完成阶段后运行验证命令，更新本文档，创建详细中文 commit。
@@ -71,11 +71,11 @@
 再阅读 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/development-progress-tracker.zh.md
 和 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/agentproxy-development-plan.md。
 
-当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组、Phase 2.5 SQLite 存储含破坏性 migration 备份机制、Phase 3.1 OpenCode Binary 探测已完成并验证；Gate 2 已通过，Gate 3 尚未通过。最新阶段实现提交是 `a001f95 阶段进展：完成 Phase 3.1 OpenCode Binary 探测`。如果 `git log -1 --oneline` 显示的是后续文档同步提交，请继续以 `a001f95` 作为最近阶段实现基线。下一步从 Phase 3.2 Runtime Registry 开始；只处理 managed/attached runtime metadata、状态机状态、base URL/host/port/PID/workspace/mode/timestamp、stale cleanup 和 runtime list，不要提前进入 managed runtime 启动、attached health check、OpenCodeProvider 核心能力、CLI MVP 或 TUI。
+当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组、Phase 2.5 SQLite 存储含破坏性 migration 备份机制、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry 已完成并验证；Gate 2 已通过，Gate 3 尚未通过。最新阶段实现提交是最近的 Phase 3.2 Runtime Registry 实现提交。如果 `git log -1 --oneline` 显示的是后续文档同步提交，请继续以最近的 Phase 3.2 阶段实现提交作为基线。下一步从 Phase 3.3 Managed Runtime 开始；只处理 managed runtime 启动、health check、停止和进程状态更新，不要提前进入 OpenCodeProvider 核心能力、CLI MVP 或 TUI。
 请先运行 `git status --short` 和 `git log -1 --oneline` 核对最新提交与工作区状态。
 
 请严格按照 docs/development-progress-tracker.zh.md 继续迭代，从第一个未完成项开始：
-Phase 3.2 Runtime Registry。Phase 3.1 已完成从配置或 `PATH` 定位 `opencode`、执行 `--version`、版本号规范化、最低支持版本检查、缺失 binary 和低版本错误映射；下一步只处理 managed/attached runtime metadata、状态机状态、base URL/host/port/PID/workspace/mode/timestamp、stale cleanup 和 runtime list。
+Phase 3.3 Managed Runtime。Phase 3.2 已完成 managed/attached runtime metadata、状态机状态、base URL/host/port/PID/workspace/mode/timestamp、metadata-only stale cleanup 和 runtime list；下一步只处理 managed runtime 启动、默认绑定 `127.0.0.1`、端口冲突、`/global/health` 等待、启动失败/超时、仅停止 managed 进程和子进程退出状态更新。
 
 要求：
 1. 不要重新规划已完成的架构方案，除非发现真实设计缺口。
@@ -86,7 +86,7 @@ Phase 3.2 Runtime Registry。Phase 3.1 已完成从配置或 `PATH` 定位 `open
 6. 每完成一个阶段任务后，运行适用验证命令，并使用详细中文 commit 信息提交一次。
 7. AgentProxy 必须保持薄代理和控制面定位，v1 只接入 OpenCode，不重写 Agent runtime。
 8. 重启会话后先复习 `tasks/lessons.md`，并自动延续阶段提交习惯，不需要用户再次提醒。
-9. Phase 2.4、Phase 2.5 和 Phase 3.1 已完成，不要回退或扩展它们；下一步只处理 Phase 3.2 Runtime Registry，不要实现 managed runtime 启动、attached health check、OpenCodeProvider 核心能力、CLI MVP 或 TUI。
+9. Phase 2.4、Phase 2.5、Phase 3.1 和 Phase 3.2 已完成，不要回退或扩展它们；下一步只处理 Phase 3.3 Managed Runtime，不要实现 OpenCodeProvider 核心能力、CLI MVP 或 TUI。
 ```
 
 ## 1. 使用规则
@@ -340,18 +340,18 @@ Phase 3.2 Runtime Registry。Phase 3.1 已完成从配置或 `PATH` 定位 `open
 
 ### 6.2 Runtime Registry
 
-- [ ] 持久化 managed runtime 元数据。
-- [ ] 持久化 attached runtime 元数据。
-- [ ] 记录 runtime 状态机状态。
-- [ ] 记录 base URL、host、port、PID、workspace、mode 和时间戳。
-- [ ] 实现 stale runtime cleanup。
-- [ ] 实现 runtime list 查询。
+- [x] 持久化 managed runtime 元数据。
+- [x] 持久化 attached runtime 元数据。
+- [x] 记录 runtime 状态机状态。
+- [x] 记录 base URL、host、port、PID、workspace、mode 和时间戳。
+- [x] 实现 stale runtime cleanup。
+- [x] 实现 runtime list 查询。
 
 验收标准：
 
-- [ ] managed 和 attached 可明确区分。
-- [ ] attached runtime 不会被 AgentProxy kill。
-- [ ] stale metadata 不阻塞新 run。
+- [x] managed 和 attached 可明确区分。
+- [x] attached runtime 不会被 AgentProxy kill。
+- [x] stale metadata 不阻塞新 run。
 
 ### 6.3 Managed Runtime
 
@@ -981,3 +981,4 @@ Phase 3.2 Runtime Registry。Phase 3.1 已完成从配置或 `PATH` 定位 `open
 - 2026-05-20：同步最新开发状态与下次启动提示词；明确最新阶段实现提交为 `be38473 阶段进展：完成 Phase 2.5 破坏性 migration 备份机制`，Gate 2 已通过，第一个未完成项为 Phase 3.1 OpenCode Binary 探测；若后续最新提交是文档同步提交，应继续以 `be38473` 作为最近阶段实现基线。
 - 2026-05-20：完成 Phase 3.1 OpenCode Binary 探测；新增 `src/providers/opencode/binary.ts` 和 `src/providers/opencode/constants.ts`，实现从配置或 `PATH` 定位 `opencode`、执行 `--version`、规范化版本号、最低支持版本 `1.0.0` 检查、缺失/不可执行 binary、`--version` 失败、不可解析版本输出和低版本的 `PROVIDER_UNAVAILABLE` 映射，并给出安装或升级建议；新增 `tests/opencode-binary.test.ts`，使用 fake binary 覆盖默认 PATH、显式绝对路径、显式命令名、显式相对路径优先、普通/v 前缀/带预发布版本输出、缺失、不可执行、非零退出、不可解析输出和低版本。代码审查发现显式 `./opencode` 曾可能被 `PATH` 劫持，已修复为相对路径按 `cwd` 解析为绝对路径，并让 PATH 查找和执行共用 effective env、兼容 `PATH`/`Path`。验证命令：`pnpm exec vitest run tests/opencode-binary.test.ts`、`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`，结果均通过。未解决风险：Gate 3 尚未通过；本阶段未实现 Runtime Registry、managed/attached runtime 启停、OpenCodeProvider 核心能力、CLI MVP 或 TUI。
 - 2026-05-20：同步 Phase 3.1 完成后的最新开发状态与下次启动提示词；明确最新阶段实现提交为 `a001f95 阶段进展：完成 Phase 3.1 OpenCode Binary 探测`，Gate 3 尚未通过，第一个未完成项为 Phase 3.2 Runtime Registry；若后续最新提交是文档同步提交，应继续以 `a001f95` 作为最近阶段实现基线。
+- 2026-05-20：完成 Phase 3.2 Runtime Registry；新增 `src/runtimes/registry.ts` 和 `src/runtimes/index.ts`，在现有 SQLite runtime repository 之上实现 storage-backed `RuntimeRegistry`，支持持久化 managed/attached runtime 元数据、记录状态机状态、保留 base URL/host/port/PID/workspace/mode/startedAt/stoppedAt，并在 metadata 中记录 `registeredAt`、`updatedAt`、stale 标记和 metadata-only stale action。新增 `tests/runtime-registry.test.ts` 覆盖 managed 与 attached 可区分、状态更新保留注册时间和既有 metadata、provider/workspace/status/mode list 查询、stale cleanup 将 managed active metadata 标记为 `failed`、attached active metadata 标记为 `detached` 且不删除记录/不 kill 或 stop attached runtime、runtime 从 stopped 重新 active 时清除旧 `stoppedAt`、非法 stale TTL 映射为 `CONFIG_INVALID`。代码审查指出旧 `stoppedAt` 继承和 0/负数/Infinity stale TTL 会导致后续启动协调误判，已修复并更新 `tasks/lessons.md`。验证命令：`pnpm exec vitest run tests/runtime-registry.test.ts`、`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`，结果均通过。未解决风险：Gate 3 尚未通过；本阶段未实现 `opencode serve` managed 启动、attached health check、runtime stop、OpenCodeProvider 核心能力、CLI MVP 或 TUI；stale cleanup 仅基于 registry timestamp 和 mode 更新本地 metadata，不检查或回收真实进程。

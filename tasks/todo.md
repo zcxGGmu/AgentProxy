@@ -11,6 +11,45 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Phase 3.2
+
+Scope: advance only Runtime Registry metadata from the Chinese progress tracker.
+
+Implementation checklist:
+
+- [x] Add focused tests for managed and attached runtime metadata persistence.
+- [x] Add tests for runtime state-machine status storage and runtime list filtering.
+- [x] Add tests proving stale cleanup marks stale metadata without killing or stopping attached runtimes.
+- [x] Implement a minimal Runtime Registry service over the existing SQLite runtime repository.
+- [x] Keep the service limited to metadata create/update/list/cleanup; do not start, health-check, or stop OpenCode.
+- [x] Update the Chinese progress tracker and record verification evidence.
+- [x] Run verification and create a detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Reuse existing `RuntimeHandle`, `RuntimeMode`, and `RuntimeStatus` core contracts.
+- Reuse the existing SQLite `runtimes` table and repository fields: provider id, mode, status, base URL, hostname, port, PID, workspace path, started/stopped timestamps, and metadata JSON.
+- Reuse current TypeScript, Vitest, Biome, tsup, and Node.js `>=22.0.0` tooling.
+- Treat stale cleanup as registry metadata cleanup only; do not inspect live processes or kill any PID in this iteration.
+- Preserve AgentProxy's thin control-plane role and v1 OpenCode-only scope.
+
+Acceptance criteria for this iteration:
+
+- [x] Managed and attached runtime records can both be persisted and listed with distinct modes.
+- [x] Runtime status values from the documented state machine are stored and queryable.
+- [x] Runtime records include base URL, hostname, port, PID, workspace, mode, and timestamps when supplied.
+- [x] Runtime list supports provider, workspace, status, and mode-oriented filtering needed by the registry.
+- [x] Stale cleanup marks stale active metadata as `failed` or `detached` without deleting records and without attempting to kill attached runtimes.
+- [x] `pnpm exec vitest run tests/runtime-registry.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
+- [x] Chinese progress tracker marks Phase 3.2 done and records Review notes.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- Do not implement `opencode serve` startup, attached health check, process ownership verification, runtime stop, OpenCodeProvider core session behavior, CLI MVP, or TUI.
+- Cleanup cannot safely decide whether a live PID is still OpenCode yet; this iteration must only mark metadata stale based on timestamps and mode.
+- Existing storage already has basic runtime CRUD; avoid rewriting Phase 2.5 storage or expanding migration behavior unless a real gap appears.
+
 ## Current Iteration - 2026-05-20 Phase 3.1
 
 Scope: advance only OpenCode binary discovery from the Chinese progress tracker.
@@ -888,3 +927,4 @@ A task can be checked only when all applicable items are true:
 - 2026-05-19: Completed Phase 2.5 SQLite storage first group. Added `better-sqlite3`, `@types/better-sqlite3`, `pnpm-workspace.yaml` native build approval, SQLite opening/initialization, explicit migration tracking, providers/runtimes/sessions/session_events schema, repository CRUD, JSON metadata/payload persistence, `STORAGE_ERROR` mapping, and focused storage tests. Code review found that normal session upsert could clear an existing tombstone; this was fixed with SQL preservation logic and a regression test. Verification passed with `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Remaining risk: destructive migration backup behavior is still pending; no OpenCode runtime lifecycle, OpenCodeProvider core behavior, CLI MVP, or TUI work was implemented.
 - 2026-05-20: Completed the Phase 2.5 destructive migration backup item. Added explicit SQLite migration descriptors in `src/storage/migrations.ts`, destructive migration temporary file backups for the main database plus WAL/SHM/journal sidecars, backup restore on migration failure, temporary backup cleanup after successful migration or restore, and `STORAGE_ERROR` failure mapping. Added focused storage tests that prove successful destructive migration cleanup, two-step failed destructive migration rollback, missing migration records, and preservation of pre-migration provider data. Verification passed with `pnpm exec vitest run tests/storage-sqlite.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Gate 2 is complete; no OpenCode runtime lifecycle, OpenCodeProvider core behavior, CLI MVP, or TUI work was implemented.
 - 2026-05-20: Completed Phase 3.1 OpenCode Binary 探测. Added `src/providers/opencode/binary.ts` and `src/providers/opencode/constants.ts` to probe a configured binary or PATH-resolved `opencode`, execute `--version`, normalize version strings, compare against minimum supported version `1.0.0`, and map missing/non-executable/failing/unparseable/too-old results to `PROVIDER_UNAVAILABLE` with install or upgrade suggestions. Added `tests/opencode-binary.test.ts` covering default PATH lookup, explicit absolute path, explicit command name, explicit relative path from `cwd`, normal/v-prefixed/pre-release version output, missing binary, non-executable binary, non-zero exit, unparsable output, and low-version rejection. Code review caught a real bug where `./opencode` could be normalized into a bare command and hijacked by PATH; fixed by resolving relative binaries against `cwd` and by sharing an effective env between PATH lookup and execution, including `PATH`/`Path` compatibility. Verification passed with `pnpm exec vitest run tests/opencode-binary.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Next step is Phase 3.2 Runtime Registry; no runtime manager, OpenCodeProvider core behavior, CLI MVP, or TUI work was added.
+- 2026-05-20: Completed Phase 3.2 Runtime Registry. Added `src/runtimes/registry.ts` and `src/runtimes/index.ts` with a storage-backed `RuntimeRegistry` for managed/attached runtime metadata, state-machine status records, runtime list filtering, and timestamp-based metadata-only stale cleanup. Added `tests/runtime-registry.test.ts` covering managed vs attached distinction, base URL/host/port/PID/workspace/mode/timestamps, status updates that preserve registration metadata, provider/workspace/status/mode list queries, stale cleanup that marks managed active metadata `failed` and attached active metadata `detached` without deleting records or killing processes, clearing old `stoppedAt` when a runtime becomes active again, and rejecting invalid stale TTL values as `CONFIG_INVALID`. Verification passed with `pnpm exec vitest run tests/runtime-registry.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build`. Gate 3 remains open; no `opencode serve` startup, attached health check, runtime stop, OpenCodeProvider core behavior, CLI MVP, or TUI work was implemented.
