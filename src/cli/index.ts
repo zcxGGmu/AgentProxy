@@ -2,8 +2,15 @@
 
 import { pathToFileURL } from "node:url";
 import { Command } from "commander";
+import {
+  resolveAgentProxyConfig,
+  type AgentProxyCliConfigOverrides,
+  type AgentProxyConfig,
+} from "../config/index.js";
+import { createAgentProxyError, isAgentProxyError } from "../core/index.js";
 import { createOutputWriters, type AgentProxyOutputWriters } from "../logging/index.js";
-import { OPENCODE_PROVIDER_ID } from "../providers/opencode/index.js";
+import { OPENCODE_PROVIDER_ID, OpenCodeProvider } from "../providers/opencode/index.js";
+import type { AgentProvider } from "../providers/types.js";
 
 export const AGENTPROXY_VERSION = "0.1.0";
 
@@ -29,6 +36,9 @@ function plannedAction(commandName: string, output: AgentProxyOutputWriters): ()
 
 export interface CreateProgramOptions {
   output?: AgentProxyOutputWriters;
+  cwd?: string;
+  homeDir?: string;
+  env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
 }
 
 export function createProgram(options: CreateProgramOptions = {}): Command {
@@ -145,7 +155,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
     .argument("[nativeArgs...]", "Native provider arguments after --.")
     .allowUnknownOption(true)
     .description("Execute a provider-native command without changing AgentProxy state.")
-    .action(plannedAction("provider exec", output));
+    .action(createProviderExecAction(output, options));
 
   const runtime = program.command("runtime").description("Manage provider runtime connections.");
   runtime
@@ -174,6 +184,139 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
     .action(plannedAction("config set", output));
 
   return program;
+}
+
+function createProviderExecAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command, providerId: string, nativeArgs?: string[]) => Promise<void> {
+  return async function (this: Command, providerId, nativeArgs = []) {
+    try {
+      const root = getRootCommand(this);
+      const resolvedConfig = await resolveAgentProxyConfig({
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(root),
+      });
+      const provider = createConfiguredProvider(providerId, resolvedConfig.config, options);
+      const result = await provider.passthrough({
+        providerId,
+        workspacePath: resolvedConfig.config.workspacePath,
+        args: nativeArgs,
+        metadata: {},
+      });
+
+      if (result.stdout !== "") {
+        output.stdout.write(result.stdout);
+      }
+      if (result.stderr !== "") {
+        output.stderr.write(result.stderr);
+      }
+      process.exitCode = result.exitCode;
+    } catch (error) {
+      output.writeDiagnostic(formatCliError(error));
+      process.exitCode = mapCliErrorToExitCode(error);
+    }
+  };
+}
+
+function getRootCommand(command: Command): Command {
+  let current = command;
+  while (current.parent !== null) {
+    current = current.parent;
+  }
+  return current;
+}
+
+function createCliConfigOverrides(root: Command): AgentProxyCliConfigOverrides {
+  const options = root.opts<{
+    config?: string;
+    workspace?: string;
+  }>();
+  const overrides: AgentProxyCliConfigOverrides = {};
+
+  if (root.getOptionValueSource("config") === "cli" && options.config !== undefined) {
+    overrides.configPath = options.config;
+  }
+  if (root.getOptionValueSource("workspace") === "cli" && options.workspace !== undefined) {
+    overrides.workspacePath = options.workspace;
+  }
+
+  return overrides;
+}
+
+function createConfiguredProvider(
+  providerId: string,
+  config: AgentProxyConfig,
+  options: CreateProgramOptions,
+): AgentProvider {
+  if (providerId !== OPENCODE_PROVIDER_ID) {
+    throw createAgentProxyError({
+      code: "PROVIDER_NOT_FOUND",
+      message: `Provider not found: ${providerId}`,
+      operation: "provider.exec",
+      providerId,
+    });
+  }
+
+  const opencode = config.providers.opencode;
+  if (!opencode.enabled) {
+    throw createAgentProxyError({
+      code: "PROVIDER_UNAVAILABLE",
+      message: "OpenCode provider is disabled in AgentProxy config.",
+      operation: "provider.exec",
+      providerId,
+      details: {
+        suggestion: "Enable providers.opencode.enabled before running provider passthrough.",
+      },
+    });
+  }
+
+  return new OpenCodeProvider({
+    binary: opencode.binary,
+    cwd: config.workspacePath,
+    passthroughEnv: opencode.passthroughEnv,
+    ...(options.env !== undefined ? { env: options.env } : {}),
+  });
+}
+
+function formatCliError(error: unknown): string {
+  if (isAgentProxyError(error)) {
+    const suggestion =
+      typeof error.details?.suggestion === "string" ? `\n${error.details.suggestion}` : "";
+    return `${error.code}: ${error.message}${suggestion}`;
+  }
+
+  return error instanceof Error ? error.message : String(error);
+}
+
+function mapCliErrorToExitCode(error: unknown): number {
+  if (!isAgentProxyError(error)) {
+    return 1;
+  }
+
+  switch (error.code) {
+    case "CONFIG_INVALID":
+      return 3;
+    case "PROVIDER_NOT_FOUND":
+    case "PROVIDER_UNAVAILABLE":
+      return 4;
+    case "CAPABILITY_UNSUPPORTED":
+      return 6;
+    case "PERMISSION_DENIED":
+      return 8;
+    case "RUNTIME_START_FAILED":
+      return 5;
+    case "RUNTIME_HEALTH_FAILED":
+    case "EVENT_STREAM_INTERRUPTED":
+      return 9;
+    case "STORAGE_ERROR":
+      return 10;
+    case "SESSION_NOT_FOUND":
+    case "PASSTHROUGH_FAILED":
+      return 1;
+  }
 }
 
 export function normalizeCliArgv(argv: string[]): string[] {

@@ -1,6 +1,6 @@
 import { createAgentProxyError } from "../core/errors.js";
 import type { ProviderMetadata } from "../core/metadata.js";
-import { OpenCodeProvider } from "./opencode/index.js";
+import { OpenCodeProvider, type OpenCodeProviderOptions } from "./opencode/index.js";
 import type {
   AgentProvider,
   ProviderCapabilities,
@@ -142,9 +142,15 @@ export class ProviderRegistry {
   }
 }
 
-export function createDefaultProviderRegistry(): ProviderRegistry {
+export interface CreateDefaultProviderRegistryOptions {
+  opencode?: OpenCodeProviderOptions;
+}
+
+export function createDefaultProviderRegistry(
+  options: CreateDefaultProviderRegistryOptions = {},
+): ProviderRegistry {
   const registry = new ProviderRegistry();
-  registry.register(new OpenCodeProvider());
+  registry.register(new OpenCodeProvider(options.opencode));
   return registry;
 }
 

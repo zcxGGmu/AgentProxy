@@ -319,7 +319,15 @@ describe("provider registry", () => {
   });
 
   it("registers the OpenCode provider in the default registry", async () => {
-    const registry = createDefaultProviderRegistry();
+    const registry = createDefaultProviderRegistry({
+      opencode: {
+        env: { PATH: "" },
+        sdkResolver: async (moduleName) => ({
+          moduleName,
+          available: false,
+        }),
+      },
+    });
 
     const provider = registry.getProvider(OPENCODE_PROVIDER_ID);
     const probe = await registry.probeCapabilities(OPENCODE_PROVIDER_ID);

@@ -12,6 +12,7 @@ export interface ProbeOpenCodeBinaryOptions {
   binary?: string;
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
   cwd?: string;
+  inheritProcessEnv?: boolean;
 }
 
 export interface OpenCodeBinaryProbe {
@@ -23,18 +24,15 @@ export interface OpenCodeBinaryProbe {
   minimumSupportedVersion: string;
 }
 
-interface ResolvedBinary {
+export interface OpenCodeBinaryResolution {
   binary: string;
   resolvedPath: string;
   source: OpenCodeBinarySource;
 }
 
 export function probeOpenCodeBinary(options: ProbeOpenCodeBinaryOptions = {}): OpenCodeBinaryProbe {
-  const configuredBinary = options.binary?.trim();
-  const binary = configuredBinary || OPENCODE_PROVIDER_ID;
-  const env = createEffectiveEnvironment(options.env);
-  const source: OpenCodeBinarySource = configuredBinary === undefined ? "path" : "config";
-  const resolvedBinary = resolveOpenCodeBinary(binary, env, source, options.cwd);
+  const resolvedBinary = resolveOpenCodeBinary(options);
+  const env = createEffectiveEnvironment(options.env, options.inheritProcessEnv);
   const rawVersionOutput = readOpenCodeVersion(resolvedBinary.resolvedPath, env, options.cwd);
   const version = normalizeOpenCodeVersion(rawVersionOutput);
 
@@ -78,6 +76,16 @@ export function probeOpenCodeBinary(options: ProbeOpenCodeBinaryOptions = {}): O
   };
 }
 
+export function resolveOpenCodeBinary(
+  options: ProbeOpenCodeBinaryOptions = {},
+): OpenCodeBinaryResolution {
+  const configuredBinary = options.binary?.trim();
+  const binary = configuredBinary || OPENCODE_PROVIDER_ID;
+  const env = createEffectiveEnvironment(options.env, options.inheritProcessEnv);
+  const source: OpenCodeBinarySource = configuredBinary === undefined ? "path" : "config";
+  return resolveOpenCodeBinaryFromEnv(binary, env, source, options.cwd);
+}
+
 export function normalizeOpenCodeVersion(output: string): string | undefined {
   const match = output
     .trim()
@@ -85,12 +93,12 @@ export function normalizeOpenCodeVersion(output: string): string | undefined {
   return match?.[1];
 }
 
-function resolveOpenCodeBinary(
+function resolveOpenCodeBinaryFromEnv(
   binary: string,
   env: Record<string, string | undefined>,
   source: OpenCodeBinarySource,
   cwd?: string,
-): ResolvedBinary {
+): OpenCodeBinaryResolution {
   if (isPathLikeBinary(binary)) {
     const resolvedPath = isAbsolute(binary)
       ? normalize(binary)
@@ -187,7 +195,12 @@ function findCommandOnPath(command: string, pathValue: string): string | undefin
 
 function createEffectiveEnvironment(
   env: NodeJS.ProcessEnv | Record<string, string | undefined> | undefined,
+  inheritProcessEnv = true,
 ): Record<string, string | undefined> {
+  if (!inheritProcessEnv) {
+    return { ...(env ?? {}) };
+  }
+
   return {
     ...process.env,
     ...(env ?? {}),

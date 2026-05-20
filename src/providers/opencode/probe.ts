@@ -24,6 +24,7 @@ export interface OpenCodeProviderOptions {
   binary?: string;
   baseUrl?: string;
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
+  passthroughEnv?: Record<string, string | undefined>;
   cwd?: string;
   requestTimeoutMs?: number;
   fetchImplementation?: typeof fetch;

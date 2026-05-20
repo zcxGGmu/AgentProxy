@@ -9,6 +9,7 @@ import {
   type OpenCodeProviderOptions,
   probeOpenCodeProvider,
 } from "./probe.js";
+import { passthroughOpenCodeCommand } from "./passthrough.js";
 import {
   abortOpenCodeSession,
   deleteOpenCodeSession,
@@ -48,6 +49,7 @@ export {
   OPENCODE_MINIMUM_SUPPORTED_VERSION,
   normalizeOpenCodeVersion,
   probeOpenCodeBinary,
+  resolveOpenCodeBinary,
 } from "./binary.js";
 export {
   OPENCODE_PROVIDER_PROBE_METADATA_KEY,
@@ -55,6 +57,7 @@ export {
 } from "./probe.js";
 export type {
   OpenCodeBinaryProbe,
+  OpenCodeBinaryResolution,
   OpenCodeBinarySource,
   ProbeOpenCodeBinaryOptions,
 } from "./binary.js";
@@ -154,7 +157,7 @@ export class OpenCodeProvider implements AgentProvider {
   }
 
   async passthrough(ctx: PassthroughRequest): Promise<PassthroughResult> {
-    throw unsupportedOpenCodeOperation("provider.passthrough", ctx.providerId);
+    return passthroughOpenCodeCommand(this.#options, ctx);
   }
 }
 

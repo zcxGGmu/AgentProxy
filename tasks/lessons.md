@@ -47,3 +47,4 @@
 - Message 事件流不能把 provider 的 step-ended 当成 session/message terminal；严格 message stream 只处理显式携带目标 `sessionID` 的 provider 事件，避免无归属 raw payload 被错误归到当前 session。
 - 本地 message lifecycle 在消费者提前 `return()` 或 signal abort 时也必须写回终态，不能让 session 长期卡在 `running`。
 - Session export/import 如果只能走 provider 原生命令，应保持为窄 provider operation，不等同于通用 passthrough；raw export 必须有独立确认，export payload、import source 和 share URL 不落 SQLite。
+- Provider passthrough 的 binary 定位也属于透传执行边界：不能为了 locate 先用完整 parent env 执行 `--version`，否则会绕过 env allowlist；默认也不要加隐式 timeout 或输出上限改写 provider 原始行为。

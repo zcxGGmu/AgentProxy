@@ -34,6 +34,7 @@ export {
 } from "./types.js";
 export type {
   ProviderCapabilityProbe,
+  CreateDefaultProviderRegistryOptions,
   ProviderLimitedReason,
   ProviderListItem,
   ProviderListOptions,

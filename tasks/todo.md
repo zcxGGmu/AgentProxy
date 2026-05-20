@@ -11,6 +11,54 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Phase 4.7 Provider Passthrough
+
+Scope: advance only Phase 4.7 provider passthrough. Implement the narrow `agentproxy provider exec opencode -- <native args>` escape hatch and OpenCode provider passthrough plumbing. Do not implement broader CLI MVP commands, TUI, permission approval, diff/revert/todo operations, runtime lifecycle changes, or a new Agent runtime.
+
+Implementation checklist:
+
+- [x] Add focused provider passthrough tests for native args passthrough, stdout/stderr capture, original exit code preservation, workspace cwd override, binary lookup, and env allowlist.
+- [x] Implement OpenCode provider passthrough using the configured OpenCode binary and a passthrough-specific environment builder.
+- [x] Ensure passthrough only injects explicitly allowed OpenCode env vars and does not mutate AgentProxy storage/runtime/session state.
+- [x] Replace the `provider exec` placeholder with a minimal command that resolves config, routes to the provider, writes provider stdout/stderr, and preserves provider exit codes.
+- [x] Keep AgentProxy diagnostics and stable errors redacted without rewriting provider output.
+- [x] Update the Chinese progress tracker and record verification evidence.
+- [x] Run verification and create a detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Current working tree started clean on documentation commit `98e2ae4 文档：同步 Phase 4.6 完成状态与下次启动提示`; latest Phase 4 implementation baseline remains `a018f82 阶段进展：完成 Phase 4.6 Session 操作`.
+- `PassthroughRequest`, `PassthroughResult`, and `AgentProvider.passthrough()` already exist in `src/providers/types.ts`; `OpenCodeProvider.passthrough()` is currently unsupported.
+- OpenCode binary discovery should reuse `probeOpenCodeBinary()` so configured relative paths resolve from the caller workspace instead of falling back to `PATH`.
+- OpenCode native env allowlist is already defined as `OPENCODE_PASSTHROUGH_ENV_NAMES`; this phase must add runtime env construction rather than passing all of `process.env`.
+- The CLI already has a `provider exec <id> [nativeArgs...]` command shape; this phase implements only that command, not the rest of Phase 5 CLI MVP.
+
+Acceptance criteria for this iteration:
+
+- [x] `agentproxy provider exec opencode -- --version` runs against a fake OpenCode binary in tests and exits with the provider's original exit code.
+- [x] Native args after `--` are passed to OpenCode without AgentProxy interpretation.
+- [x] Provider stdout and stderr are forwarded to the caller without being stored or wrapped; AgentProxy's own diagnostics remain redacted.
+- [x] The passthrough child process receives only the required execution environment plus allowlisted OpenCode env vars, not arbitrary secret-shaped parent env vars.
+- [x] `workspacePath` controls the child process cwd and configured relative binaries resolve from that cwd.
+- [x] Missing binary maps to `PROVIDER_UNAVAILABLE`; failed native command returns `PassthroughResult.exitCode` instead of throwing when the provider process exits normally with a non-zero code.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+- [x] Chinese progress tracker marks Phase 4.7 done and records Review notes.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- Passthrough is intentionally an escape hatch, so the provider's own output is preserved; only AgentProxy diagnostic text should be redacted.
+- Do not reuse the existing session CLI helper's full `process.env` merge for passthrough, because Phase 4.7 requires an allowlist env boundary.
+- Commander parsing around `--` must be tested so native flags are not swallowed or converted into AgentProxy options.
+- This phase should not implement provider inspect/list, runtime commands, run/resume/session CLI workflows, or TUI.
+
+Review notes:
+
+- 2026-05-20: Added `src/providers/opencode/passthrough.ts`, wired `OpenCodeProvider.passthrough()`, and implemented a narrow `agentproxy provider exec opencode -- <native args>` CLI path without implementing broader CLI MVP or TUI commands.
+- Added `tests/opencode-provider-passthrough.test.ts` and `tests/cli-provider-exec.test.ts`, covering native arg preservation, original stdout/stderr and exit code behavior, signal exit code mapping, workspace cwd, configured relative binary resolution, missing binary errors, allowlisted env injection, parent secret exclusion, no preflight `--version` child, no hidden default timeout, and large provider output without hidden AgentProxy buffer caps.
+- Code review initially found two blockers: binary probe could leak parent env before passthrough and hidden timeout/buffer caps could rewrite native behavior. Fixed by resolving the OpenCode executable without running `--version`, using the same restricted env for resolution and child execution, and removing default timeout/output caps. A second review found no blockers; signal exit code mapping and slow-command regression coverage were added. The reusable rule was recorded in `tasks/lessons.md`.
+- Verification passed: `pnpm exec vitest run tests/opencode-provider-passthrough.test.ts tests/cli-provider-exec.test.ts`, `pnpm exec vitest run tests/opencode-provider-passthrough.test.ts tests/cli-provider-exec.test.ts tests/cli-help.test.ts tests/config-resolver.test.ts tests/opencode-binary.test.ts`, `pnpm exec vitest run tests/opencode-provider-session-actions.test.ts tests/opencode-provider-health.test.ts tests/provider-registry.test.ts`, `pnpm run typecheck`, `pnpm run test` (23 files, 166 tests), `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
 ## Current Iteration - 2026-05-20 Documentation Sync After Phase 4.6
 
 Scope: update only project tracking documents after `a018f82 阶段进展：完成 Phase 4.6 Session 操作`. Do not implement Phase 4.7, provider passthrough, CLI MVP, TUI, or runtime/provider behavior.
