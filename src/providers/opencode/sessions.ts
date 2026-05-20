@@ -1,6 +1,11 @@
 import { createAgentProxyError } from "../../core/errors.js";
 import type { ProviderSession } from "../../sessions/types.js";
-import type { ProviderContext, SessionQuery } from "../types.js";
+import type {
+  ProviderContext,
+  ResumeSessionRequest,
+  SessionQuery,
+  StartSessionRequest,
+} from "../types.js";
 import { OPENCODE_PROVIDER_ID } from "./constants.js";
 import {
   cancelResponseBody,
@@ -12,9 +17,13 @@ import {
 } from "./probe.js";
 
 const DEFAULT_SESSION_LIST_REQUEST_TIMEOUT_MS = 1_000;
+const DEFAULT_SESSION_MUTATION_REQUEST_TIMEOUT_MS = 1_000;
 const OPENCODE_SESSION_LIST_PATH = "/session";
 const OPENCODE_SESSION_STATUS_PATH = "/session/status";
 const OPENCODE_LIST_SESSIONS_OPERATION = "opencode.provider.listSessions";
+const OPENCODE_GET_SESSION_OPERATION = "opencode.provider.getSession";
+const OPENCODE_START_SESSION_OPERATION = "opencode.provider.startSession";
+const OPENCODE_RESUME_SESSION_OPERATION = "opencode.provider.resumeSession";
 
 interface OpenCodeSessionListItem {
   id: string;
@@ -37,6 +46,11 @@ interface OpenCodeSessionModel {
 
 interface OpenCodeSessionStatusItem {
   type?: string;
+}
+
+interface OpenCodeSessionPromptModel {
+  providerID: string;
+  modelID: string;
 }
 
 export async function listOpenCodeSessions(
@@ -75,6 +89,143 @@ export async function listOpenCodeSessions(
     .sort(compareProviderSessions);
 }
 
+export async function getOpenCodeSession(
+  options: OpenCodeProviderOptions,
+  context: ProviderContext,
+  providerSessionId: string,
+): Promise<ProviderSession> {
+  return fetchAndMapOpenCodeSession({
+    options,
+    context,
+    providerSessionId,
+    operation: OPENCODE_GET_SESSION_OPERATION,
+  });
+}
+
+export async function startOpenCodeSession(
+  options: OpenCodeProviderOptions,
+  context: StartSessionRequest,
+): Promise<ProviderSession> {
+  if (context.prompt !== undefined && context.prompt.trim() !== "") {
+    parsePromptModel(context.model, OPENCODE_START_SESSION_OPERATION);
+  }
+  const requestTimeoutMs = validateRequestTimeout(
+    options.requestTimeoutMs ?? DEFAULT_SESSION_MUTATION_REQUEST_TIMEOUT_MS,
+  );
+  const baseUrl = resolveSessionMutationBaseUrl(options, context, OPENCODE_START_SESSION_OPERATION);
+  const fetchImplementation = options.fetchImplementation ?? fetch;
+  const session = await fetchOpenCodeSessionMutation({
+    baseUrl,
+    path: OPENCODE_SESSION_LIST_PATH,
+    method: "POST",
+    body: createSessionRequestBody(context),
+    workspacePath: context.workspacePath,
+    requestTimeoutMs,
+    fetchImplementation,
+    signal: context.signal,
+    operation: OPENCODE_START_SESSION_OPERATION,
+  });
+  const providerSession = mapOpenCodeSession(session, undefined);
+
+  return context.prompt === undefined || context.prompt.trim() === ""
+    ? providerSession
+    : trySendOpenCodePromptAsync({
+        baseUrl,
+        providerSession,
+        prompt: context.prompt,
+        model: context.model,
+        workspacePath: context.workspacePath,
+        requestTimeoutMs,
+        fetchImplementation,
+        signal: context.signal,
+        operation: OPENCODE_START_SESSION_OPERATION,
+      });
+}
+
+export async function resumeOpenCodeSession(
+  options: OpenCodeProviderOptions,
+  context: ResumeSessionRequest,
+): Promise<ProviderSession> {
+  const providerSession = await fetchAndMapOpenCodeSession({
+    options,
+    context,
+    providerSessionId: context.providerSessionId,
+    operation: OPENCODE_RESUME_SESSION_OPERATION,
+  });
+
+  return context.prompt === undefined || context.prompt.trim() === ""
+    ? providerSession
+    : sendOpenCodePromptAsync({
+        baseUrl: resolveSessionMutationBaseUrl(options, context, OPENCODE_RESUME_SESSION_OPERATION),
+        providerSession,
+        prompt: context.prompt,
+        model: context.model,
+        workspacePath: context.workspacePath ?? providerSession.workspacePath,
+        requestTimeoutMs: validateRequestTimeout(
+          options.requestTimeoutMs ?? DEFAULT_SESSION_MUTATION_REQUEST_TIMEOUT_MS,
+        ),
+        fetchImplementation: options.fetchImplementation ?? fetch,
+        signal: context.signal,
+        operation: OPENCODE_RESUME_SESSION_OPERATION,
+      });
+}
+
+async function trySendOpenCodePromptAsync(
+  input: Parameters<typeof sendOpenCodePromptAsync>[0],
+): Promise<ProviderSession> {
+  try {
+    return await sendOpenCodePromptAsync(input);
+  } catch (error) {
+    return markPromptRejected(input.providerSession, {
+      model: input.model,
+      failureReason: readPromptFailureReason(error),
+      status: readPromptFailureStatus(error),
+    });
+  }
+}
+
+async function fetchAndMapOpenCodeSession(input: {
+  options: OpenCodeProviderOptions;
+  context: ProviderContext;
+  providerSessionId: string;
+  operation: string;
+}): Promise<ProviderSession> {
+  const requestTimeoutMs = validateRequestTimeout(
+    input.options.requestTimeoutMs ?? DEFAULT_SESSION_MUTATION_REQUEST_TIMEOUT_MS,
+  );
+  const baseUrl = resolveSessionMutationBaseUrl(input.options, input.context, input.operation);
+  const fetchImplementation = input.options.fetchImplementation ?? fetch;
+  const session = await fetchOpenCodeSessionMutation({
+    baseUrl,
+    path: `${OPENCODE_SESSION_LIST_PATH}/${encodeURIComponent(input.providerSessionId)}`,
+    method: "GET",
+    workspacePath: input.context.workspacePath,
+    requestTimeoutMs,
+    fetchImplementation,
+    signal: input.context.signal,
+    operation: input.operation,
+    providerSessionId: input.providerSessionId,
+  });
+  if (session.id !== input.providerSessionId) {
+    throw createSessionOperationError({
+      code: "PROVIDER_UNAVAILABLE",
+      operation: input.operation,
+      message: "OpenCode returned a different session id than requested.",
+      failureReason: "session_id_mismatch",
+      providerSessionId: input.providerSessionId,
+      suggestion: "Restart or upgrade OpenCode, then retry the session operation.",
+    });
+  }
+  const statuses = await fetchOpenCodeSessionStatuses({
+    baseUrl,
+    requestTimeoutMs,
+    fetchImplementation,
+    signal: input.context.signal,
+  });
+
+  return mapOpenCodeSession(session, statuses.get(session.id));
+}
+
 function resolveSessionListBaseUrl(
   options: OpenCodeProviderOptions,
   context: ProviderContext,
@@ -95,6 +246,37 @@ function resolveSessionListBaseUrl(
     throw createSessionListError({
       code: "PROVIDER_UNAVAILABLE",
       message: "OpenCode runtime base URL is invalid for session listing.",
+      failureReason: normalized.failureReason,
+      suggestion: "Use an http(s) OpenCode runtime URL without credentials, query, or fragment.",
+    });
+  }
+
+  return normalized.baseUrl;
+}
+
+function resolveSessionMutationBaseUrl(
+  options: OpenCodeProviderOptions,
+  context: ProviderContext,
+  operation: string,
+): string {
+  const rawBaseUrl = resolveRuntimeBaseUrl(options, context);
+  if (rawBaseUrl === undefined) {
+    throw createSessionOperationError({
+      code: "PROVIDER_UNAVAILABLE",
+      operation,
+      message: "OpenCode runtime base URL is required for session operations.",
+      failureReason: "missing_base_url",
+      suggestion:
+        "Start or attach an OpenCode runtime before creating or resuming sessions, then pass its base URL in provider context metadata.",
+    });
+  }
+
+  const normalized = normalizeRuntimeBaseUrl(rawBaseUrl);
+  if (normalized.failureReason !== undefined) {
+    throw createSessionOperationError({
+      code: "PROVIDER_UNAVAILABLE",
+      operation,
+      message: "OpenCode runtime base URL is invalid for session operations.",
       failureReason: normalized.failureReason,
       suggestion: "Use an http(s) OpenCode runtime URL without credentials, query, or fragment.",
     });
@@ -148,6 +330,150 @@ async function fetchOpenCodeSessionList(input: {
   }
 
   return parsed;
+}
+
+async function fetchOpenCodeSessionMutation(input: {
+  baseUrl: string;
+  path: string;
+  method: "GET" | "POST";
+  body?: Record<string, unknown> | undefined;
+  workspacePath: string | undefined;
+  requestTimeoutMs: number;
+  fetchImplementation: typeof fetch;
+  signal: AbortSignal | undefined;
+  operation: string;
+  providerSessionId?: string | undefined;
+}): Promise<OpenCodeSessionListItem> {
+  const { response, responseBody } = await fetchSessionJson({
+    url: buildSessionOperationUrl(input.baseUrl, input.path, input.workspacePath),
+    method: input.method,
+    body: input.body,
+    requestTimeoutMs: input.requestTimeoutMs,
+    fetchImplementation: input.fetchImplementation,
+    signal: input.signal,
+    operation: input.operation,
+    providerSessionId: input.providerSessionId,
+  });
+
+  if (!response.ok) {
+    throw createSessionResponseError({
+      operation: input.operation,
+      status: response.status,
+      providerSessionId: input.providerSessionId,
+    });
+  }
+
+  const parsed = parseSessionListItem(responseBody);
+  if (parsed === undefined) {
+    throw createSessionOperationError({
+      code: "PROVIDER_UNAVAILABLE",
+      operation: input.operation,
+      message: "OpenCode session response was not in the expected shape.",
+      failureReason: "unexpected_session_response",
+      providerSessionId: input.providerSessionId,
+      suggestion: "Upgrade or restart OpenCode, then retry the session operation.",
+    });
+  }
+
+  return parsed;
+}
+
+async function sendOpenCodePromptAsync(input: {
+  baseUrl: string;
+  providerSession: ProviderSession;
+  prompt: string;
+  model?: string | undefined;
+  workspacePath: string | undefined;
+  requestTimeoutMs: number;
+  fetchImplementation: typeof fetch;
+  signal: AbortSignal | undefined;
+  operation: string;
+}): Promise<ProviderSession> {
+  const promptModel = parsePromptModel(input.model, input.operation);
+  const { response } = await fetchSessionJson({
+    url: buildSessionOperationUrl(
+      input.baseUrl,
+      `${OPENCODE_SESSION_LIST_PATH}/${encodeURIComponent(input.providerSession.providerSessionId)}/prompt_async`,
+      input.workspacePath,
+    ),
+    method: "POST",
+    body: {
+      ...(promptModel !== undefined ? { model: promptModel } : {}),
+      parts: [
+        {
+          type: "text",
+          text: input.prompt,
+        },
+      ],
+    },
+    requestTimeoutMs: input.requestTimeoutMs,
+    fetchImplementation: input.fetchImplementation,
+    signal: input.signal,
+    operation: input.operation,
+    providerSessionId: input.providerSession.providerSessionId,
+  });
+
+  if (!response.ok) {
+    throw createSessionResponseError({
+      operation: input.operation,
+      status: response.status,
+      providerSessionId: input.providerSession.providerSessionId,
+      failureReason: "prompt_async_failed",
+    });
+  }
+
+  return markPromptAccepted(input.providerSession, input.model);
+}
+
+async function fetchSessionJson(input: {
+  url: string;
+  method: "GET" | "POST";
+  body?: Record<string, unknown> | undefined;
+  requestTimeoutMs: number;
+  fetchImplementation: typeof fetch;
+  signal: AbortSignal | undefined;
+  operation: string;
+  providerSessionId?: string | undefined;
+}): Promise<{ response: Response; responseBody: unknown }> {
+  try {
+    return await withRequestTimeout(
+      async (requestSignal) => {
+        const response = await input.fetchImplementation(input.url, {
+          method: input.method,
+          headers: {
+            accept: "application/json",
+            ...(input.body !== undefined ? { "content-type": "application/json" } : {}),
+          },
+          ...(input.body !== undefined ? { body: JSON.stringify(input.body) } : {}),
+          signal: requestSignal,
+        });
+
+        if (!response.ok || response.status === 204) {
+          await cancelResponseBody(response);
+          return {
+            response,
+            responseBody: undefined,
+          };
+        }
+
+        return {
+          response,
+          responseBody: await response.json(),
+        };
+      },
+      input.requestTimeoutMs,
+      input.signal,
+    );
+  } catch {
+    throw createSessionOperationError({
+      code: "PROVIDER_UNAVAILABLE",
+      operation: input.operation,
+      message: "OpenCode session operation request failed.",
+      failureReason: "request_failed",
+      providerSessionId: input.providerSessionId,
+      suggestion: "Verify that the OpenCode runtime is running and reachable.",
+    });
+  }
 }
 
 async function fetchOpenCodeSessionStatuses(input: {
@@ -223,6 +549,29 @@ function buildSessionListUrl(baseUrl: string, workspacePath: string | undefined)
   }
 
   return url.href;
+}
+
+function buildSessionOperationUrl(
+  baseUrl: string,
+  path: string,
+  workspacePath: string | undefined,
+): string {
+  const url = new URL(`${baseUrl}${path}`);
+  if (workspacePath !== undefined && workspacePath.trim() !== "") {
+    url.searchParams.set("directory", workspacePath);
+  }
+
+  return url.href;
+}
+
+function createSessionRequestBody(context: StartSessionRequest): Record<string, unknown> {
+  const parentProviderSessionId = readNonEmptyString(context.metadata.parentProviderSessionId);
+  const title = readNonEmptyString(context.metadata.title);
+
+  return {
+    ...(parentProviderSessionId !== undefined ? { parentID: parentProviderSessionId } : {}),
+    ...(title !== undefined ? { title } : {}),
+  };
 }
 
 function parseSessionListResponse(value: unknown): OpenCodeSessionListItem[] | undefined {
@@ -360,8 +709,83 @@ function mapOpenCodeSession(
   };
 }
 
+function markPromptAccepted(session: ProviderSession, model: string | undefined): ProviderSession {
+  return withPromptMetadata(
+    session,
+    {
+      accepted: true,
+      ...(model !== undefined ? { requestedModel: model } : {}),
+    },
+    "running",
+  );
+}
+
+function markPromptRejected(
+  session: ProviderSession,
+  input: {
+    model?: string | undefined;
+    failureReason: string;
+    status?: number | undefined;
+  },
+): ProviderSession {
+  return withPromptMetadata(session, {
+    accepted: false,
+    failureReason: input.failureReason,
+    ...(input.status !== undefined ? { status: input.status } : {}),
+    ...(input.model !== undefined ? { requestedModel: input.model } : {}),
+  });
+}
+
+function withPromptMetadata(
+  session: ProviderSession,
+  promptAsync: Record<string, unknown>,
+  status?: ProviderSession["status"],
+): ProviderSession {
+  const opencodeMetadata = isPlainObject(session.metadata.opencode)
+    ? session.metadata.opencode
+    : {};
+
+  return {
+    ...session,
+    ...(status !== undefined ? { status } : {}),
+    metadata: {
+      ...session.metadata,
+      opencode: {
+        ...opencodeMetadata,
+        promptAsync,
+      },
+    },
+  };
+}
+
 function formatSessionModelId(model: OpenCodeSessionModel): string {
   return model.providerId === undefined ? model.id : `${model.providerId}/${model.id}`;
+}
+
+function parsePromptModel(
+  value: string | undefined,
+  operation: string,
+): OpenCodeSessionPromptModel | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const separatorIndex = value.indexOf("/");
+  if (separatorIndex <= 0 || separatorIndex === value.length - 1) {
+    throw createSessionOperationError({
+      code: "CONFIG_INVALID",
+      operation,
+      message: "OpenCode prompt model must use the provider/model format.",
+      failureReason: "invalid_model",
+      suggestion:
+        "Pass a model id returned by OpenCodeProvider.listModels(), such as provider/model.",
+    });
+  }
+
+  return {
+    providerID: value.slice(0, separatorIndex),
+    modelID: value.slice(separatorIndex + 1),
+  };
 }
 
 function mapOpenCodeSessionStatus(value: string | undefined): ProviderSession["status"] {
@@ -429,6 +853,104 @@ function createSessionListError(input: {
     details: {
       failureReason: input.failureReason,
       ...(input.status !== undefined ? { status: input.status } : {}),
+      suggestion: input.suggestion,
+    },
+  });
+}
+
+function createSessionResponseError(input: {
+  operation: string;
+  status: number;
+  providerSessionId?: string | undefined;
+  failureReason?: string | undefined;
+}): Error {
+  switch (input.status) {
+    case 400:
+      return createSessionOperationError({
+        code: "CONFIG_INVALID",
+        operation: input.operation,
+        message: "OpenCode rejected the session operation request.",
+        failureReason: input.failureReason ?? "bad_request",
+        status: input.status,
+        providerSessionId: input.providerSessionId,
+        suggestion: "Check the session id, workspace path, prompt, and model selection.",
+      });
+    case 401:
+    case 403:
+      return createSessionOperationError({
+        code: "PERMISSION_DENIED",
+        operation: input.operation,
+        message: "OpenCode session operation requires authentication.",
+        failureReason: input.failureReason ?? "authentication_required",
+        status: input.status,
+        providerSessionId: input.providerSessionId,
+        suggestion: "Authenticate OpenCode and retry the session operation.",
+      });
+    case 404:
+      return createSessionOperationError({
+        code: "SESSION_NOT_FOUND",
+        operation: input.operation,
+        message: "OpenCode session was not found.",
+        failureReason: input.failureReason ?? "session_not_found",
+        status: input.status,
+        providerSessionId: input.providerSessionId,
+        suggestion: "Sync sessions and retry with an existing provider session id.",
+      });
+    default:
+      return createSessionOperationError({
+        code: "PROVIDER_UNAVAILABLE",
+        operation: input.operation,
+        message: "OpenCode session endpoint returned an unhealthy response.",
+        failureReason: input.failureReason ?? "unhealthy_response",
+        status: input.status,
+        providerSessionId: input.providerSessionId,
+        suggestion: "Check the OpenCode runtime status before retrying the session operation.",
+      });
+  }
+}
+
+function readPromptFailureReason(error: unknown): string {
+  if (isPlainObject(error) && isPlainObject(error.details)) {
+    const failureReason = error.details.failureReason;
+    if (typeof failureReason === "string" && failureReason.trim() !== "") {
+      return failureReason;
+    }
+  }
+
+  return "prompt_async_failed";
+}
+
+function readPromptFailureStatus(error: unknown): number | undefined {
+  if (isPlainObject(error) && isPlainObject(error.details)) {
+    const status = error.details.status;
+    if (typeof status === "number" && Number.isInteger(status) && status >= 100 && status <= 599) {
+      return status;
+    }
+  }
+
+  return undefined;
+}
+
+function createSessionOperationError(input: {
+  code: "CONFIG_INVALID" | "PROVIDER_UNAVAILABLE" | "PERMISSION_DENIED" | "SESSION_NOT_FOUND";
+  operation: string;
+  message: string;
+  failureReason: string;
+  status?: number | undefined;
+  providerSessionId?: string | undefined;
+  suggestion: string;
+}): Error {
+  return createAgentProxyError({
+    code: input.code,
+    message: input.message,
+    providerId: OPENCODE_PROVIDER_ID,
+    operation: input.operation,
+    details: {
+      failureReason: input.failureReason,
+      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(input.providerSessionId !== undefined
+        ? { providerSessionId: input.providerSessionId }
+        : {}),
       suggestion: input.suggestion,
     },
   });

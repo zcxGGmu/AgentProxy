@@ -8,7 +8,12 @@ import {
   type OpenCodeProviderOptions,
   probeOpenCodeProvider,
 } from "./probe.js";
-import { listOpenCodeSessions } from "./sessions.js";
+import {
+  getOpenCodeSession,
+  listOpenCodeSessions,
+  resumeOpenCodeSession,
+  startOpenCodeSession,
+} from "./sessions.js";
 import type {
   AgentProvider,
   ExportResult,
@@ -97,15 +102,15 @@ export class OpenCodeProvider implements AgentProvider {
   }
 
   async getSession(ctx: ProviderContext, _id: string): Promise<ProviderSession> {
-    throw unsupportedOpenCodeOperation("provider.getSession", ctx.providerId);
+    return getOpenCodeSession(this.#options, ctx, _id);
   }
 
   async startSession(ctx: StartSessionRequest): Promise<ProviderSession> {
-    throw unsupportedOpenCodeOperation("provider.startSession", ctx.providerId);
+    return startOpenCodeSession(this.#options, ctx);
   }
 
   async resumeSession(ctx: ResumeSessionRequest): Promise<ProviderSession> {
-    throw unsupportedOpenCodeOperation("provider.resumeSession", ctx.providerId);
+    return resumeOpenCodeSession(this.#options, ctx);
   }
 
   sendMessage(ctx: SendMessageRequest): AsyncIterable<never> {

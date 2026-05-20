@@ -40,3 +40,7 @@
 - OpenCode `/provider` 当前 provider 字段使用 `api` 而不是 `source`；映射模型列表时只白名单保留 provider/model metadata，并把 `limit.context/output` 收窄为数字，避免 provider-controlled `options`、`headers` 或异常对象泄漏。
 - Session sync 只有在确认拿到完整 provider session 列表时才能把本地记录标记为 `missing_in_provider`；分页、limit、cursor 或部分列表同步必须跳过 missing pass，避免误判仍存在的 session。
 - Provider capability probe 对只读 GET endpoint 不能把 `405 Method Not Allowed` 当成 supported；405 只能作为 method 探测的 Allow 语义输入，不能证明 GET/list 能力可用。
+- Resume/get session 必须校验请求的 providerSessionId 与 provider 返回的 session id 一致，且本地持久化前也要复核；否则可能把 prompt 发到错误 session 并污染 SQLite 映射。
+- 创建 session 后再发送初始 prompt 必须先持久化 provider-to-local 映射，再发送 prompt；否则 prompt 失败会留下 AgentProxy 不知道的 provider orphan session。
+- 使用本地 `parentSessionId` 创建子会话前必须验证 parent 存在、未 tombstone 且 provider 匹配，不能静默丢弃 parent 或复用已删除父会话。
+- provider 返回的 `parentProviderSessionId` 映射到本地 parent 时也必须避开 tombstone parent；不能只校验用户显式传入的 parentSessionId。

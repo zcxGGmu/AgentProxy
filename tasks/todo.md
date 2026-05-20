@@ -11,6 +11,58 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Phase 4.4 Session Create / Resume
+
+Scope: advance only Phase 4.4 session creation and resume from the Chinese progress tracker. Do not implement CLI MVP commands, TUI, provider passthrough, full `sendMessage` event streaming, abort/delete/export/share, or OpenCode runtime changes.
+
+Implementation checklist:
+
+- [x] Add focused provider tests for OpenCode `POST /session`, `GET /session/:id`, and optional `POST /session/:id/prompt_async`.
+- [x] Implement `OpenCodeProvider.startSession()` and `OpenCodeProvider.resumeSession()` using the OpenCode server API.
+- [x] Implement `OpenCodeProvider.getSession()` as the read-only restore primitive used by resume.
+- [x] Add a small session lifecycle service that generates AgentProxy session IDs and persists provider-to-local mappings into SQLite.
+- [x] Preserve workspace path, runtime ID, model selection, parent mapping, source-of-truth metadata, and tombstone safety.
+- [x] Keep prompt text, transcript/message arrays, raw provider payloads, auth headers, URL credentials, and query secrets out of persisted metadata and errors.
+- [x] Update the Chinese progress tracker and record verification evidence.
+- [x] Run verification and create a detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Reuse the existing `AgentProvider.startSession(ctx)` and `AgentProvider.resumeSession(ctx)` contracts from `src/providers/types.ts`; do not redesign the provider interface unless tests expose a real contract gap.
+- Use OpenCode server API boundaries confirmed from current official SDK-generated types: `POST /session` creates a session, `GET /session/:id` restores session metadata, and `POST /session/:id/prompt_async` accepts an asynchronous prompt after creation/resume.
+- Reuse Phase 4.1/4.2/4.3 runtime base URL resolution, timeout handling, URL sanitization, status mapping, and metadata white-listing patterns.
+- Reuse the existing SQLite `sessions` repository and schema; no migration is planned for this task group.
+- Reuse existing source-of-truth semantics: provider owns session content/status/title, AgentProxy owns local session ID, workspace index, tombstones, and provider-to-local mapping.
+
+Acceptance criteria for this iteration:
+
+- [x] Healthy fake OpenCode runtime can create a provider session through `OpenCodeProvider.startSession()` and map the response to a stable `ProviderSession`.
+- [x] `OpenCodeProvider.resumeSession()` uses the original `providerSessionId` and does not create a second provider session.
+- [x] Optional prompt dispatch after create/resume uses `prompt_async` and records only non-sensitive delivery metadata; full message streaming remains unsupported until Phase 4.5.
+- [x] Missing or invalid runtime base URL maps to `PROVIDER_UNAVAILABLE`; `401`/`403` maps to `PERMISSION_DENIED`; `404` resume maps to a stable not-found diagnostic; raw response bodies and secrets do not leak.
+- [x] `startAgentProxySession()` generates an AgentProxy session ID, persists the provider session mapping, workspace path, requested model selection metadata, runtime ID, and last sync timestamp.
+- [x] `resumeAgentProxySession()` reuses an existing local mapping by `(providerId, providerSessionId)`, preserves the local workspace path, and records provider workspace conflicts in metadata.
+- [x] Tombstoned local sessions are not revived by start/resume persistence.
+- [x] Focused provider and lifecycle tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+- [x] Chinese progress tracker marks Phase 4.4 done and records Review notes.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- OpenCode session response shape may evolve; parser must accept only stable scalar fields and preserve a white-listed `metadata.opencode` shape.
+- `prompt_async` is intentionally fire-and-forget in this phase; Phase 4.5 will implement `sendMessage`, event mapping, completion/failure status updates, and permission handling.
+- The provider API must not store full prompts, message parts, transcript content, raw response payloads, provider credentials, or URL query secrets.
+- Tombstone behavior remains a safety boundary; explicit tombstone restore or undelete is not part of Phase 4.4.
+- This phase must not add CLI/TUI workflows or modify completed Phase 4.1-4.3 behavior beyond shared helper reuse.
+
+Review notes:
+
+- 2026-05-20: Added OpenCode provider session creation/get/resume support in `src/providers/opencode/sessions.ts`, wired `OpenCodeProvider.getSession()`, `startSession()`, and `resumeSession()`, and updated provider capability probing for create/resume endpoints.
+- Added `src/sessions/lifecycle.ts` with `startAgentProxySession()` and `resumeAgentProxySession()` to generate AgentProxy session IDs, persist provider-to-local mappings, preserve tombstones, validate parent sessions, and record workspace/runtime/requested-model metadata without storing prompts.
+- Initial prompt dispatch is split into create -> persist -> resume prompt, so prompt failure leaves a local mapping with sanitized `lastError` instead of an unknown provider orphan session. Direct provider start returns created session metadata when prompt dispatch fails.
+- Code/security review fixes: provider get/resume now rejects mismatched response session IDs before prompt dispatch; lifecycle persistence also validates requested vs returned provider session IDs; parent sessions must exist, be non-tombstoned, and match provider; method capability probes require 2xx/405 plus `Allow`.
+- Verification passed: `pnpm exec vitest run tests/opencode-provider-sessions.test.ts tests/session-lifecycle.test.ts tests/opencode-provider-health.test.ts tests/provider-registry.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
 ## Current Iteration - 2026-05-20 Phase 4.3 Session Sync
 
 Scope: advance only Phase 4.3 session synchronization from the Chinese progress tracker. Do not implement session creation/resume, message sending, passthrough, CLI MVP commands, or TUI.

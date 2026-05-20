@@ -100,6 +100,7 @@ type OpenCodeProviderEndpointId =
   | "eventStream"
   | "sessionList"
   | "sessionCreate"
+  | "sessionGet"
   | "sessionStatus"
   | "sessionDelete"
   | "sessionFork"
@@ -474,8 +475,8 @@ function buildCapabilities(input: {
     },
     sessions: {
       list: runtimeEndpoint("sessionList"),
-      create: false,
-      resume: false,
+      create: runtimeEndpoint("sessionCreate"),
+      resume: runtimeEndpoint("sessionGet"),
       fork: false,
       delete: false,
       export: false,
@@ -524,6 +525,12 @@ function endpointProbeInputs(): EndpointProbeInput[] {
       path: "/session",
       method: "OPTIONS",
       requiredAllowMethod: "POST",
+    },
+    {
+      id: "sessionGet",
+      path: `/session/${PROBE_SESSION_ID}`,
+      method: "OPTIONS",
+      requiredAllowMethod: "GET",
     },
     {
       id: "sessionStatus",
@@ -656,7 +663,11 @@ function endpointIsSupported(
 
   if (input.requiredAllowMethod !== undefined) {
     const allow = response.headers.get("allow");
-    return allow !== null && allowHeaderIncludes(allow, input.requiredAllowMethod);
+    return (
+      (response.ok || response.status === 405) &&
+      allow !== null &&
+      allowHeaderIncludes(allow, input.requiredAllowMethod)
+    );
   }
 
   return response.ok || response.status === 401 || response.status === 403;

@@ -215,6 +215,7 @@ export interface StartSessionRequest extends ProviderContext {
 export interface ResumeSessionRequest extends ProviderContext {
   providerSessionId: string;
   prompt?: string;
+  model?: string;
 }
 
 export interface SendMessageRequest extends ProviderContext {

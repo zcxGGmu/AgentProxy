@@ -249,8 +249,8 @@ describe("OpenCodeProvider health and capability probing", () => {
     });
     expect(capabilities.sessions).toMatchObject({
       list: true,
-      create: false,
-      resume: false,
+      create: true,
+      resume: true,
       fork: false,
       delete: false,
       share: false,
@@ -265,6 +265,9 @@ describe("OpenCodeProvider health and capability probing", () => {
             supported: true,
           },
           sessionCreate: {
+            supported: true,
+          },
+          sessionGet: {
             supported: true,
           },
           messageSend: {
@@ -309,8 +312,8 @@ describe("OpenCodeProvider health and capability probing", () => {
 
     expect(capabilities.sessions).toMatchObject({
       list: true,
-      create: false,
-      resume: false,
+      create: true,
+      resume: true,
       fork: false,
       delete: false,
       share: false,
@@ -329,6 +332,9 @@ describe("OpenCodeProvider health and capability probing", () => {
       runtime: {
         endpoints: {
           sessionCreate: {
+            supported: true,
+          },
+          sessionGet: {
             supported: true,
           },
           sessionDelete: {
@@ -516,6 +522,70 @@ describe("OpenCodeProvider health and capability probing", () => {
           sessionCreate: {
             supported: false,
             failureReason: "missing_allow_header",
+          },
+          sessionGet: {
+            supported: false,
+            failureReason: "missing_allow_header",
+          },
+        },
+      },
+    });
+  });
+
+  it("accepts method capability probes only from 2xx or 405 responses with matching Allow", async () => {
+    const { binaryPath, workspacePath } = await createTestRoot();
+    const { baseUrl } = await startFakeOpenCodeServerWithHandler((request, response) => {
+      if (request.method === "GET" && request.url === "/global/health") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ healthy: true, version: "1.16.0" }));
+        return;
+      }
+
+      if (request.method === "GET" && request.url === "/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end("[]");
+        return;
+      }
+
+      if (request.method === "OPTIONS" && request.url === "/session") {
+        response.writeHead(405, { allow: "GET, POST" });
+        response.end();
+        return;
+      }
+
+      if (request.method === "OPTIONS" && request.url === "/session/__agentproxy_probe__") {
+        response.writeHead(500, { allow: "GET" });
+        response.end();
+        return;
+      }
+
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: "not found" }));
+    });
+    const provider = new OpenCodeProvider({
+      binary: binaryPath,
+      baseUrl,
+      requestTimeoutMs: 250,
+      sdkResolver: () => ({
+        moduleName: "@opencode-ai/sdk",
+        available: false,
+      }),
+    });
+
+    const capabilities = await provider.getCapabilities(providerContext(workspacePath));
+
+    expect(capabilities.sessions.create).toBe(true);
+    expect(capabilities.sessions.resume).toBe(false);
+    expect(capabilities.metadata.agentproxyOpenCodeProviderProbe).toMatchObject({
+      runtime: {
+        endpoints: {
+          sessionCreate: {
+            supported: true,
+            status: 405,
+          },
+          sessionGet: {
+            supported: false,
+            status: 500,
           },
         },
       },
