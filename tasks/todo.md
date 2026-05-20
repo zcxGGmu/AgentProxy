@@ -11,6 +11,43 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Documentation Sync After Phase 4.4
+
+Scope: update only the project tracking documents after `aaa3dee 阶段进展：完成 Phase 4.4 Session 创建与恢复`. Do not implement Phase 4.5, CLI MVP, TUI, passthrough, or any runtime/provider behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit.
+- [x] Update `docs/development-progress-tracker.zh.md` so the latest implementation baseline, completed items, unfinished items, and next startup prompt all point to Phase 4.4 as complete and Phase 4.5 as next.
+- [x] Record this documentation-only update in the tracker Review section.
+- [x] Run documentation-appropriate verification and create a detailed Chinese documentation commit.
+
+Dependencies confirmed before implementation:
+
+- The latest implementation commit is expected to be `aaa3dee 阶段进展：完成 Phase 4.4 Session 创建与恢复`.
+- Phase 4.4 implementation and verification evidence already exists in the tracker Review; this task only corrects stale baseline fields and next-start instructions.
+- `docs/agentproxy-development-plan.md` remains the source plan and does not need architecture changes for this documentation sync.
+
+Acceptance criteria for this iteration:
+
+- [x] `git status --short` and `git log -1 --oneline` are checked and reflected in this documentation pass.
+- [x] The Chinese progress tracker clearly states completed phases through Phase 4.4, unfinished work starting at Phase 4.5, and Gate 4 still pending.
+- [x] The next-start prompt includes the concrete Phase 4.4 implementation commit and instructs the next Codex session to start at Phase 4.5 only.
+- [x] The final answer gives the user a ready-to-send prompt.
+
+Risks and constraints:
+
+- Do not treat this documentation sync as a Phase 4.5 start.
+- Do not change source code, tests, or completed phase checkboxes except to correct documentation state.
+- If this documentation update is committed, the next startup prompt must distinguish the documentation commit from the latest implementation baseline.
+
+Review notes:
+
+- 2026-05-20: Confirmed initial `git status --short` was clean and `git log -1 --oneline` was `aaa3dee 阶段进展：完成 Phase 4.4 Session 创建与恢复`.
+- Updated `docs/development-progress-tracker.zh.md` latest implementation commit, startup baseline, unfinished item summary, Review entry, and next-start prompt to use Phase 4.4 as complete and Phase 4.5 as the first unfinished task.
+- Verification passed: `git diff --check` and `pnpm run format:check`.
+- This was documentation-only; no source code, tests, provider behavior, CLI MVP, or TUI work was changed.
+
 ## Current Iteration - 2026-05-20 Phase 4.4 Session Create / Resume
 
 Scope: advance only Phase 4.4 session creation and resume from the Chinese progress tracker. Do not implement CLI MVP commands, TUI, provider passthrough, full `sendMessage` event streaming, abort/delete/export/share, or OpenCode runtime changes.
