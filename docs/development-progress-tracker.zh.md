@@ -12,14 +12,14 @@
 ### 当前阶段
 
 - 当前处于：Phase 3.3 Managed Runtime 已完成实现和验证；Gate 3 尚未通过，下一步从 Phase 3.4 Attached Runtime 开始。
-- 当前启动基线：本次 Phase 3.3 阶段提交 `阶段进展：完成 Phase 3.3 Managed Runtime`；提交哈希以 `git log -1 --oneline` 为准。
-- 最新阶段实现提交：本次 Phase 3.3 阶段提交 `阶段进展：完成 Phase 3.3 Managed Runtime`。
+- 当前启动基线：最新阶段实现提交 `23e79ca 阶段进展：完成 Phase 3.3 Managed Runtime`。
+- 最新阶段实现提交：`23e79ca 阶段进展：完成 Phase 3.3 Managed Runtime`。
 - 前一阶段实现基线：`88a3c9e 阶段进展：完成 Phase 3.2 Runtime Registry`。
 - Phase 0.2 / Phase 1 阶段提交：`e5eb0ce 阶段进展：完成 Phase 0.2 技术决策与 Phase 1 工程骨架`
 - 当前主要进度来源：本文档和 `docs/agentproxy-development-plan.md`
 - 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层、provider registry 最小闭环、配置解析层最小闭环、日志/脱敏第一组、SQLite 存储、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry 和 Phase 3.3 Managed Runtime：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型、`AgentProvider` 契约、provider 注册/lookup/list、capability probe、schema mismatch limited mode、OpenCodeProvider 占位实现、AgentProxy 默认配置、全局/项目/显式配置读取、env/CLI 覆盖、schema 校验、路径规范化、OpenCode 配置隔离、结构化 NDJSON logger、correlationId、标准日志字段、redaction、stdout/stderr 分离、Commander parse error 脱敏、`better-sqlite3` 接入、数据库初始化、migration 版本表、providers/runtimes/sessions/session_events 表、基础 repository CRUD、重复 migration 安全性、session 唯一约束、tombstone 保留、破坏性 migration 备份/失败恢复、从配置或 `PATH` 定位 `opencode`、执行 `--version`、规范化 OpenCode 版本号、最低支持版本检查、缺失/不可执行 binary 和低版本的 `PROVIDER_UNAVAILABLE` 错误映射、Runtime Registry managed/attached 元数据持久化、状态机状态记录、runtime list 查询、metadata-only stale cleanup、managed `opencode serve` 子进程启动、默认 `127.0.0.1` 绑定、端口冲突选择空闲端口、`/global/health` 等待、启动失败/health 超时映射、仅停止当前 AgentProxy 拥有的 managed 子进程和子进程退出状态回写。
 - 当前第一个未完成项：Phase 3.4 Attached Runtime，包含显式 `--server-url`、连接 registry 中健康的 OpenCode server、尽可能验证目标 server 是 OpenCode、不允许停止 attached runtime、连接非 localhost server warning。
-- 当前工作区预期：本次 Phase 3.3 阶段提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核最新提交。若最新提交是后续文档同步提交，应继续以本次 Phase 3.3 阶段提交作为最近阶段实现基线。
+- 当前工作区预期：本次文档同步提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核最新提交。若最新提交是后续文档同步提交，应继续以 `23e79ca` 作为最近阶段实现基线。
 
 ### 已完成
 
@@ -72,7 +72,7 @@
 再阅读 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/development-progress-tracker.zh.md
 和 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/agentproxy-development-plan.md。
 
-当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组、Phase 2.5 SQLite 存储含破坏性 migration 备份机制、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime 已完成并验证；Gate 2 已通过，Gate 3 尚未通过。最新阶段实现提交是本次 `阶段进展：完成 Phase 3.3 Managed Runtime` 提交，具体哈希以 `git log -1 --oneline` 为准。下一步从 Phase 3.4 Attached Runtime 开始；只处理 attached runtime 连接、health check、停止保护和 warning，不要提前进入 OpenCodeProvider 核心能力、CLI MVP 或 TUI。
+当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组、Phase 2.5 SQLite 存储含破坏性 migration 备份机制、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime 已完成并验证；Gate 2 已通过，Gate 3 尚未通过。最新阶段实现提交是 `23e79ca 阶段进展：完成 Phase 3.3 Managed Runtime`。如果 `git log -1 --oneline` 显示的是后续文档同步提交，请继续以 `23e79ca` 作为最近阶段实现基线。下一步从 Phase 3.4 Attached Runtime 开始；只处理 attached runtime 连接、health check、停止保护和 warning，不要提前进入 OpenCodeProvider 核心能力、CLI MVP 或 TUI。
 请先运行 `git status --short` 和 `git log -1 --oneline` 核对最新提交与工作区状态。
 
 请严格按照 docs/development-progress-tracker.zh.md 继续迭代，从第一个未完成项开始：
@@ -985,3 +985,4 @@ Phase 3.4 Attached Runtime。Phase 3.3 已完成 managed runtime 启动、默认
 - 2026-05-20：完成 Phase 3.2 Runtime Registry；新增 `src/runtimes/registry.ts` 和 `src/runtimes/index.ts`，在现有 SQLite runtime repository 之上实现 storage-backed `RuntimeRegistry`，支持持久化 managed/attached runtime 元数据、记录状态机状态、保留 base URL/host/port/PID/workspace/mode/startedAt/stoppedAt，并在 metadata 中记录 `registeredAt`、`updatedAt`、stale 标记和 metadata-only stale action。新增 `tests/runtime-registry.test.ts` 覆盖 managed 与 attached 可区分、状态更新保留注册时间和既有 metadata、provider/workspace/status/mode list 查询、stale cleanup 将 managed active metadata 标记为 `failed`、attached active metadata 标记为 `detached` 且不删除记录/不 kill 或 stop attached runtime、runtime 从 stopped 重新 active 时清除旧 `stoppedAt`、非法 stale TTL 映射为 `CONFIG_INVALID`。代码审查指出旧 `stoppedAt` 继承和 0/负数/Infinity stale TTL 会导致后续启动协调误判，已修复并更新 `tasks/lessons.md`。验证命令：`pnpm exec vitest run tests/runtime-registry.test.ts`、`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`，结果均通过。未解决风险：Gate 3 尚未通过；本阶段未实现 `opencode serve` managed 启动、attached health check、runtime stop、OpenCodeProvider 核心能力、CLI MVP 或 TUI；stale cleanup 仅基于 registry timestamp 和 mode 更新本地 metadata，不检查或回收真实进程。
 - 2026-05-20：同步 Phase 3.2 完成后的最新开发状态与下次启动提示词；明确最新阶段实现提交为 `88a3c9e 阶段进展：完成 Phase 3.2 Runtime Registry`，Gate 3 尚未通过，第一个未完成项为 Phase 3.3 Managed Runtime；若后续最新提交是文档同步提交，应继续以 `88a3c9e` 作为最近阶段实现基线。
 - 2026-05-20：完成 Phase 3.3 Managed Runtime；新增 `src/runtimes/managed.ts` 并扩展 `src/runtimes/index.ts`，实现 OpenCode managed runtime manager：复用 Phase 3.1 binary probe，启动 `opencode serve --hostname 127.0.0.1 --port <port>`，默认绑定 `127.0.0.1`，默认端口被占用时选择空闲端口，轮询 `GET /global/health`，将启动前退出映射为 `RUNTIME_START_FAILED`，将 health 超时映射为 `RUNTIME_HEALTH_FAILED`，只停止当前 manager 拥有的 managed child process，并在正常停止、启动失败、health 超时和健康后异常退出时回写 registry 状态与 exit metadata。新增 `tests/opencode-managed-runtime.test.ts`，使用 fake OpenCode binary 和真实 HTTP health endpoint 覆盖启动到 `healthy`、端口冲突不 kill 占用方、启动前退出进入 `failed`、health 超时进入 `failed` 并终止 child、owned managed stop 进入 `stopped`、attached runtime stop 被拒绝且不变更记录、健康 child 异常退出后状态更新为 `failed`；代码审查后补充 active runtimeId 冲突保护、attached ID 碰撞保护、并发同 ID 启动 reservation 和 health 成功后短稳定窗口，防止重复 ID 覆盖 child ownership 或已退出进程被写回 `healthy`。验证命令：`pnpm exec vitest run tests/opencode-managed-runtime.test.ts`、`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`，结果均通过。未解决风险：Gate 3 尚未通过；本阶段未实现 Phase 3.4 attached runtime、event stream、OpenCodeProvider 核心 session/model/message 能力、CLI MVP 或 TUI；空闲端口选择仍存在常见的探测后绑定竞态，失败时由启动/health 错误路径处理。
+- 2026-05-20：同步 Phase 3.3 完成后的最新开发状态与下次启动提示词；明确最新阶段实现提交为 `23e79ca 阶段进展：完成 Phase 3.3 Managed Runtime`，Gate 3 尚未通过，第一个未完成项为 Phase 3.4 Attached Runtime；若后续最新提交是文档同步提交，应继续以 `23e79ca` 作为最近阶段实现基线。
