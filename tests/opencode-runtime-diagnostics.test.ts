@@ -396,6 +396,55 @@ describe("OpenCode runtime diagnostics", () => {
     storage.close();
   });
 
+  it("skips terminal registered runtimes during default health and event diagnostics", async () => {
+    const { storage, workspacePath, binaryDirectory } = await createTestContext();
+    const fakeBinary = await writeVersionOnlyOpenCodeBinary(binaryDirectory);
+    const registry = new RuntimeRegistry({ storage });
+    registry.register({
+      id: "runtime_stopped_stale",
+      providerId: "opencode",
+      mode: "attached",
+      status: "stopped",
+      baseUrl: "http://127.0.0.1:1",
+      hostname: "127.0.0.1",
+      port: 1,
+      workspacePath,
+      metadata: {
+        source: "test",
+      },
+    });
+    const diagnostics = new OpenCodeRuntimeDiagnostics({
+      registry,
+      binary: fakeBinary,
+      cwd: workspacePath,
+      requestTimeoutMs: 100,
+    });
+
+    const report = await diagnostics.run({
+      workspacePath,
+    });
+
+    expect(report.ok).toBe(true);
+    expect(report.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: OPENCODE_RUNTIME_DIAGNOSTIC_CHECK_IDS.registry,
+          status: "passed",
+        }),
+        expect.objectContaining({
+          id: OPENCODE_RUNTIME_DIAGNOSTIC_CHECK_IDS.health,
+          status: "skipped",
+        }),
+        expect.objectContaining({
+          id: OPENCODE_RUNTIME_DIAGNOSTIC_CHECK_IDS.eventStream,
+          status: "skipped",
+        }),
+      ]),
+    );
+
+    storage.close();
+  });
+
   it("runs a managed runtime smoke check and passes Gate 3", async () => {
     const { storage, workspacePath, binaryDirectory } = await createTestContext();
     const fakeBinary = await writeManagedSmokeOpenCodeBinary(binaryDirectory);

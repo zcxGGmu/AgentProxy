@@ -11,18 +11,18 @@
 
 ### 当前阶段
 
-- 当前处于：Gate 4 汇总验证已通过；Phase 5.1 CLI Framework Foundation 已完成并验证；Phase 5 CLI MVP 其余真实业务命令尚未实现，TUI 尚未进入。下一步应从 Phase 5.2 `doctor` CLI 工作流开始，继续保持薄代理和控制面边界。
-- 本次更新前最新阶段实现提交：`4ce1687 阶段进展：完成 Phase 5.1 CLI Framework Foundation`；若最新提交是后续文档同步提交，Phase 5 最新实现基线仍为 `4ce1687`。
+- 当前处于：Gate 4 汇总验证已通过；Phase 5.1 CLI Framework Foundation 和 Phase 5.2 `doctor` CLI 工作流已完成并验证；Phase 5 CLI MVP 其余真实业务命令尚未实现，TUI 尚未进入。下一步应从 Phase 5.3 Run 与 Chat 拆小推进，继续保持薄代理和控制面边界。
+- 本次更新对应阶段实现提交：本次 `阶段进展：完成 Phase 5.2 Doctor CLI 工作流` 提交；若最新提交是后续文档同步提交，Phase 5 最新实现基线仍为该 Phase 5.2 实现提交。
 - 最近已记录 Gate 4 汇总验证提交：`549a979 阶段进展：完成 Gate 4 汇总验证`；若最新提交是后续文档同步提交，Gate 4 验证基线仍为 `549a979`，最新 Phase 4 实现基线仍为 `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`。
 - 最新 Phase 4 阶段实现提交：`afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`。
-- 当前启动基线：`4ce1687 阶段进展：完成 Phase 5.1 CLI Framework Foundation`；Gate 4 验证基线仍为 `549a979 阶段进展：完成 Gate 4 汇总验证`，最新 Phase 4 实现基线仍为 `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`。
-- 最新阶段实现提交：`4ce1687 阶段进展：完成 Phase 5.1 CLI Framework Foundation`；最新阶段门禁验证提交：`549a979 阶段进展：完成 Gate 4 汇总验证`。
+- 当前启动基线：本次 `阶段进展：完成 Phase 5.2 Doctor CLI 工作流` 提交；Gate 4 验证基线仍为 `549a979 阶段进展：完成 Gate 4 汇总验证`，最新 Phase 4 实现基线仍为 `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`。
+- 最新阶段实现提交：本次 `阶段进展：完成 Phase 5.2 Doctor CLI 工作流` 提交；最新阶段门禁验证提交：`549a979 阶段进展：完成 Gate 4 汇总验证`。
 - 前一阶段实现基线：`a018f82 阶段进展：完成 Phase 4.6 Session 操作`。
 - Phase 0.2 / Phase 1 阶段提交：`e5eb0ce 阶段进展：完成 Phase 0.2 技术决策与 Phase 1 工程骨架`
 - 当前主要进度来源：本文档和 `docs/agentproxy-development-plan.md`
-- 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层、provider registry 最小闭环、配置解析层最小闭环、日志/脱敏第一组、SQLite 存储、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime、Phase 3.4 Attached Runtime、Phase 3.5 Event Stream、Phase 3 runtime 诊断/Gate 3 汇总验证、Phase 4.1 OpenCodeProvider Health/Capability provider-layer、Phase 4.2 Model/Provider 列表、Phase 4.3 Session 同步、Phase 4.4 Session 创建与恢复、Phase 4.5 Message 发送与事件映射、Phase 4.6 Session 操作、Phase 4.7 Provider Passthrough、Gate 4 汇总验证和 Phase 5.1 CLI Framework Foundation：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型、`AgentProvider` 契约、provider 注册/lookup/list、capability probe、schema mismatch limited mode、AgentProxy 默认配置、全局/项目/显式配置读取、env/CLI 覆盖、schema 校验、路径规范化、OpenCode 配置隔离、结构化 NDJSON logger、correlationId、标准日志字段、redaction、stdout/stderr 分离、Commander parse error 脱敏、`better-sqlite3` 接入、数据库初始化、migration 版本表、providers/runtimes/sessions/session_events 表、基础 repository CRUD、重复 migration 安全性、session 唯一约束、tombstone 保留、破坏性 migration 备份/失败恢复、从配置或 `PATH` 定位 `opencode`、执行 `--version`、规范化 OpenCode 版本号、最低支持版本检查、缺失/不可执行 binary 和低版本的 `PROVIDER_UNAVAILABLE` 错误映射、Runtime Registry managed/attached 元数据持久化、状态机状态记录、runtime list 查询、metadata-only stale cleanup、managed `opencode serve` 子进程启动、默认 `127.0.0.1` 绑定、端口冲突选择空闲端口、`/global/health` 等待、启动失败/health 超时映射、仅停止当前 AgentProxy 拥有的 managed 子进程和子进程退出状态回写、显式 attached server URL 连接、registry attached runtime 重新健康检查、OpenCode-like health response 校验、非 localhost warning 元数据和 attached detach-only 停止保护、OpenCode `/event` SSE 连接、AgentProxy event envelope 转换、未知事件 `provider.raw_event` 保留、stream interruption 检测、runtime `degraded`/`reconnecting`/`healthy` 状态回写、有限 reconnect/backoff、重连后 session status 补偿 hook 和 `EVENT_STREAM_INTERRUPTED` 映射、runtime 层结构化诊断报告、binary/registry/health/event stream/managed smoke start-stop 检查、Gate 3 capability 汇总、诊断详情脱敏、OpenCodeProvider provider-layer `healthCheck` / `getCapabilities` 探测、server API/SSE/SDK 可达性探测、provider version 返回、capability metadata 中保留 endpoint 探测详情、`OpenCodeProvider.listModels()`、`OpenCodeProvider.listSessions()`、`OpenCodeProvider.getSession()`、`OpenCodeProvider.startSession()`、`OpenCodeProvider.resumeSession()`、`OpenCodeProvider.sendMessage()`、`OpenCodeProvider.abortSession()`、`deleteSession()`、`exportSession()`、`importSession()`、`shareSession()`、`unshareSession()`、`OpenCodeProvider.passthrough()`、provider-agnostic `syncProviderSessions()`、`startAgentProxySession()`、`resumeAgentProxySession()`、`sendAgentProxyMessage()`、session operation service、本地 session ID 生成、provider session 映射持久化、父 session 校验、初始 prompt 创建后异步发送保护、message event stream 映射、session_events 脱敏投影、delete tombstone、raw export 二次确认、share URL 不落库、import mapping 持久化、tombstone 保留、workspace 冲突记录、`agentproxy provider exec opencode -- <native args>` 窄 CLI 入口、provider stdout/stderr/exit code 保留、passthrough env allowlist、workspace override、共享 CLI parser/global flags/help/routing/stable exit code/`--json`/stdout-stderr 分工。
-- 当前第一个未完成实现项：Phase 5.2 `doctor` CLI 工作流。不要提前实现 `run`、`sessions`、`runtime`、`config` 的真实业务，也不要进入 TUI。
-- 当前工作区预期：本次文档同步提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核最新提交。若最新提交是本文档同步提交或后续文档同步提交，应继续以 `4ce1687 阶段进展：完成 Phase 5.1 CLI Framework Foundation` 作为 Phase 5 最新实现基线，以 `549a979 阶段进展：完成 Gate 4 汇总验证` 作为阶段门禁基线，并从 Phase 5.2 `doctor` CLI 工作流继续。
+- 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层、provider registry 最小闭环、配置解析层最小闭环、日志/脱敏第一组、SQLite 存储、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime、Phase 3.4 Attached Runtime、Phase 3.5 Event Stream、Phase 3 runtime 诊断/Gate 3 汇总验证、Phase 4.1 OpenCodeProvider Health/Capability provider-layer、Phase 4.2 Model/Provider 列表、Phase 4.3 Session 同步、Phase 4.4 Session 创建与恢复、Phase 4.5 Message 发送与事件映射、Phase 4.6 Session 操作、Phase 4.7 Provider Passthrough、Gate 4 汇总验证、Phase 5.1 CLI Framework Foundation 和 Phase 5.2 Doctor CLI 工作流：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型、`AgentProvider` 契约、provider 注册/lookup/list、capability probe、schema mismatch limited mode、AgentProxy 默认配置、全局/项目/显式配置读取、env/CLI 覆盖、schema 校验、路径规范化、OpenCode 配置隔离、结构化 NDJSON logger、correlationId、标准日志字段、redaction、stdout/stderr 分离、Commander parse error 脱敏、`better-sqlite3` 接入、数据库初始化、migration 版本表、providers/runtimes/sessions/session_events 表、基础 repository CRUD、重复 migration 安全性、session 唯一约束、tombstone 保留、破坏性 migration 备份/失败恢复、从配置或 `PATH` 定位 `opencode`、执行 `--version`、规范化 OpenCode 版本号、最低支持版本检查、缺失/不可执行 binary 和低版本的 `PROVIDER_UNAVAILABLE` 错误映射、Runtime Registry managed/attached 元数据持久化、状态机状态记录、runtime list 查询、metadata-only stale cleanup、managed `opencode serve` 子进程启动、默认 `127.0.0.1` 绑定、端口冲突选择空闲端口、`/global/health` 等待、启动失败/health 超时映射、仅停止当前 AgentProxy 拥有的 managed 子进程和子进程退出状态回写、显式 attached server URL 连接、registry attached runtime 重新健康检查、OpenCode-like health response 校验、非 localhost warning 元数据和 attached detach-only 停止保护、OpenCode `/event` SSE 连接、AgentProxy event envelope 转换、未知事件 `provider.raw_event` 保留、stream interruption 检测、runtime `degraded`/`reconnecting`/`healthy` 状态回写、有限 reconnect/backoff、重连后 session status 补偿 hook 和 `EVENT_STREAM_INTERRUPTED` 映射、runtime 层结构化诊断报告、binary/registry/health/event stream/managed smoke start-stop 检查、Gate 3 capability 汇总、诊断详情脱敏、OpenCodeProvider provider-layer `healthCheck` / `getCapabilities` 探测、server API/SSE/SDK 可达性探测、provider version 返回、capability metadata 中保留 endpoint 探测详情、`OpenCodeProvider.listModels()`、`OpenCodeProvider.listSessions()`、`OpenCodeProvider.getSession()`、`OpenCodeProvider.startSession()`、`OpenCodeProvider.resumeSession()`、`OpenCodeProvider.sendMessage()`、`OpenCodeProvider.abortSession()`、`deleteSession()`、`exportSession()`、`importSession()`、`shareSession()`、`unshareSession()`、`OpenCodeProvider.passthrough()`、provider-agnostic `syncProviderSessions()`、`startAgentProxySession()`、`resumeAgentProxySession()`、`sendAgentProxyMessage()`、session operation service、本地 session ID 生成、provider session 映射持久化、父 session 校验、初始 prompt 创建后异步发送保护、message event stream 映射、session_events 脱敏投影、delete tombstone、raw export 二次确认、share URL 不落库、import mapping 持久化、tombstone 保留、workspace 冲突记录、`agentproxy provider exec opencode -- <native args>` 窄 CLI 入口、provider stdout/stderr/exit code 保留、passthrough env allowlist、workspace override、共享 CLI parser/global flags/help/routing/stable exit code/`--json`/stdout-stderr 分工、`agentproxy doctor` Node/config/SQLite/OpenCode binary/version/runtime health/provider list/MCP/workspace Git 诊断、JSON doctor report、缺失依赖建议、doctor 输出脱敏和稳定退出码。
+- 当前第一个未完成实现项：Phase 5.3 Run 与 Chat。下一轮应先拆小计划，优先选择 `run [prompt]` 工作流；不要顺手实现 `sessions`、`runtime`、`config` 等后续真实业务命令，也不要直接进入完整 TUI。
+- 当前工作区预期：本次 Phase 5.2 提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核最新提交。若最新提交是后续文档同步提交，应继续以本次 `阶段进展：完成 Phase 5.2 Doctor CLI 工作流` 提交作为 Phase 5 最新实现基线，以 `549a979 阶段进展：完成 Gate 4 汇总验证` 作为阶段门禁基线，并从 Phase 5.3 Run 与 Chat 拆小继续。
 
 ### 阶段总览
 
@@ -33,7 +33,7 @@
 | Phase 2 | 已完成 | 核心类型、Provider Registry、配置、日志脱敏、SQLite 存储和 Gate 2 已完成。 |
 | Phase 3 | 已完成 | OpenCode runtime binary、registry、managed/attached、event stream、diagnostics 和 Gate 3 已完成。 |
 | Phase 4 | 已完成 | Phase 4.1 OpenCodeProvider Health/Capability、Phase 4.2 Model/Provider 列表、Phase 4.3 Session 同步、Phase 4.4 Session 创建与恢复、Phase 4.5 Message 发送与事件映射、Phase 4.6 Session 操作、Phase 4.7 Provider Passthrough 和 Gate 4 汇总验证已完成。 |
-| Phase 5 | 进行中 | Phase 5.1 CLI Framework Foundation 已完成并验证；CLI MVP 其余真实业务命令尚未实现，下一步是 Phase 5.2 `doctor` CLI 工作流。 |
+| Phase 5 | 进行中 | Phase 5.1 CLI Framework Foundation 和 Phase 5.2 `doctor` CLI 工作流已完成并验证；CLI MVP 其余真实业务命令尚未实现，下一步是 Phase 5.3 Run 与 Chat。 |
 | Phase 6 | 未完成 | TUI MVP 尚未实现。 |
 | Phase 7 | 未完成 | 安全、信任与可观测性尚未实现。 |
 | Phase 8 | 未完成 | 测试与 CI 尚未落地。 |
@@ -74,11 +74,12 @@
 - [x] Gate 4 已通过：OpenCodeProvider 核心 session、message、操作与 passthrough 工作流已完成汇总验证，Phase 4 provider-layer 闭环测试和完整项目质量门禁均通过。
 - [x] 完成 Phase 5 CLI MVP 首个小范围任务组的实现前计划/check-in：确定下一步只做 Phase 5.1 CLI Framework Foundation，依赖、验收标准和风险已记录到 `tasks/todo.md`；本项不是 Phase 5.1 实现完成。
 - [x] 完成 Phase 5.1 CLI Framework Foundation，包含共享 CLI parser/global flags/help/routing/stable exit code/`--json`/stdout-stderr 分工、JSON 错误脱敏、Commander parse error 退出码 `2` 和 `provider exec` 透传回归覆盖。
+- [x] 完成 Phase 5.2 Doctor CLI 工作流，包含 `agentproxy doctor` 真实命令、Node/config/SQLite/OpenCode binary/version/runtime health/provider list/MCP/workspace Git 检查、JSON doctor report、缺失依赖建议、doctor 输出脱敏、稳定退出码和 `--managed-smoke` 显式诊断选项。
 
 ### 未完成
 
-- [ ] Phase 5.2：`doctor` CLI 工作流尚未实现。
-- [ ] Phase 5：除 Phase 5.1 外，`run`、`sessions`、`providers inspect/list`、`runtime`、`config` 等 CLI MVP 工作流尚未实现。
+- [ ] Phase 5.3：Run 与 Chat 尚未实现；下一轮应先拆小选择 `run [prompt]` 工作流，不直接进入完整 TUI。
+- [ ] Phase 5：除 Phase 5.1/5.2 外，`run`、`sessions`、`providers inspect/list`、`runtime`、`config` 等 CLI MVP 工作流尚未实现。
 - [ ] Phase 6：TUI MVP 尚未实现。
 - [ ] Phase 7：安全、信任与可观测性尚未实现。
 - [ ] Phase 8：测试与 CI 尚未落地。
@@ -90,7 +91,7 @@
 
 1. 先阅读 `tasks/lessons.md`，确认项目规则和长期习惯。
 2. 阅读本文档，定位第一个未完成任务。
-3. 从 Phase 5.2 `doctor` CLI 工作流继续；不要提前实现 TUI，也不要提前实现 `run`、`sessions`、`runtime`、`config` 等后续真实业务命令。
+3. 从 Phase 5.3 Run 与 Chat 拆小继续；优先规划 `run [prompt]` 工作流，不要提前实现 TUI，也不要提前实现 `sessions`、`runtime`、`config` 等后续真实业务命令。
 4. 复用 Phase 2.1 已建立的 `AgentProvider`、capability schema、metadata escape hatch 和稳定错误码。
 5. 继续保持 AgentProxy 的薄代理和控制面定位，不复制 OpenCode agent runtime 内部逻辑。
 6. 完成阶段后运行验证命令，更新本文档，创建详细中文 commit。
@@ -103,22 +104,22 @@
 再阅读 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/development-progress-tracker.zh.md
 和 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/agentproxy-development-plan.md。
 
-当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组、Phase 2.5 SQLite 存储含破坏性 migration 备份机制、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime、Phase 3.4 Attached Runtime、Phase 3.5 Event Stream、Phase 3 runtime 诊断和 Gate 3 汇总验证、Phase 4.1 OpenCodeProvider Health 与 Capability provider-layer、Phase 4.2 Model 与 Provider 列表、Phase 4.3 Session 同步、Phase 4.4 Session 创建与恢复、Phase 4.5 Message 发送与事件映射、Phase 4.6 Session 操作、Phase 4.7 Provider Passthrough、Gate 4 汇总验证和 Phase 5.1 CLI Framework Foundation 已完成并验证；Gate 2、Gate 3 和 Gate 4 已通过。最新 Phase 5.1 实现提交是 `4ce1687 阶段进展：完成 Phase 5.1 CLI Framework Foundation`；最新 Gate 4 汇总验证提交是 `549a979 阶段进展：完成 Gate 4 汇总验证`；最新 Phase 4 阶段实现提交是 `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`。如果 `git log -1 --oneline` 显示的是后续文档同步提交，请继续以 `4ce1687` 作为 Phase 5 最新实现基线，以 `549a979` 作为阶段门禁基线。Phase 5 CLI MVP 其余真实业务命令尚未实现，TUI 尚未进入；下一步从 Phase 5.2 `doctor` CLI 工作流继续，不要提前实现 `run`、`sessions`、`runtime`、`config` 的真实业务，也不要进入 TUI。
+当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组、Phase 2.5 SQLite 存储含破坏性 migration 备份机制、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime、Phase 3.4 Attached Runtime、Phase 3.5 Event Stream、Phase 3 runtime 诊断和 Gate 3 汇总验证、Phase 4.1 OpenCodeProvider Health 与 Capability provider-layer、Phase 4.2 Model 与 Provider 列表、Phase 4.3 Session 同步、Phase 4.4 Session 创建与恢复、Phase 4.5 Message 发送与事件映射、Phase 4.6 Session 操作、Phase 4.7 Provider Passthrough、Gate 4 汇总验证、Phase 5.1 CLI Framework Foundation 和 Phase 5.2 Doctor CLI 工作流已完成并验证；Gate 2、Gate 3 和 Gate 4 已通过。最新 Phase 5.2 实现提交是本次 `阶段进展：完成 Phase 5.2 Doctor CLI 工作流` 提交；最新 Gate 4 汇总验证提交是 `549a979 阶段进展：完成 Gate 4 汇总验证`；最新 Phase 4 阶段实现提交是 `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`。如果 `git log -1 --oneline` 显示的是后续文档同步提交，请继续以该 Phase 5.2 实现提交作为 Phase 5 最新实现基线，以 `549a979` 作为阶段门禁基线。Phase 5 CLI MVP 其余真实业务命令尚未实现，TUI 尚未进入；下一步从 Phase 5.3 Run 与 Chat 拆小继续，优先规划 `run [prompt]`，不要提前实现 `sessions`、`runtime`、`config` 的真实业务，也不要进入完整 TUI。
 请先运行 `git status --short` 和 `git log -1 --oneline` 核对最新提交与工作区状态。
 
 请严格按照 docs/development-progress-tracker.zh.md 继续迭代，从第一个未完成项开始：
-Phase 5.2 `doctor` CLI 工作流。Phase 3 已完成 OpenCode runtime binary 探测、registry、managed/attached runtime、event stream、runtime 诊断和 Gate 3 汇总验证；Phase 4.1 已完成 provider-layer health/capability 探测；Phase 4.2 已完成 Model 与 Provider 列表；Phase 4.3 已完成 Session 同步；Phase 4.4 已完成 Session 创建与恢复；Phase 4.5 已完成 Message 发送与事件映射；Phase 4.6 已完成 Session 操作；Phase 4.7 已完成 Provider Passthrough；Gate 4 汇总验证已通过；Phase 5.1 已完成 CLI parser/global flags/help/routing/stable exit code/`--json`/stdout-stderr 分工的共享框架与测试。下一步只做 `doctor` CLI 工作流，不做 `run`、`sessions`、`runtime`、`config` 等后续业务命令，不实现 TUI。
+Phase 5.3 Run 与 Chat（先拆小选择 `run [prompt]` 工作流）。Phase 3 已完成 OpenCode runtime binary 探测、registry、managed/attached runtime、event stream、runtime 诊断和 Gate 3 汇总验证；Phase 4.1 已完成 provider-layer health/capability 探测；Phase 4.2 已完成 Model 与 Provider 列表；Phase 4.3 已完成 Session 同步；Phase 4.4 已完成 Session 创建与恢复；Phase 4.5 已完成 Message 发送与事件映射；Phase 4.6 已完成 Session 操作；Phase 4.7 已完成 Provider Passthrough；Gate 4 汇总验证已通过；Phase 5.1 已完成 CLI parser/global flags/help/routing/stable exit code/`--json`/stdout-stderr 分工的共享框架与测试；Phase 5.2 已完成 `doctor` CLI 工作流。下一步只推进 `run [prompt]` 的最小工作流计划与实现，不做 `sessions`、`runtime`、`config` 等后续业务命令，不进入完整 TUI。
 
 要求：
 1. 不要重新规划已完成的架构方案，除非发现真实设计缺口。
 2. 每次只选择一个小范围任务组推进。
-3. 实现前先在 `tasks/todo.md` 顶部新增或更新 Phase 5.2 当前迭代计划，确认依赖、验收标准和风险。
+3. 实现前先在 `tasks/todo.md` 顶部新增或更新 Phase 5.3 当前迭代计划，确认依赖、验收标准和风险。
 4. 完成后更新 docs/development-progress-tracker.zh.md 的勾选状态和 Review。
 5. 如果产生可复用经验或用户纠正，更新 tasks/lessons.md。
 6. 每完成一个阶段任务后，运行适用验证命令，并使用详细中文 commit 信息提交一次。
 7. AgentProxy 必须保持薄代理和控制面定位，v1 只接入 OpenCode，不重写 Agent runtime。
 8. 重启会话后先复习 `tasks/lessons.md`，并自动延续阶段提交习惯，不需要用户再次提醒。
-9. Phase 2.4、Phase 2.5、Phase 3.1、Phase 3.2、Phase 3.3、Phase 3.4、Phase 3.5、Phase 3 runtime 诊断/Gate 3、Phase 4.1 provider-layer health/capability、Phase 4.2 Model/Provider 列表、Phase 4.3 Session 同步、Phase 4.4 Session 创建与恢复、Phase 4.5 Message 发送与事件映射、Phase 4.6 Session 操作、Phase 4.7 Provider Passthrough、Gate 4 汇总验证和 Phase 5.1 CLI Framework Foundation 已完成，不要回退或扩展它们；下一步只处理 Phase 5.2 `doctor` CLI 工作流，不要实现 TUI。
+9. Phase 2.4、Phase 2.5、Phase 3.1、Phase 3.2、Phase 3.3、Phase 3.4、Phase 3.5、Phase 3 runtime 诊断/Gate 3、Phase 4.1 provider-layer health/capability、Phase 4.2 Model/Provider 列表、Phase 4.3 Session 同步、Phase 4.4 Session 创建与恢复、Phase 4.5 Message 发送与事件映射、Phase 4.6 Session 操作、Phase 4.7 Provider Passthrough、Gate 4 汇总验证、Phase 5.1 CLI Framework Foundation 和 Phase 5.2 Doctor CLI 工作流已完成，不要回退或扩展它们；下一步只处理 Phase 5.3 的 `run [prompt]` 最小工作流，不要实现完整 TUI。
 ```
 
 ## 1. 使用规则
@@ -582,7 +583,7 @@ Phase 5.2 `doctor` CLI 工作流。Phase 3 已完成 OpenCode runtime binary 探
 
 ### 8.1 CLI 框架
 
-当前状态：Phase 5.1 的共享 CLI 框架与输出契约已完成并验证。Commander 作为 CLI parser 继续保留；全局 flags、help、command routing、稳定退出码、`--json` 错误输出和 stdout/stderr 分工已收口；未实现 `doctor`、`run`、`sessions`、`runtime`、`config` 真实业务命令或 TUI。
+当前状态：Phase 5.1 的共享 CLI 框架与输出契约已完成并验证；Phase 5.2 `doctor` CLI 工作流已完成并验证。Commander 作为 CLI parser 继续保留；全局 flags、help、command routing、稳定退出码、`--json` 错误输出和 stdout/stderr 分工已收口；未实现 `run`、`sessions`、`runtime`、`config` 真实业务命令或 TUI。
 
 - [x] 选择 CLI parser。
 - [x] 实现全局 flags。
@@ -600,22 +601,22 @@ Phase 5.2 `doctor` CLI 工作流。Phase 3 已完成 OpenCode runtime binary 探
 
 ### 8.2 Doctor
 
-- [ ] 检查 Node.js 版本。
-- [ ] 检查 AgentProxy 配置。
-- [ ] 检查 SQLite 读写。
-- [ ] 检查 OpenCode binary。
-- [ ] 检查 OpenCode version。
-- [ ] 检查 server health。
-- [ ] 检查 provider list。
-- [ ] 检查 MCP status。
-- [ ] 检查 workspace Git 状态。
-- [ ] 支持 `--json`。
+- [x] 检查 Node.js 版本。
+- [x] 检查 AgentProxy 配置。
+- [x] 检查 SQLite 读写。
+- [x] 检查 OpenCode binary。
+- [x] 检查 OpenCode version。
+- [x] 检查 server health。
+- [x] 检查 provider list。
+- [x] 检查 MCP status。
+- [x] 检查 workspace Git 状态。
+- [x] 支持 `--json`。
 
 验收标准：
 
-- [ ] 缺失依赖给出下一步建议。
-- [ ] JSON 输出包含所有检查项状态。
-- [ ] doctor 输出不泄漏 secret。
+- [x] 缺失依赖给出下一步建议。
+- [x] JSON 输出包含所有检查项状态。
+- [x] doctor 输出不泄漏 secret。
 
 ### 8.3 Run 与 Chat
 
@@ -1078,3 +1079,4 @@ Phase 5.2 `doctor` CLI 工作流。Phase 3 已完成 OpenCode runtime binary 探
 - 2026-05-21：同步 Phase 5 启动前最新开发状态；确认当前最新提交为文档同步提交 `5669a57 文档：同步 Phase 5.1 启动前状态与计划`，Gate 4 阶段门禁基线仍为 `549a979 阶段进展：完成 Gate 4 汇总验证`，最新 Phase 4 实现基线仍为 `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`。已将已完成/未完成摘要校准为：Phase 5 CLI MVP 尚未实现，TUI 尚未进入，Phase 5.1 CLI Framework Foundation 只完成实现前计划/check-in，计划保存在 `tasks/todo.md`；下一次启动应从 Phase 5.1 共享 CLI 框架与输出契约开始。验证命令：`git status --short`、`git log -1 --oneline`、`git diff --check`、`pnpm run format:check`。本次仅更新文档和任务跟踪，不实现 Phase 5.1、Phase 5.2+ 或 TUI。
 - 2026-05-21：完成 Phase 5.1 CLI Framework Foundation；在 `src/cli/index.ts` 收口共享 CLI 全局选项、嵌套命令 flag 解析、help/routing、human/JSON 错误格式、稳定退出码和 `main()` parse error 处理，保留 `agentproxy provider exec opencode -- <native args>` 的 provider stdout/stderr/原始 exit code 透传，不实现真实 `doctor`、`run`、`sessions`、`runtime`、`config` 业务命令或 TUI。新增/扩展 `tests/cli-help.test.ts` 和 `tests/cli-provider-exec.test.ts`，覆盖每个命令 help、嵌套全局 flags、JSON 错误 stdout、human 诊断 stderr、Commander parse error 脱敏和参数错误退出码 `2`、稳定退出码映射、JSON provider lookup 错误脱敏，以及 passthrough 回归。验证命令：`pnpm exec vitest run tests/cli-help.test.ts tests/cli-provider-exec.test.ts`、`pnpm exec vitest run tests/cli-help.test.ts tests/cli-provider-exec.test.ts tests/config-resolver.test.ts tests/logging.test.ts`、`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`、`git diff --check`，结果均通过，其中完整 `pnpm run test` 为 23 个测试文件、172 个用例通过。代码审查未发现阻断问题。未解决风险：Phase 5 CLI MVP 其余真实业务命令仍未实现，下一步从 Phase 5.2 `doctor` CLI 工作流继续；真实 OpenCode smoke 校准仍留作后续兼容性任务。
 - 2026-05-21：文档同步 Phase 5.1 后的最新开发状态；将顶部当前启动基线、最新阶段实现提交、已完成/未完成摘要和下次启动提示词校准为 `4ce1687 阶段进展：完成 Phase 5.1 CLI Framework Foundation`，明确第一个未完成项为 Phase 5.2 `doctor` CLI 工作流，TUI 尚未进入。验证命令：`git status --short`、`git log -1 --oneline`、`git diff --check`、`pnpm run format:check`。本次仅更新进度文档和任务跟踪，不实现 Phase 5.2、后续 CLI 业务命令、provider/runtime 行为或 TUI。
+- 2026-05-21：完成 Phase 5.2 Doctor CLI 工作流；新增 `src/cli/doctor.ts` 并扩展 `src/cli/index.ts`，将 `agentproxy doctor` 从 planned placeholder 切换为真实诊断命令。实现范围包含 Node.js 版本、AgentProxy config、SQLite 读写、OpenCode config、OpenCode binary/version、runtime registry/health/event stream、OpenCode server health、provider list capability、MCP status 和 workspace Git 状态检查；复用 Phase 3 runtime diagnostics 与 Phase 4 provider health/capability probe；支持 `--json` 单对象报告、human report、缺失依赖建议、secret/URL 脱敏、稳定退出码和显式 `--managed-smoke` 诊断选项。新增 `tests/cli-doctor.test.ts`，扩展 `tests/cli-help.test.ts` 和 `tests/opencode-runtime-diagnostics.test.ts`，覆盖成功 JSON doctor report、missing binary、config failure、storage failure、storage probe 不覆盖真实 provider 记录、terminal runtime 默认跳过、Node 版本失败退出码、Git status 失败 warning、secret redaction 和 doctor 不再返回 `CAPABILITY_UNSUPPORTED` placeholder。代码审查后修复固定 storage probe id、terminal runtime 误探测、Node 失败无稳定错误码、Git status 失败误报 clean、help planned 文案等问题。验证命令：`pnpm exec vitest run tests/cli-doctor.test.ts tests/cli-help.test.ts`、`pnpm exec vitest run tests/cli-doctor.test.ts tests/cli-help.test.ts tests/cli-provider-exec.test.ts tests/opencode-runtime-diagnostics.test.ts tests/opencode-provider-health.test.ts`、`pnpm exec vitest run tests/cli-doctor.test.ts tests/opencode-runtime-diagnostics.test.ts tests/cli-help.test.ts tests/cli-provider-exec.test.ts`、`pnpm run typecheck`、`pnpm run lint`、`pnpm run format:check`、`pnpm run test`、`pnpm run build`、`git diff --check`，结果均通过，其中完整 `pnpm run test` 为 24 个测试文件、182 个用例通过。未解决风险：真实 OpenCode doctor smoke 校准仍留作后续兼容性任务；`run`、`sessions`、`providers inspect/list`、`runtime`、`config` 和完整 TUI 仍未实现。

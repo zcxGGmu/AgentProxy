@@ -15,16 +15,24 @@ import {
 } from "../logging/index.js";
 import { OPENCODE_PROVIDER_ID, OpenCodeProvider } from "../providers/opencode/index.js";
 import type { AgentProvider } from "../providers/types.js";
+import {
+  formatDoctorHumanReport,
+  mapDoctorReportToExitCode,
+  runAgentProxyDoctor,
+} from "./doctor.js";
 
 export const AGENTPROXY_VERSION = "0.1.0";
 
-const plannedCoreWorkflows = [
+const implementedCoreWorkflows = [
   "agentproxy doctor",
+  "agentproxy provider exec <id> -- <native args>",
+];
+
+const plannedCoreWorkflows = [
   "agentproxy run [prompt]",
   "agentproxy chat",
   "agentproxy sessions list|show|resume|abort|delete|export|import|share|unshare",
   "agentproxy providers list|inspect",
-  "agentproxy provider exec <id> -- <native args>",
   "agentproxy runtime list|stop",
   "agentproxy config get|set",
 ];
@@ -102,13 +110,16 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
 
   program.addHelpText(
     "after",
-    `\nPlanned core workflows:\n  ${plannedCoreWorkflows.join("\n  ")}\n`,
+    `\nImplemented core workflows:\n  ${implementedCoreWorkflows.join(
+      "\n  ",
+    )}\n\nPlanned core workflows:\n  ${plannedCoreWorkflows.join("\n  ")}\n`,
   );
 
   program
     .command("doctor")
     .description("Check AgentProxy, provider, runtime, and workspace health.")
-    .action(plannedAction("doctor", output));
+    .option("--managed-smoke", "Start and stop a temporary managed OpenCode runtime.")
+    .action(createDoctorAction(output, options));
 
   program
     .command("run")
@@ -240,6 +251,52 @@ function addGlobalOptions(command: Command, options: { includeDefaults: boolean 
 
     command.option(definition.flags, definition.description);
   }
+}
+
+function createDoctorAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command) => Promise<void> {
+  return async function (this: Command) {
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      if (globalOptions.provider !== OPENCODE_PROVIDER_ID) {
+        throw createAgentProxyError({
+          code: "PROVIDER_NOT_FOUND",
+          message: `Provider not found: ${globalOptions.provider}`,
+          operation: "doctor",
+          providerId: globalOptions.provider,
+          details: {
+            suggestion: "AgentProxy v1 doctor currently supports the opencode provider.",
+          },
+        });
+      }
+
+      const doctorOptions = this.opts<{ managedSmoke?: boolean }>();
+      const report = await runAgentProxyDoctor({
+        agentProxyVersion: AGENTPROXY_VERSION,
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(this),
+        includeManagedSmoke: doctorOptions.managedSmoke === true,
+      });
+
+      if (globalOptions.json) {
+        output.writeJson(report);
+      } else {
+        output.writeResult(
+          formatDoctorHumanReport(report, {
+            verbose: globalOptions.verbose,
+            debug: globalOptions.debug,
+          }),
+        );
+      }
+      process.exitCode = mapDoctorReportToExitCode(report);
+    } catch (error) {
+      handleCliError(error, output, this);
+    }
+  };
 }
 
 function createProviderExecAction(

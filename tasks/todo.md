@@ -11,6 +11,55 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Phase 5.2 Doctor CLI Workflow
+
+Scope: advance only Phase 5.2 `agentproxy doctor`. Implement a script-friendly diagnostic workflow that wraps existing config, storage, provider, and OpenCode runtime diagnostic primitives. Do not implement `run`, `sessions`, `runtime`, `config`, providers list/inspect commands, native TUI, or new Agent runtime behavior.
+
+Implementation checklist:
+
+- [x] Confirm the latest commit/worktree baseline and treat `4ce1687 阶段进展：完成 Phase 5.1 CLI Framework Foundation` as the latest Phase 5 implementation baseline because the newest commit is documentation-only.
+- [x] Add focused CLI tests for `agentproxy doctor` human output, `--json` output, exit codes, secret redaction, config failure, storage failure, and provider/runtime diagnostic summaries.
+- [x] Implement a narrow doctor CLI action that resolves config, opens SQLite storage, runs reusable OpenCode runtime diagnostics, probes provider capabilities, checks Node.js version, checks workspace Git status, and reports MCP/provider-list capability status without adding separate provider/runtime/config commands.
+- [x] Keep normal human results on stdout, warnings/details on stdout only as part of the final doctor report, and JSON mode as one valid redacted JSON document on stdout.
+- [x] Update `docs/development-progress-tracker.zh.md` Phase 5.2 checklist and Review notes after verification.
+- [x] Run focused doctor tests, full project verification, code review, and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean and `git log -1 --oneline` is `c66bafc 文档：同步 Phase 5.1 完成状态与下次启动提示`, so Phase 5 latest implementation baseline remains `4ce1687 阶段进展：完成 Phase 5.1 CLI Framework Foundation`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`; latest Phase 4 implementation baseline remains `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`.
+- Phase 3 runtime diagnostics already provide binary, registry, health, event stream, and optional managed smoke checks; Phase 5.2 should wrap/reuse this service instead of duplicating runtime lifecycle logic.
+- Phase 4.1 provider health/capability probing already checks OpenCode API endpoints including `/provider` and `/mcp`; doctor can summarize those capability results without implementing `providers inspect`.
+- Phase 5.1 shared CLI behavior already handles global flags, JSON error mode, stable exit codes, parse error redaction, and stdout/stderr separation.
+
+Acceptance criteria for this iteration:
+
+- [x] `agentproxy doctor` runs as a real command and no longer returns the planned-command `CAPABILITY_UNSUPPORTED` placeholder.
+- [x] Doctor output includes check statuses for Node.js, AgentProxy config, SQLite read/write, OpenCode binary/version, runtime server health, provider list capability, MCP status, and workspace Git status.
+- [x] `agentproxy doctor --json` emits exactly one valid JSON object on stdout with every check item status and no diagnostic prose mixed in.
+- [x] Missing OpenCode or runtime dependencies produce failed/skipped checks with next-step suggestions; the command remains diagnostic and does not crash on expected missing dependencies.
+- [x] Exit code is `0` when no check fails, and maps to the first failed check's stable AgentProxy error class when checks fail.
+- [x] Human and JSON doctor output redact inline secrets, URL credentials, query secrets, bearer tokens, and secret-shaped config/env values.
+- [x] Existing `provider exec` behavior and planned placeholders for `run`, `sessions`, `runtime`, `config`, and TUI remain unchanged.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
+Risks and constraints:
+
+- Do not make doctor start a managed runtime by default; managed smoke can remain an explicit internal option or later flag if needed. The default CLI doctor should be safe and diagnostic-first.
+- Do not treat provider capability probing as proof that future CLI workflows are implemented; it only reports capability health for diagnosis.
+- Provider list and MCP checks should report capability/probe status using existing OpenCode endpoint probes, not add new standalone `providers` or `mcp` commands.
+- SQLite check must close storage handles after diagnostics, including failure paths.
+- Doctor must preserve AgentProxy's thin control-plane role and never parse OpenCode TUI output or rewrite provider runtime behavior.
+
+Review notes:
+
+- 2026-05-21: Completed Phase 5.2 Doctor CLI Workflow. Added `src/cli/doctor.ts` and replaced the `agentproxy doctor` placeholder with a real diagnostic command while leaving `run`, `sessions`, `runtime`, `config`, provider list/inspect, and TUI as planned placeholders.
+- Doctor now reports Node.js, AgentProxy config, SQLite read/write, OpenCode config, OpenCode binary/version, runtime registry/health/event stream, OpenCode server health, provider list capability, MCP status, and workspace Git state. JSON mode writes exactly one redacted report object to stdout; human mode writes the final doctor report to stdout; failures map to stable exit codes.
+- Added `tests/cli-doctor.test.ts` and updated `tests/cli-help.test.ts` and `tests/opencode-runtime-diagnostics.test.ts` for successful JSON reports, missing binary, config failure, storage failure, storage probe record preservation, terminal runtime skipping, Node version exit-code mapping, Git status warning handling, redaction, and placeholder removal. Focused verification passed: `pnpm exec vitest run tests/cli-doctor.test.ts tests/cli-help.test.ts` and `pnpm exec vitest run tests/cli-doctor.test.ts tests/cli-help.test.ts tests/cli-provider-exec.test.ts tests/opencode-runtime-diagnostics.test.ts tests/opencode-provider-health.test.ts`.
+- Code review found blockers in the initial doctor implementation: fixed random SQLite probe IDs so existing provider records are not overwritten/deleted, filtered default runtime diagnostics to active runtime states so stopped/detached/failed records are skipped, mapped unsupported Node.js to `CONFIG_INVALID`, treated Git status failures as warnings instead of clean state, and moved implemented doctor out of the planned help list.
+- Project verification passed: `pnpm run typecheck`, `pnpm run test` (24 files, 182 tests), `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+- Residual boundary: doctor uses fake OpenCode binary/server coverage in tests; real OpenCode smoke calibration remains later. Phase 5.3 `run`, sessions, runtime, config, providers list/inspect, and full TUI remain intentionally unimplemented.
+
 ## Current Iteration - 2026-05-21 Documentation Sync After Phase 5.1
 
 Scope: update only project tracking documents after `4ce1687 阶段进展：完成 Phase 5.1 CLI Framework Foundation`. Do not implement Phase 5.2 `doctor`, `run`, `sessions`, `runtime`, `config`, TUI, provider behavior, or runtime behavior.

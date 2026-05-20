@@ -1,3 +1,6 @@
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Command } from "commander";
 import {
@@ -106,24 +109,36 @@ describe("agentproxy CLI placeholder", () => {
     expect(stderr.chunks.join("")).not.toContain("sk-command-secret");
   });
 
-  it("writes planned command diagnostics through the configured stderr writer", async () => {
+  it("runs doctor as a real workflow instead of the planned placeholder", async () => {
     const originalExitCode = process.exitCode;
+    const root = await mkdtemp(path.join(tmpdir(), "agentproxy-cli-help-doctor-test-"));
+    const workspacePath = path.join(root, "workspace");
+    const homeDir = path.join(root, "home");
+    await Promise.all([
+      mkdir(workspacePath, { recursive: true }),
+      mkdir(homeDir, { recursive: true }),
+    ]);
     const stdout = createMemorySink();
     const stderr = createMemorySink();
     const program = createProgram({
+      cwd: workspacePath,
+      homeDir,
+      env: {
+        PATH: "",
+      },
       output: createOutputWriters({ stdout, stderr }),
     });
 
     try {
       await program.parseAsync(["node", "agentproxy", "doctor"]);
 
-      expect(process.exitCode).toBe(6);
-      expect(stdout.chunks.join("")).toBe("");
-      expect(stderr.chunks.join("")).toContain(
-        "CAPABILITY_UNSUPPORTED: agentproxy doctor is planned for a later phase and is not implemented yet.",
-      );
+      expect(process.exitCode).not.toBe(6);
+      expect(stdout.chunks.join("")).toContain("AgentProxy doctor:");
+      expect(stdout.chunks.join("")).not.toContain("planned for a later phase");
+      expect(stderr.chunks.join("")).toBe("");
     } finally {
       process.exitCode = originalExitCode;
+      await rm(root, { recursive: true, force: true });
     }
   });
 

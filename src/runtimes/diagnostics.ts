@@ -674,7 +674,9 @@ function selectRuntimeForDiagnostics(input: {
   }
 
   return [...input.runtimes]
-    .filter((runtime) => runtime.baseUrl !== undefined)
+    .filter(
+      (runtime) => runtime.baseUrl !== undefined && isActiveDiagnosticRuntimeStatus(runtime.status),
+    )
     .sort((left, right) => runtimeDiagnosticPriority(left) - runtimeDiagnosticPriority(right))[0];
 }
 
@@ -683,6 +685,14 @@ function runtimeDiagnosticPriority(runtime: StoredRuntimeRecord): number {
     runtime.status as (typeof ACTIVE_DIAGNOSTIC_RUNTIME_STATUSES)[number],
   );
   return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+function isActiveDiagnosticRuntimeStatus(
+  status: StoredRuntimeRecord["status"],
+): status is (typeof ACTIVE_DIAGNOSTIC_RUNTIME_STATUSES)[number] {
+  return ACTIVE_DIAGNOSTIC_RUNTIME_STATUSES.includes(
+    status as (typeof ACTIVE_DIAGNOSTIC_RUNTIME_STATUSES)[number],
+  );
 }
 
 function countBy<TItem>(
