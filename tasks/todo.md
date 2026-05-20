@@ -11,6 +11,59 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Phase 4.3 Session Sync
+
+Scope: advance only Phase 4.3 session synchronization from the Chinese progress tracker. Do not implement session creation/resume, message sending, passthrough, CLI MVP commands, or TUI.
+
+Implementation checklist:
+
+- [x] Add focused tests for OpenCodeProvider `listSessions()` against a fake `/session` endpoint.
+- [x] Map OpenCode session list data into stable `ProviderSession` records without storing transcripts or raw secrets.
+- [x] Add a small session sync service that imports provider sessions into the local SQLite index.
+- [x] Preserve tombstones during sync and prevent deleted local indexes from being revived.
+- [x] Mark existing local sessions as `missing_in_provider` when the provider list is explicitly known to be complete.
+- [x] Preserve AgentProxy-owned workspace paths while recording provider workspace conflicts in metadata.
+- [x] Return synced sessions ordered by `updatedAt` descending and support workspace filtering.
+- [x] Update the Chinese progress tracker and record verification evidence.
+- [x] Run verification and create a detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Reuse the existing `AgentProvider.listSessions(ctx, query)` contract and `ProviderSession` fields from `src/providers/types.ts` and `src/sessions/types.ts`.
+- Reuse Phase 4.1 runtime base URL resolution, URL sanitization, and request timeout helpers for OpenCode HTTP calls.
+- Use OpenCode `GET /session` as the read-only provider session list boundary; do not create, mutate, resume, delete, or export sessions in this phase.
+- Reuse the SQLite `sessions` repository from Phase 2.5 for local indexing; do not add migrations unless a real Phase 4.3 requirement cannot be met with the current schema.
+- Reuse existing source-of-truth semantics: provider owns content/status/title, AgentProxy owns local session ID, workspace index, tombstones, and provider-to-local mapping.
+
+Acceptance criteria for this iteration:
+
+- [x] Healthy fake OpenCode runtime returns `ProviderSession[]` from `OpenCodeProvider.listSessions()`.
+- [x] Missing or invalid runtime base URL maps to `PROVIDER_UNAVAILABLE`; `401` or `403` maps to `PERMISSION_DENIED`; raw response bodies, auth headers, URL credentials, query secrets, and transcript content do not leak.
+- [x] Provider sessions that are not in local storage are imported as new AgentProxy session index records.
+- [x] Existing local sessions are updated from provider title/status/time/model data while keeping the original local `workspacePath`.
+- [x] Local sessions absent from the provider list are marked `missing_in_provider` without deleting rows only when `missingDetection: "completeProviderList"` is explicitly enabled.
+- [x] Tombstoned sessions are not revived or returned by default sync output.
+- [x] Sync output and storage listing are ordered by `updatedAt` descending and can be filtered by workspace.
+- [x] `pnpm exec vitest run tests/opencode-provider-sessions.test.ts tests/session-sync.test.ts tests/opencode-provider-health.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check` pass.
+- [x] Chinese progress tracker marks Phase 4.3 done and records Review notes.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- OpenCode `/session` response shape may evolve; parser must accept only stable scalar fields and keep provider-specific metadata white-listed and JSON-safe.
+- Sync must not copy full transcripts, message arrays, tool call details, prompts, or raw provider payloads into SQLite.
+- Tombstone behavior is a safety boundary from Phase 2.5; sync must not clear `deletedAt` or `tombstoneReason`.
+- Provider workspace metadata can conflict with AgentProxy's local index; AgentProxy should keep the original local workspace path and record the provider value under metadata.
+- This phase does not implement `startSession`, `resumeSession`, `sendMessage`, `deleteSession`, provider passthrough, CLI wrappers, or TUI screens.
+
+Review notes:
+
+- 2026-05-20: Added `src/providers/opencode/sessions.ts`, wired `OpenCodeProvider.listSessions()`, added `src/sessions/sync.ts`, and exported `syncProviderSessions()`.
+- The provider layer reads only `GET /session` and best-effort `GET /session/status`, maps stable scalar fields into `ProviderSession`, maps OpenCode model IDs as `provider/model`, and avoids persisting transcript arrays, raw payloads, raw secrets, or free-text summary.
+- The sync layer imports new provider sessions into SQLite, updates existing local rows by global `(providerId, providerSessionId)`, preserves tombstones, records workspace conflicts in metadata, and only marks `missing_in_provider` when `missingDetection: "completeProviderList"` is explicitly requested.
+- Code review fixes: skipped missing detection for partial lists by default, avoided cross-workspace unique-constraint collisions, stopped treating GET `/session` 405 as a supported list endpoint, mapped session model metadata, and removed summary persistence.
+- Verification passed: `pnpm exec vitest run tests/opencode-provider-sessions.test.ts tests/session-sync.test.ts tests/opencode-provider-health.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
 ## Current Iteration - 2026-05-20 Phase 4.2 Model / Provider List
 
 Scope: advance only OpenCodeProvider model listing from the Chinese progress tracker. Do not implement CLI provider commands, doctor checks, session sync, message sending, passthrough, or TUI.

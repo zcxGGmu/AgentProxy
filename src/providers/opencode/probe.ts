@@ -473,7 +473,7 @@ function buildCapabilities(input: {
       sdk: input.sdk.available,
     },
     sessions: {
-      list: false,
+      list: runtimeEndpoint("sessionList"),
       create: false,
       resume: false,
       fork: false,
@@ -659,9 +659,7 @@ function endpointIsSupported(
     return allow !== null && allowHeaderIncludes(allow, input.requiredAllowMethod);
   }
 
-  return (
-    response.ok || response.status === 401 || response.status === 403 || response.status === 405
-  );
+  return response.ok || response.status === 401 || response.status === 403;
 }
 
 function unsupportedEndpointReason(response: Response, input: EndpointProbeInput): string {

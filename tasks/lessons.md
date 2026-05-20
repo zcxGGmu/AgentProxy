@@ -38,3 +38,5 @@
 - Provider capability probe 不能把 health 成功等同于 API/method 能力可用；带 method 语义的 endpoint 必须明确证明目标 method 支持，且 capability 不得提前声明尚未实现的 AgentProvider 操作。
 - Provider health/capability metadata 不应回传 provider-controlled 原始 header 或 payload；只保留规范化 media type、白名单 allow methods 和脱敏后的稳定诊断字段。
 - OpenCode `/provider` 当前 provider 字段使用 `api` 而不是 `source`；映射模型列表时只白名单保留 provider/model metadata，并把 `limit.context/output` 收窄为数字，避免 provider-controlled `options`、`headers` 或异常对象泄漏。
+- Session sync 只有在确认拿到完整 provider session 列表时才能把本地记录标记为 `missing_in_provider`；分页、limit、cursor 或部分列表同步必须跳过 missing pass，避免误判仍存在的 session。
+- Provider capability probe 对只读 GET endpoint 不能把 `405 Method Not Allowed` 当成 supported；405 只能作为 method 探测的 Allow 语义输入，不能证明 GET/list 能力可用。

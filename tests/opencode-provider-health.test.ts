@@ -248,7 +248,7 @@ describe("OpenCodeProvider health and capability probing", () => {
       sdk: true,
     });
     expect(capabilities.sessions).toMatchObject({
-      list: false,
+      list: true,
       create: false,
       resume: false,
       fork: false,
@@ -308,7 +308,7 @@ describe("OpenCodeProvider health and capability probing", () => {
     const capabilities = await provider.getCapabilities(providerContext(workspacePath));
 
     expect(capabilities.sessions).toMatchObject({
-      list: false,
+      list: true,
       create: false,
       resume: false,
       fork: false,
@@ -502,7 +502,7 @@ describe("OpenCodeProvider health and capability probing", () => {
 
     expect(capabilities.runtime.openApi).toBe(false);
     expect(capabilities.runtime.sse).toBe(false);
-    expect(capabilities.sessions.list).toBe(false);
+    expect(capabilities.sessions.list).toBe(true);
     expect(capabilities.sessions.create).toBe(false);
     expect(capabilities.sessions.delete).toBe(false);
     expect(capabilities.interaction.promptPrefill).toBe(false);
@@ -516,6 +516,50 @@ describe("OpenCodeProvider health and capability probing", () => {
           sessionCreate: {
             supported: false,
             failureReason: "missing_allow_header",
+          },
+        },
+      },
+    });
+  });
+
+  it("does not advertise session list when GET /session is not allowed", async () => {
+    const { binaryPath, workspacePath } = await createTestRoot();
+    const { baseUrl } = await startFakeOpenCodeServerWithHandler((request, response) => {
+      if (request.method === "GET" && request.url === "/global/health") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ healthy: true, version: "1.16.0" }));
+        return;
+      }
+
+      if (request.method === "GET" && request.url === "/session") {
+        response.writeHead(405, { allow: "POST, OPTIONS" });
+        response.end();
+        return;
+      }
+
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: "not found" }));
+    });
+    const provider = new OpenCodeProvider({
+      binary: binaryPath,
+      baseUrl,
+      requestTimeoutMs: 250,
+      sdkResolver: () => ({
+        moduleName: "@opencode-ai/sdk",
+        available: false,
+      }),
+    });
+
+    const capabilities = await provider.getCapabilities(providerContext(workspacePath));
+
+    expect(capabilities.sessions.list).toBe(false);
+    expect(capabilities.metadata.agentproxyOpenCodeProviderProbe).toMatchObject({
+      runtime: {
+        endpoints: {
+          sessionList: {
+            supported: false,
+            status: 405,
+            failureReason: "unhealthy_response",
           },
         },
       },

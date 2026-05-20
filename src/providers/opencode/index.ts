@@ -8,6 +8,7 @@ import {
   type OpenCodeProviderOptions,
   probeOpenCodeProvider,
 } from "./probe.js";
+import { listOpenCodeSessions } from "./sessions.js";
 import type {
   AgentProvider,
   ExportResult,
@@ -92,7 +93,7 @@ export class OpenCodeProvider implements AgentProvider {
   }
 
   async listSessions(ctx: ProviderContext, _query?: SessionQuery): Promise<ProviderSession[]> {
-    throw unsupportedOpenCodeOperation("provider.listSessions", ctx.providerId);
+    return listOpenCodeSessions(this.#options, ctx, _query);
   }
 
   async getSession(ctx: ProviderContext, _id: string): Promise<ProviderSession> {

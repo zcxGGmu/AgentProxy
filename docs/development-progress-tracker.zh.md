@@ -11,17 +11,17 @@
 
 ### 当前阶段
 
-- 当前处于：Phase 4.2 Model 与 Provider 列表已完成实现和验证；Gate 4 未通过，下一步继续 Phase 4.3 Session 同步。
+- 当前处于：Phase 4.3 Session 同步已完成实现和验证；Gate 4 未通过，下一步继续 Phase 4.4 Session 创建与恢复。
 - 最近已记录文档同步提交：本次文档同步提交；若 `git log -1 --oneline` 显示更新的文档同步提交，以实际输出为准。
-- 最新 Phase 4 阶段实现提交：`4473dbd 阶段进展：完成 Phase 4.2 Model 与 Provider 列表`。
-- 当前启动基线：`4473dbd 阶段进展：完成 Phase 4.2 Model 与 Provider 列表`。
-- 最新阶段实现提交：`4473dbd 阶段进展：完成 Phase 4.2 Model 与 Provider 列表`。
+- 最新 Phase 4 阶段实现提交：本次阶段提交 `阶段进展：完成 Phase 4.3 Session 同步`；具体 hash 以 `git log -1 --oneline` 为准。
+- 当前启动基线：本次阶段提交 `阶段进展：完成 Phase 4.3 Session 同步`。
+- 最新阶段实现提交：本次阶段提交 `阶段进展：完成 Phase 4.3 Session 同步`。
 - 前一阶段实现基线：`31e5b34 阶段进展：完成 Phase 3 runtime 诊断与 Gate 3 验证`。
 - Phase 0.2 / Phase 1 阶段提交：`e5eb0ce 阶段进展：完成 Phase 0.2 技术决策与 Phase 1 工程骨架`
 - 当前主要进度来源：本文档和 `docs/agentproxy-development-plan.md`
-- 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层、provider registry 最小闭环、配置解析层最小闭环、日志/脱敏第一组、SQLite 存储、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime、Phase 3.4 Attached Runtime、Phase 3.5 Event Stream、Phase 3 runtime 诊断/Gate 3 汇总验证、Phase 4.1 OpenCodeProvider Health/Capability provider-layer 和 Phase 4.2 Model/Provider 列表：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型、`AgentProvider` 契约、provider 注册/lookup/list、capability probe、schema mismatch limited mode、AgentProxy 默认配置、全局/项目/显式配置读取、env/CLI 覆盖、schema 校验、路径规范化、OpenCode 配置隔离、结构化 NDJSON logger、correlationId、标准日志字段、redaction、stdout/stderr 分离、Commander parse error 脱敏、`better-sqlite3` 接入、数据库初始化、migration 版本表、providers/runtimes/sessions/session_events 表、基础 repository CRUD、重复 migration 安全性、session 唯一约束、tombstone 保留、破坏性 migration 备份/失败恢复、从配置或 `PATH` 定位 `opencode`、执行 `--version`、规范化 OpenCode 版本号、最低支持版本检查、缺失/不可执行 binary 和低版本的 `PROVIDER_UNAVAILABLE` 错误映射、Runtime Registry managed/attached 元数据持久化、状态机状态记录、runtime list 查询、metadata-only stale cleanup、managed `opencode serve` 子进程启动、默认 `127.0.0.1` 绑定、端口冲突选择空闲端口、`/global/health` 等待、启动失败/health 超时映射、仅停止当前 AgentProxy 拥有的 managed 子进程和子进程退出状态回写、显式 attached server URL 连接、registry attached runtime 重新健康检查、OpenCode-like health response 校验、非 localhost warning 元数据和 attached detach-only 停止保护、OpenCode `/event` SSE 连接、AgentProxy event envelope 转换、未知事件 `provider.raw_event` 保留、stream interruption 检测、runtime `degraded`/`reconnecting`/`healthy` 状态回写、有限 reconnect/backoff、重连后 session status 补偿 hook 和 `EVENT_STREAM_INTERRUPTED` 映射、runtime 层结构化诊断报告、binary/registry/health/event stream/managed smoke start-stop 检查、Gate 3 capability 汇总、诊断详情脱敏、OpenCodeProvider provider-layer `healthCheck` / `getCapabilities` 探测、server API/SSE/SDK 可达性探测、provider version 返回、capability metadata 中保留 endpoint 探测详情且不提前声明未实现的 session/message/TUI 操作、`OpenCodeProvider.listModels()` 读取 `GET /provider` 并映射 `ModelRef`、保留白名单 provider/model metadata、未认证映射 `PERMISSION_DENIED`、缺 runtime/异常响应映射 `PROVIDER_UNAVAILABLE`。
-- 当前第一个未完成项：Phase 4.3 Session 同步；不要提前进入 CLI MVP 或 TUI。
-- 当前工作区预期：本次文档同步提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核最新提交。若最新提交是后续文档同步提交，应继续以 `4473dbd` 作为最近阶段实现基线。
+- 当前代码状态：已初始化 TypeScript 工程骨架，并完成核心 contract 层、provider registry 最小闭环、配置解析层最小闭环、日志/脱敏第一组、SQLite 存储、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime、Phase 3.4 Attached Runtime、Phase 3.5 Event Stream、Phase 3 runtime 诊断/Gate 3 汇总验证、Phase 4.1 OpenCodeProvider Health/Capability provider-layer、Phase 4.2 Model/Provider 列表和 Phase 4.3 Session 同步：稳定错误码、provider capability 默认化、metadata escape hatch、runtime/session/event 类型、`AgentProvider` 契约、provider 注册/lookup/list、capability probe、schema mismatch limited mode、AgentProxy 默认配置、全局/项目/显式配置读取、env/CLI 覆盖、schema 校验、路径规范化、OpenCode 配置隔离、结构化 NDJSON logger、correlationId、标准日志字段、redaction、stdout/stderr 分离、Commander parse error 脱敏、`better-sqlite3` 接入、数据库初始化、migration 版本表、providers/runtimes/sessions/session_events 表、基础 repository CRUD、重复 migration 安全性、session 唯一约束、tombstone 保留、破坏性 migration 备份/失败恢复、从配置或 `PATH` 定位 `opencode`、执行 `--version`、规范化 OpenCode 版本号、最低支持版本检查、缺失/不可执行 binary 和低版本的 `PROVIDER_UNAVAILABLE` 错误映射、Runtime Registry managed/attached 元数据持久化、状态机状态记录、runtime list 查询、metadata-only stale cleanup、managed `opencode serve` 子进程启动、默认 `127.0.0.1` 绑定、端口冲突选择空闲端口、`/global/health` 等待、启动失败/health 超时映射、仅停止当前 AgentProxy 拥有的 managed 子进程和子进程退出状态回写、显式 attached server URL 连接、registry attached runtime 重新健康检查、OpenCode-like health response 校验、非 localhost warning 元数据和 attached detach-only 停止保护、OpenCode `/event` SSE 连接、AgentProxy event envelope 转换、未知事件 `provider.raw_event` 保留、stream interruption 检测、runtime `degraded`/`reconnecting`/`healthy` 状态回写、有限 reconnect/backoff、重连后 session status 补偿 hook 和 `EVENT_STREAM_INTERRUPTED` 映射、runtime 层结构化诊断报告、binary/registry/health/event stream/managed smoke start-stop 检查、Gate 3 capability 汇总、诊断详情脱敏、OpenCodeProvider provider-layer `healthCheck` / `getCapabilities` 探测、server API/SSE/SDK 可达性探测、provider version 返回、capability metadata 中保留 endpoint 探测详情且不提前声明未实现的 session/message/TUI 操作、`OpenCodeProvider.listModels()` 读取 `GET /provider` 并映射 `ModelRef`、保留白名单 provider/model metadata、未认证映射 `PERMISSION_DENIED`、缺 runtime/异常响应映射 `PROVIDER_UNAVAILABLE`、`OpenCodeProvider.listSessions()` 读取 `GET /session` 和 `GET /session/status` 并映射 `ProviderSession`、session model 映射、provider-agnostic `syncProviderSessions()` 本地索引同步、tombstone 保留、workspace 冲突记录、完整 provider 列表下的 `missing_in_provider` 标记。
+- 当前第一个未完成项：Phase 4.4 Session 创建与恢复；不要提前进入 CLI MVP 或 TUI。
+- 当前工作区预期：本次阶段提交后应保持干净；下次启动必须先运行 `git status --short` 和 `git log -1 --oneline` 复核最新提交。若最新提交是后续文档同步提交，应继续以本次 Phase 4.3 阶段实现提交作为最近阶段实现基线。
 
 ### 阶段总览
 
@@ -31,7 +31,7 @@
 | Phase 1 | 已完成 | TypeScript 工程骨架、基础脚本、CLI help/version 占位入口已完成。 |
 | Phase 2 | 已完成 | 核心类型、Provider Registry、配置、日志脱敏、SQLite 存储和 Gate 2 已完成。 |
 | Phase 3 | 已完成 | OpenCode runtime binary、registry、managed/attached、event stream、diagnostics 和 Gate 3 已完成。 |
-| Phase 4 | 进行中 | Phase 4.1 OpenCodeProvider Health/Capability 和 Phase 4.2 Model/Provider 列表已完成；下一个任务：Session 同步。 |
+| Phase 4 | 进行中 | Phase 4.1 OpenCodeProvider Health/Capability、Phase 4.2 Model/Provider 列表和 Phase 4.3 Session 同步已完成；下一个任务：Session 创建与恢复。 |
 | Phase 5 | 未完成 | CLI MVP 尚未实现。 |
 | Phase 6 | 未完成 | TUI MVP 尚未实现。 |
 | Phase 7 | 未完成 | 安全、信任与可观测性尚未实现。 |
@@ -65,10 +65,10 @@
 - [x] Gate 3 已通过：OpenCode runtime 可启动、连接、诊断、停止，且生命周期安全。
 - [x] 完成 Phase 4.1 OpenCodeProvider Health 与 Capability provider-layer，包含 `healthCheck`、`getCapabilities`、binary/runtime server API/SSE/SDK 探测、OpenCode version 返回、endpoint metadata 保留和未实现操作 capability 保守关闭。
 - [x] 完成 Phase 4.2 Model 与 Provider 列表，包含 `OpenCodeProvider.listModels()`、`GET /provider` 读取、OpenCode provider/model 到 `ModelRef` 的映射、provider-specific metadata 白名单保留、未认证和无模型状态处理。
+- [x] 完成 Phase 4.3 Session 同步，包含 `OpenCodeProvider.listSessions()`、`GET /session` 和 `GET /session/status` 读取、OpenCode session 到 `ProviderSession` 的映射、session model 映射、provider-specific metadata 白名单保留、未认证和异常响应处理、provider-agnostic `syncProviderSessions()` 本地索引同步、tombstone 保留、workspace 冲突记录、完整列表下的 `missing_in_provider` 标记。
 
 ### 未完成
 
-- [ ] Phase 4.3：Session 同步尚未实现。
 - [ ] Phase 4.4：Session 创建与恢复尚未实现。
 - [ ] Phase 4.5：Message 发送与事件映射尚未实现。
 - [ ] Phase 4.6：Session 操作尚未实现。
@@ -86,7 +86,7 @@
 
 1. 先阅读 `tasks/lessons.md`，确认项目规则和长期习惯。
 2. 阅读本文档，定位第一个未完成任务。
-3. 从 Phase 4.3 Session 同步继续；不要提前实现 CLI MVP 或 TUI。
+3. 从 Phase 4.4 Session 创建与恢复继续；不要提前实现 CLI MVP 或 TUI。
 4. 复用 Phase 2.1 已建立的 `AgentProvider`、capability schema、metadata escape hatch 和稳定错误码。
 5. 继续保持 AgentProxy 的薄代理和控制面定位，不复制 OpenCode agent runtime 内部逻辑。
 6. 完成阶段后运行验证命令，更新本文档，创建详细中文 commit。
@@ -99,11 +99,11 @@
 再阅读 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/development-progress-tracker.zh.md
 和 /Users/zq/Desktop/ai-projs/posp/template/AgentProxy/docs/agentproxy-development-plan.md。
 
-当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组、Phase 2.5 SQLite 存储含破坏性 migration 备份机制、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime、Phase 3.4 Attached Runtime、Phase 3.5 Event Stream、Phase 3 runtime 诊断和 Gate 3 汇总验证、Phase 4.1 OpenCodeProvider Health 与 Capability provider-layer、Phase 4.2 Model 与 Provider 列表已完成并验证；Gate 2 和 Gate 3 已通过，Gate 4 尚未通过。最新 Phase 4 阶段实现提交是 `4473dbd 阶段进展：完成 Phase 4.2 Model 与 Provider 列表`。如果 `git log -1 --oneline` 显示的是后续文档同步提交，请继续以 `4473dbd` 作为最近阶段实现基线。下一步从 Phase 4.3 Session 同步开始；不要提前进入 CLI MVP 或 TUI。
+当前项目状态是：Phase 0.2 实施前技术决策、Phase 1 TypeScript 工程骨架、Phase 2.1 核心领域类型和稳定错误码、Phase 2.2 Provider Registry、Phase 2.3 配置系统第一组、Phase 2.4 日志与脱敏第一组、Phase 2.5 SQLite 存储含破坏性 migration 备份机制、Phase 3.1 OpenCode Binary 探测、Phase 3.2 Runtime Registry、Phase 3.3 Managed Runtime、Phase 3.4 Attached Runtime、Phase 3.5 Event Stream、Phase 3 runtime 诊断和 Gate 3 汇总验证、Phase 4.1 OpenCodeProvider Health 与 Capability provider-layer、Phase 4.2 Model 与 Provider 列表、Phase 4.3 Session 同步已完成并验证；Gate 2 和 Gate 3 已通过，Gate 4 尚未通过。最新 Phase 4 阶段实现提交是本次 `阶段进展：完成 Phase 4.3 Session 同步`。如果 `git log -1 --oneline` 显示的是后续文档同步提交，请继续以本次 Phase 4.3 阶段实现提交作为最近阶段实现基线。下一步从 Phase 4.4 Session 创建与恢复开始；不要提前进入 CLI MVP 或 TUI。
 请先运行 `git status --short` 和 `git log -1 --oneline` 核对最新提交与工作区状态。
 
 请严格按照 docs/development-progress-tracker.zh.md 继续迭代，从第一个未完成项开始：
-Phase 4.3 Session 同步。Phase 3 已完成 OpenCode runtime binary 探测、registry、managed/attached runtime、event stream、runtime 诊断和 Gate 3 汇总验证；Phase 4.1 已完成 provider-layer health/capability 探测；Phase 4.2 已完成 Model 与 Provider 列表；下一步不要实现 CLI MVP 或 TUI。
+Phase 4.4 Session 创建与恢复。Phase 3 已完成 OpenCode runtime binary 探测、registry、managed/attached runtime、event stream、runtime 诊断和 Gate 3 汇总验证；Phase 4.1 已完成 provider-layer health/capability 探测；Phase 4.2 已完成 Model 与 Provider 列表；Phase 4.3 已完成 Session 同步；下一步不要实现 CLI MVP 或 TUI。
 
 要求：
 1. 不要重新规划已完成的架构方案，除非发现真实设计缺口。
@@ -114,7 +114,7 @@ Phase 4.3 Session 同步。Phase 3 已完成 OpenCode runtime binary 探测、re
 6. 每完成一个阶段任务后，运行适用验证命令，并使用详细中文 commit 信息提交一次。
 7. AgentProxy 必须保持薄代理和控制面定位，v1 只接入 OpenCode，不重写 Agent runtime。
 8. 重启会话后先复习 `tasks/lessons.md`，并自动延续阶段提交习惯，不需要用户再次提醒。
-9. Phase 2.4、Phase 2.5、Phase 3.1、Phase 3.2、Phase 3.3、Phase 3.4、Phase 3.5、Phase 3 runtime 诊断/Gate 3、Phase 4.1 provider-layer health/capability 和 Phase 4.2 Model/Provider 列表已完成，不要回退或扩展它们；下一步只处理 Phase 4.3 Session 同步，不要实现 CLI MVP 或 TUI。
+9. Phase 2.4、Phase 2.5、Phase 3.1、Phase 3.2、Phase 3.3、Phase 3.4、Phase 3.5、Phase 3 runtime 诊断/Gate 3、Phase 4.1 provider-layer health/capability、Phase 4.2 Model/Provider 列表和 Phase 4.3 Session 同步已完成，不要回退或扩展它们；下一步只处理 Phase 4.4 Session 创建与恢复，不要实现 CLI MVP 或 TUI。
 ```
 
 ## 1. 使用规则
@@ -481,17 +481,17 @@ Phase 4.3 Session 同步。Phase 3 已完成 OpenCode runtime binary 探测、re
 
 ### 7.3 Session 同步
 
-- [ ] 实现 `listSessions`。
-- [ ] provider 有、本地没有时导入索引。
-- [ ] 本地有、provider 没有时标记 `missing_in_provider`。
-- [ ] 保留 tombstone。
-- [ ] 默认按更新时间倒序。
-- [ ] 支持 workspace 过滤。
+- [x] 实现 `listSessions`。
+- [x] provider 有、本地没有时导入索引。
+- [x] 本地有、provider 没有时在完整 provider 列表同步下标记 `missing_in_provider`。
+- [x] 保留 tombstone。
+- [x] 默认按更新时间倒序。
+- [x] 支持 workspace 过滤。
 
 验收标准：
 
-- [ ] 同步遵循 source-of-truth 规则。
-- [ ] tombstone session 不会被误导入。
+- [x] 同步遵循 source-of-truth 规则。
+- [x] tombstone session 不会被误导入。
 
 ### 7.4 Session 创建与恢复
 
@@ -1044,3 +1044,4 @@ Phase 4.3 Session 同步。Phase 3 已完成 OpenCode runtime binary 探测、re
 - 2026-05-20：同步 Phase 4.1 完成后的最新开发状态；明确当前启动基线和最新阶段实现提交为 `9b33178 阶段进展：完成 Phase 4.1 OpenCodeProvider Health 与 Capability`，最新文档同步提交为 `f81c4fc 文档：同步 Phase 4.1 完成状态与下次启动提示`，Gate 4 尚未通过，第一个未完成项为 Phase 4.2 Model 与 Provider 列表；若后续最新提交是文档同步提交，应继续以 `9b33178` 作为最近阶段实现基线。
 - 2026-05-20：完成 Phase 4.2 Model 与 Provider 列表；新增 `src/providers/opencode/models.ts` 并扩展 `src/providers/opencode/index.ts`，实现 `OpenCodeProvider.listModels()`：通过只读 `GET /provider` 获取 OpenCode provider/model 数据，映射为稳定 `ModelRef`，使用 `provider/model` 形式保留模型 ID，设置 displayName、family、contextWindowTokens，并在 `metadata.opencode` 中白名单保留 provider API/npm/env 名称、connected/default 状态、模型 release/status/capability/cost/limit/modalities/provider 信息。新增 `tests/opencode-provider-models.test.ts`，覆盖健康 fake `/provider` 映射、从 context metadata 读取 runtime base URL、空模型返回空数组、缺 runtime base URL、带 credentials/query 的 runtime URL 拒绝且不泄漏、401 未认证映射 `PERMISSION_DENIED`、畸形响应映射 `PROVIDER_UNAVAILABLE` 且不泄漏 raw payload、hanging body timeout。代码审查后修复 OpenCode 当前 schema 中 provider 字段为 `api` 而非 `source`、`limit.context/output` 未收窄可能携带异常 secret 对象的问题，并明确丢弃 `options`/`headers` 原始字段。验证命令：`pnpm exec vitest run tests/opencode-provider-models.test.ts tests/opencode-provider-health.test.ts tests/provider-registry.test.ts`、`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`、`git diff --check`，结果均通过。Gate 4 尚未通过；本阶段未实现 session sync、session create/resume、message sending、passthrough、CLI provider list/doctor 或 TUI。未解决风险：真实 OpenCode `/provider` 响应仍需后续 smoke 校准；当前实现只做 provider-layer 模型列表，不保存 model selection。
 - 2026-05-20：同步 Phase 4.2 完成后的最新开发状态和下次启动提示词；明确最新阶段实现提交为 `4473dbd 阶段进展：完成 Phase 4.2 Model 与 Provider 列表`，Gate 4 尚未通过，第一个未完成项为 Phase 4.3 Session 同步；若后续最新提交是文档同步提交，应继续以 `4473dbd` 作为最近阶段实现基线。
+- 2026-05-20：完成 Phase 4.3 Session 同步；新增 `src/providers/opencode/sessions.ts` 并扩展 `src/providers/opencode/index.ts`，实现 `OpenCodeProvider.listSessions()`：通过只读 `GET /session` 获取 OpenCode session 列表，best-effort 读取 `GET /session/status`，映射为稳定 `ProviderSession`，保留 provider session id、workspace、title、status、createdAt/updatedAt/lastRunAt、parentProviderSessionId 和 `provider/model` 形式 model selection，并在 `metadata.opencode` 中白名单保留 projectId、directory、version、model、shared、compactingAt 和 status type；新增 `src/sessions/sync.ts`，实现 provider-agnostic `syncProviderSessions()`，支持导入本地没有的 provider session、按全局 `(providerId, providerSessionId)` 更新既有索引、保留本地 workspace 与 tombstone、记录 provider workspace 冲突、默认跳过 partial list 的 missing pass，并在 `missingDetection: "completeProviderList"` 显式开启时标记 `missing_in_provider`。新增 `tests/opencode-provider-sessions.test.ts` 和 `tests/session-sync.test.ts`，并扩展 provider health 测试，覆盖 session 映射、状态映射、workspace query、认证/缺 runtime/异常响应错误码、transcript/summary/secret 不持久化、tombstone 不复活、workspace 过滤、跨 workspace 唯一键匹配、GET `/session` 405 不误报 capability。代码审查后修复 partial provider list 误标 missing、跨 workspace 唯一约束冲突、405 capability 误报、session model 未映射和 summary 持久化问题，并将规则写入 `tasks/lessons.md`。验证命令：`pnpm exec vitest run tests/opencode-provider-sessions.test.ts tests/session-sync.test.ts tests/opencode-provider-health.test.ts`、`pnpm run typecheck`、`pnpm run test`、`pnpm run lint`、`pnpm run format:check`、`pnpm run build`、`git diff --check`，结果均通过。Gate 4 尚未通过；本阶段未实现 session create/resume、message sending、session operations、passthrough、CLI provider list/doctor 或 TUI。未解决风险：真实 OpenCode `/session` 响应仍需后续 smoke 校准；同步写入目前不是单事务批量写入，后续大列表或失败恢复可再增强。
