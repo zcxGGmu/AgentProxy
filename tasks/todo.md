@@ -11,6 +11,58 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Phase 3 Runtime Diagnostics / Gate 3
+
+Scope: advance only OpenCode runtime diagnostics and Gate 3 aggregation from the Chinese progress tracker.
+
+Implementation checklist:
+
+- [x] Add focused tests for runtime diagnostic checks covering OpenCode binary probing, runtime registry summary, health endpoint, event stream endpoint, and managed start/stop smoke behavior.
+- [x] Implement a small runtime-layer OpenCode diagnostic service that future `doctor` can reuse without implementing the CLI command in this phase.
+- [x] Prove diagnostic details are sanitized and do not leak URL credentials, query secrets, or raw provider internals.
+- [x] Prove Gate 3 can be summarized from Phase 3.1-3.5 capabilities: start, attach/connect, event stream, diagnose, and stop.
+- [x] Keep the implementation limited to runtime lifecycle diagnostics; do not implement OpenCodeProvider session behavior, CLI MVP, `agentproxy doctor`, or TUI.
+- [x] Update the Chinese progress tracker and record verification evidence.
+- [x] Run verification and create a detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Reuse Phase 3.1 `probeOpenCodeBinary()` for binary/version diagnostics.
+- Reuse Phase 3.2 `RuntimeRegistry` and SQLite-backed runtime records for registry summaries.
+- Reuse Phase 3.3 `OpenCodeManagedRuntimeManager` for explicit managed smoke start/stop verification.
+- Reuse Phase 3.4 attached runtime health semantics and `/global/health` as the runtime health boundary.
+- Reuse Phase 3.5 `/event` as the event stream endpoint check; do not parse OpenCode internal runtime state.
+- Reuse existing redaction helpers for diagnostic details.
+
+Acceptance criteria for this iteration:
+
+- [x] Diagnostics return a structured report with per-check status and summary counts.
+- [x] Missing or invalid OpenCode binary diagnostics report a failed check without throwing to callers.
+- [x] A healthy runtime registry record plus fake OpenCode HTTP server produces passing health and event stream checks.
+- [x] Managed smoke diagnostics can start a fake `opencode serve`, verify health/event stream, then stop the owned process.
+- [x] Failed checks include stable error codes and sanitized details.
+- [x] Gate 3 summary reports pass only when binary, registry, health/connect, event stream, and managed stop checks are healthy.
+- [x] `pnpm exec vitest run tests/opencode-runtime-diagnostics.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, and `pnpm run build` pass.
+- [x] Chinese progress tracker marks the Phase 3 runtime diagnostics / Gate 3 group done and records Review notes.
+- [x] A detailed Chinese commit is created after verification.
+
+Risks and constraints:
+
+- This is not the full `agentproxy doctor` CLI; it is a runtime-layer diagnostic primitive for future CLI/TUI use.
+- Managed smoke diagnostics are intentionally explicit because they start and stop a child process.
+- Event stream diagnostics should only prove the endpoint is reachable and SSE-like; production payload calibration remains a later real OpenCode smoke task.
+- Diagnostic output must avoid raw URL query strings, credentials, auth headers, and full event payloads.
+- Do not implement OpenCodeProvider core session/model/message APIs, CLI MVP, TUI, or passthrough in this iteration.
+
+Review notes:
+
+- 2026-05-20: Added `src/runtimes/diagnostics.ts`, exported it from `src/runtimes/index.ts`, and added `tests/opencode-runtime-diagnostics.test.ts`.
+- Implemented runtime-layer `OpenCodeRuntimeDiagnostics` for future doctor/CLI/TUI reuse without implementing the `agentproxy doctor` command. The report contains per-check status, summary counts, sanitized details, and a Gate 3 capability summary.
+- Covered binary probe failure as a failed check without throwing, registry summaries, registered runtime `/global/health`, `/event` reachability, URL credential/query sanitization, and explicit managed smoke start/health/event/stop proving Gate 3 can pass.
+- Code review fixes: extended request timeout/abort coverage through health response body parsing, added `finally` cleanup for managed smoke children, made explicit runtime IDs without `baseUrl` fail instead of skip, tightened SSE media type matching, made response body cancel best-effort, and sanitized diagnostic messages.
+- Verification passed: `pnpm exec vitest run tests/opencode-runtime-diagnostics.test.ts`, `pnpm exec vitest run tests/opencode-binary.test.ts tests/runtime-registry.test.ts tests/opencode-managed-runtime.test.ts tests/opencode-attached-runtime.test.ts tests/opencode-event-stream.test.ts tests/opencode-runtime-diagnostics.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`.
+- Remaining risk: this is a runtime-layer diagnostic primitive, not the full `agentproxy doctor` CLI. A later real OpenCode smoke test should still calibrate production `/global/health` and `/event` behavior before release.
+
 ## Current Iteration - 2026-05-20 Phase 3.5
 
 Scope: advance only OpenCode runtime event stream handling from the Chinese progress tracker.

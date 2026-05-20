@@ -32,3 +32,6 @@
 - Attached runtime 连接也必须像 managed 启动一样做 runtimeId reservation，并且只允许 revalidate 同一个 registry attached 候选，避免覆盖 active managed runtime 或并发写乱 ownership metadata。
 - OpenCode SSE 中 `/event` 是实例事件流，`/global/event` 是全局包装事件流；AgentProxy 事件流应放在 runtime 层，保守映射已知事件、保留未知 `provider.raw_event`，不要提前塞进 OpenCodeProvider 核心 session API。
 - Event stream 状态写回必须绑定 runtime generation（如 startedAt/baseUrl/mode）并在消费者提前 `return()` 时 cancel SSE reader，避免复活已 stopped/detached runtime 或泄漏长连接。
+- 更新 `tasks/todo.md` 当前迭代计划时必须保留历史迭代记录，只在顶部插入或更新当前小节，不能整文件替换成当前任务。
+- runtime 诊断应先做成可复用服务层，再由未来 CLI/TUI doctor 包装；Gate 验证可以复用服务层证明 start/connect/event/stop 闭环，不要为了诊断提前实现 CLI MVP。
+- runtime 诊断里的 timeout 必须覆盖 response body 读取，SSE 检查要精确匹配 media type，并用 best-effort cleanup，避免诊断挂住或让清理错误覆盖稳定错误码。

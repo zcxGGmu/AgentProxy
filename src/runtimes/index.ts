@@ -13,6 +13,21 @@ export type {
   StopOpenCodeAttachedRuntimeInput,
 } from "./attached.js";
 export {
+  OPENCODE_RUNTIME_DIAGNOSTIC_CHECK_IDS,
+  OpenCodeRuntimeDiagnostics,
+} from "./diagnostics.js";
+export type {
+  OpenCodeGate3Capabilities,
+  OpenCodeGate3Summary,
+  OpenCodeRuntimeDiagnosticCheck,
+  OpenCodeRuntimeDiagnosticCheckId,
+  OpenCodeRuntimeDiagnosticCounts,
+  OpenCodeRuntimeDiagnosticReport,
+  OpenCodeRuntimeDiagnosticStatus,
+  OpenCodeRuntimeDiagnosticsOptions,
+  RunOpenCodeRuntimeDiagnosticsInput,
+} from "./diagnostics.js";
+export {
   OPENCODE_EVENT_STREAM_METADATA_KEY,
   OPENCODE_EVENT_STREAM_PATH,
   OPENCODE_GLOBAL_EVENT_STREAM_PATH,
