@@ -12,7 +12,7 @@
 ### 当前阶段
 
 - 当前处于：Phase 4.7 Provider Passthrough 已完成实现和验证；Gate 4 未通过，下一步继续 Gate 4 汇总验证。
-- 最近已记录文档同步提交：本次文档同步提交；若 `git log -1 --oneline` 显示更新的文档同步提交，以实际输出为准。
+- 最近已记录文档同步提交：以 `git log -1 --oneline` 的最新文档同步提交为准；若最新提交是文档同步提交，阶段实现基线仍为 `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`。
 - 最新 Phase 4 阶段实现提交：`afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`。
 - 当前启动基线：`afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`。
 - 最新阶段实现提交：`afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`。
