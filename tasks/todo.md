@@ -11,6 +11,43 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-20 Documentation Sync After Phase 4.6
+
+Scope: update only project tracking documents after `a018f82 阶段进展：完成 Phase 4.6 Session 操作`. Do not implement Phase 4.7, provider passthrough, CLI MVP, TUI, or runtime/provider behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit.
+- [x] Update `docs/development-progress-tracker.zh.md` so the latest implementation baseline, completed items, unfinished items, and next startup prompt all point to Phase 4.6 as complete and Phase 4.7 as next.
+- [x] Record this documentation-only update in tracker Review notes.
+- [x] Run documentation-appropriate verification and create a detailed Chinese documentation commit.
+
+Dependencies confirmed before implementation:
+
+- The latest implementation commit is `a018f82 阶段进展：完成 Phase 4.6 Session 操作`.
+- Phase 4.6 implementation and verification evidence already exists in the tracker Review; this task only replaces placeholder baseline text with the concrete commit and clarifies the next-start instructions.
+- `docs/agentproxy-development-plan.md` remains the source plan and does not need architecture changes for this documentation sync.
+
+Acceptance criteria for this iteration:
+
+- [x] `git status --short` and `git log -1 --oneline` are checked and reflected in this documentation pass.
+- [x] The Chinese progress tracker clearly states completed phases through Phase 4.6, unfinished work starting at Phase 4.7, and Gate 4 still pending.
+- [x] The next-start prompt includes the concrete Phase 4.6 implementation commit and instructs the next Codex session to start at Phase 4.7 only.
+- [x] The final answer gives the user a ready-to-send prompt.
+
+Risks and constraints:
+
+- Do not treat this documentation sync as a Phase 4.7 start.
+- Do not change source code, tests, provider behavior, CLI MVP, TUI, passthrough, or completed implementation.
+- If this documentation update is committed, the next startup prompt must distinguish the documentation commit from the latest implementation baseline.
+
+Review notes:
+
+- 2026-05-20: Confirmed initial `git status --short` was clean and `git log -1 --oneline` was `a018f82 阶段进展：完成 Phase 4.6 Session 操作`.
+- Updated `docs/development-progress-tracker.zh.md` latest implementation commit, startup baseline, unfinished item summary, Review entry, and next-start prompt to use Phase 4.6 as complete and Phase 4.7 as the first unfinished task.
+- Verification passed: `git diff --check` and `pnpm run format:check`.
+- This is documentation-only; no source code, tests, provider behavior, CLI MVP, TUI, passthrough, or Phase 4.7 work is changed.
+
 ## Current Iteration - 2026-05-20 Phase 4.6 Session Operations
 
 Scope: advance only Phase 4.6 session operation provider/service layer. Do not implement CLI MVP commands, TUI, provider passthrough, permission approval flows, diff/revert/todo operations, or a new Agent runtime.
