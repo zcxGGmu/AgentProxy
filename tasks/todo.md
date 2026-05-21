@@ -11,6 +11,50 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Phase 5 Sessions List CLI Minimal Workflow
+
+Scope: advance only the Phase 5 `agentproxy sessions list` read-only CLI task group. This workflow reads AgentProxy's local SQLite session index and prints a sanitized session inventory for the selected provider/workspace. Do not implement `sessions show`, `sessions resume`, `sessions abort`, `sessions delete`, `sessions export`, `sessions import`, `sessions share`, `sessions unshare`, `runtime stop`, `config`, Phase 6 AgentProxy TUI, provider transcript display, or new Agent runtime behavior.
+
+Implementation checklist:
+
+- [x] Add focused CLI tests for `sessions list` human/JSON output, missing registry DB behavior, provider/workspace filtering, tombstone exclusion by default, disabled/invalid provider behavior, terminal/control-character safety, and later-command placeholder boundaries.
+- [x] Implement a narrow `src/cli/sessions.ts` action/service layer that resolves config and opens SQLite readonly only when the session registry DB exists.
+- [x] Wire only `agentproxy sessions list` from planned placeholder to a real action; keep the rest of `sessions`, `runtime stop`, `config`, session-aware `chat`, and Phase 6 TUI untouched.
+- [x] Keep JSON output transcript-free and provider-payload-safe by emitting only stable session index fields and sanitized metadata-free summaries.
+- [x] Update `docs/development-progress-tracker.zh.md` completed/unfinished status and Review notes after verification.
+- [x] Run focused sessions CLI tests, related CLI/session tests, full applicable project verification, code review, and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean; `git log -1 --oneline` is `65cfdb8 文档：同步 Phase 5 Runtime List 后续开发状态`, so the latest Phase 5 implementation baseline remains `3fc5b34 阶段进展：完成 Phase 5 Runtime List CLI`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Phase 2.5 already provides SQLite `sessions` storage, tombstone retention, and `SessionRepository.list()`.
+- Phase 4.3 through Phase 4.6 already provide provider session sync and operations; this iteration should expose the local index and not reimplement provider runtime internals.
+- Phase 5.1 already provides shared Commander parsing, global flags, stdout/stderr split, JSON error output, and stable exit-code mapping.
+- Phase 5 `providers list/inspect` and `runtime list` already established the read-only SQLite pattern: do not create or migrate the DB for read-only visibility commands when the DB is absent.
+
+Acceptance criteria for this iteration:
+
+- [x] `agentproxy sessions list` is a real command and no longer returns the generic planned `CAPABILITY_UNSUPPORTED` placeholder.
+- [x] When the AgentProxy SQLite registry DB is absent, `sessions list` succeeds with an empty list and does not create the DB or parent data directory.
+- [x] Existing non-tombstoned sessions are listed for the selected provider/workspace by default, sorted by `updatedAt` descending with stable tie-breaking inherited from storage.
+- [x] `sessions list --json` emits exactly one valid redacted JSON object on stdout, with no human prose mixed in.
+- [x] Human output is terminal-control-character safe and does not print raw metadata blobs, transcripts, provider event payloads, URL credentials, query strings, headers, secrets, or provider-controlled control characters.
+- [x] Non-OpenCode provider selection maps to `PROVIDER_NOT_FOUND`; disabled OpenCode config maps to `PROVIDER_UNAVAILABLE`.
+- [x] `sessions show/resume/abort/delete/export/import/share/unshare`, `runtime stop`, `config`, `chat --session`, and Phase 6 AgentProxy TUI remain unimplemented or explicitly unsupported.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
+Risks and constraints:
+
+- Do not sync from provider or contact OpenCode runtime in this read-only list command; provider sync requires a separate compatibility and partial-list design pass.
+- Do not create migrations or schema fields; reuse existing session registry records.
+- Do not display complete messages or provider raw payloads; AgentProxy remains a thin control plane and local index.
+- Avoid treating tombstoned local mappings as active sessions unless a later explicit flag is designed.
+
+Review notes:
+
+- 2026-05-21: Completed the Phase 5 `sessions list` read-only CLI minimal workflow. Added `src/cli/sessions.ts`, wired only `agentproxy sessions list` in `src/cli/index.ts`, added `tests/cli-sessions.test.ts`, and updated stale placeholder tests in help/run/runtime CLI suites to keep `sessions show`, `runtime stop`, and `config` as planned boundaries. The command resolves config, opens existing SQLite session registry DBs with `readonly: true`, `migrate: false`, and `fileMustExist: true`, returns an empty list without creating the DB or parent data directory when absent, excludes tombstones by default, and emits only sanitized stable session index fields without metadata, transcripts, or raw provider payloads. Code review found documentation/todo tracking warnings only; both were fixed before commit. Verification passed: `pnpm exec vitest run tests/cli-sessions.test.ts tests/cli-help.test.ts tests/cli-runtime.test.ts tests/cli-run.test.ts`, `pnpm exec vitest run tests/cli-sessions.test.ts tests/cli-help.test.ts tests/cli-runtime.test.ts tests/cli-run.test.ts tests/cli-chat.test.ts tests/cli-providers.test.ts tests/session-sync.test.ts tests/session-actions.test.ts tests/storage-sqlite.test.ts`, `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run test` (29 files, 219 tests), `pnpm run build`, and `git diff --check`. Residual risk: `sessions list` only shows the local AgentProxy index and does not sync live provider sessions; `sessions show/resume/abort/delete/export/import/share/unshare`, `runtime stop`, `config`, `chat --session`, and Phase 6 AgentProxy TUI remain intentionally unimplemented.
+
 ## Current Iteration - 2026-05-21 Documentation Sync After Phase 5 Runtime List CLI
 
 Scope: update tracking documents after `3fc5b34 阶段进展：完成 Phase 5 Runtime List CLI`. This is a documentation-only synchronization so the next Codex session can continue from the correct first unfinished Phase 5 CLI MVP task group. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.

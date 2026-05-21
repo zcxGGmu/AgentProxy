@@ -5,7 +5,6 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createProgram } from "../src/cli/index.js";
 import { createOutputWriters } from "../src/logging/index.js";
-import { RuntimeRegistry } from "../src/runtimes/index.js";
 import { openAgentProxyStorage } from "../src/storage/index.js";
 
 const tempRoots: string[] = [];
@@ -37,7 +36,7 @@ function createMemorySink(): MemorySink {
 }
 
 async function createTestWorkspace(input: { enabled?: boolean } = {}): Promise<TestWorkspace> {
-  const root = await mkdtemp(path.join(tmpdir(), "agentproxy-cli-runtime-test-"));
+  const root = await mkdtemp(path.join(tmpdir(), "agentproxy-cli-sessions-test-"));
   tempRoots.push(root);
   const workspacePath = path.join(root, "workspace");
   const otherWorkspacePath = path.join(root, "other-workspace");
@@ -109,58 +108,78 @@ async function runCli(input: {
   }
 }
 
-function seedRuntimeRegistry(workspace: TestWorkspace): void {
+function seedSessionRegistry(workspace: TestWorkspace): void {
   const storage = openAgentProxyStorage({ databasePath: workspace.storagePath });
   try {
-    const registry = new RuntimeRegistry({
-      storage,
-      now: () => new Date("2026-05-21T07:00:00.000Z"),
-    });
-    registry.register({
-      id: "runtime_other_workspace",
+    storage.sessions.upsert({
+      id: "apx_other_workspace",
       providerId: "opencode",
-      mode: "managed",
-      status: "healthy",
-      baseUrl: "http://127.0.0.1:4999",
+      providerSessionId: "ses_other_workspace",
       workspacePath: workspace.otherWorkspacePath,
-      startedAt: "2026-05-21T06:40:00.000Z",
+      title: "Other workspace",
+      status: "completed",
+      createdAt: "2026-05-21T05:00:00.000Z",
+      updatedAt: "2026-05-21T08:30:00.000Z",
+      metadata: {},
     });
-    registry.register({
-      id: "runtime_other_provider",
+    storage.sessions.upsert({
+      id: "apx_other_provider",
       providerId: "mock",
-      mode: "managed",
-      status: "healthy",
-      baseUrl: "http://127.0.0.1:5999",
+      providerSessionId: "ses_other_provider",
       workspacePath: workspace.workspacePath,
-      startedAt: "2026-05-21T06:45:00.000Z",
+      title: "Other provider",
+      status: "completed",
+      createdAt: "2026-05-21T05:00:00.000Z",
+      updatedAt: "2026-05-21T08:00:00.000Z",
+      metadata: {},
     });
-    registry.register({
-      id: "runtime_attached",
+    storage.sessions.upsert({
+      id: "apx_deleted",
       providerId: "opencode",
-      mode: "attached",
-      status: "attached",
-      baseUrl: "http://user:token-secret@127.0.0.1:7777/path?api_key=sk-url-secret#frag",
-      hostname: "127.0.0.1",
-      port: 7777,
-      pid: 2222,
+      providerSessionId: "ses_deleted",
       workspacePath: workspace.workspacePath,
-      startedAt: "2026-05-21T06:50:00.000Z",
+      title: "Deleted token=deleted-secret",
+      status: "idle",
+      createdAt: "2026-05-21T05:00:00.000Z",
+      updatedAt: "2026-05-21T09:00:00.000Z",
+      deletedAt: "2026-05-21T09:10:00.000Z",
+      tombstoneReason: "provider_deleted",
       metadata: {
-        authorization: "Bearer sk-runtime-secret",
-        display: "\u001B[31mowned token=runtime-secret\u001B[0m",
+        secret: "deleted-metadata-secret",
       },
     });
-    registry.register({
-      id: "\u001B[31mruntime-token=runtime-id-secret\u001B[0m",
+    storage.sessions.upsert({
+      id: "apx_recent",
       providerId: "opencode",
-      mode: "managed",
-      status: "healthy",
-      baseUrl: "http://127.0.0.1:8888",
-      hostname: "127.0.0.1",
-      port: 8888,
-      pid: 3333,
+      providerSessionId: "ses_recent_token=provider-secret",
       workspacePath: workspace.workspacePath,
-      startedAt: "2026-05-21T06:55:00.000Z",
+      title: "\u001B[31mLatest token=title-secret\u001B[0m",
+      status: "running",
+      model: "anthropic/claude-sonnet-4-5",
+      runtimeId: "runtime_1",
+      parentSessionId: "apx_parent",
+      createdAt: "2026-05-21T06:00:00.000Z",
+      updatedAt: "2026-05-21T07:30:00.000Z",
+      lastRunAt: "2026-05-21T07:35:00.000Z",
+      lastSyncAt: "2026-05-21T07:36:00.000Z",
+      lastError: "Authorization: Bearer sk-last-error-secret",
+      metadata: {
+        authorization: "Bearer sk-session-metadata-secret",
+        transcript: "do not print provider transcript",
+      },
+    });
+    storage.sessions.upsert({
+      id: "apx_older",
+      providerId: "opencode",
+      providerSessionId: "ses_older",
+      workspacePath: workspace.workspacePath,
+      title: "Older session",
+      status: "completed",
+      model: "openai/gpt-5",
+      createdAt: "2026-05-21T05:30:00.000Z",
+      updatedAt: "2026-05-21T06:30:00.000Z",
+      lastRunAt: "2026-05-21T06:45:00.000Z",
+      metadata: {},
     });
   } finally {
     storage.close();
@@ -171,14 +190,14 @@ afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
-describe("agentproxy runtime CLI", () => {
-  it("prints one JSON runtime list report without the planned placeholder", async () => {
+describe("agentproxy sessions CLI", () => {
+  it("prints one JSON sessions list report without the planned placeholder", async () => {
     const workspace = await createTestWorkspace();
-    seedRuntimeRegistry(workspace);
+    seedSessionRegistry(workspace);
 
     const result = await runCli({
       workspace,
-      argv: ["runtime", "list", "--json", "--config", workspace.configPath],
+      argv: ["sessions", "list", "--json", "--config", workspace.configPath],
     });
 
     expect(result.exitCode).toBe(0);
@@ -193,60 +212,70 @@ describe("agentproxy runtime CLI", () => {
         storage: "readonly",
         databaseExists: true,
       },
-      runtimes: [
+      sessions: [
         {
+          id: "apx_recent",
           providerId: "opencode",
-          mode: "managed",
-          status: "healthy",
-          baseUrl: "http://127.0.0.1:8888",
-          pid: 3333,
+          providerSessionId: "ses_recent_token=[REDACTED]",
+          title: "Latest token=[REDACTED]",
+          status: "running",
+          model: "anthropic/claude-sonnet-4-5",
+          runtimeId: "runtime_1",
+          parentSessionId: "apx_parent",
+          lastError: "Authorization: [REDACTED]",
         },
         {
-          id: "runtime_attached",
+          id: "apx_older",
           providerId: "opencode",
-          mode: "attached",
-          status: "attached",
-          baseUrl: "http://127.0.0.1:7777/path",
-          pid: 2222,
+          providerSessionId: "ses_older",
+          title: "Older session",
+          status: "completed",
+          model: "openai/gpt-5",
         },
       ],
     });
-    expect(report.runtimes).toHaveLength(2);
-    expect(JSON.stringify(report)).not.toContain("runtime_other_workspace");
-    expect(JSON.stringify(report)).not.toContain("runtime_other_provider");
-    expect(JSON.stringify(report)).not.toContain("token-secret");
-    expect(JSON.stringify(report)).not.toContain("sk-url-secret");
-    expect(JSON.stringify(report)).not.toContain("runtime-secret");
+    expect(report.sessions).toHaveLength(2);
+    expect(JSON.stringify(report)).not.toContain("apx_other_workspace");
+    expect(JSON.stringify(report)).not.toContain("apx_other_provider");
+    expect(JSON.stringify(report)).not.toContain("apx_deleted");
+    expect(JSON.stringify(report)).not.toContain("provider-secret");
+    expect(JSON.stringify(report)).not.toContain("title-secret");
+    expect(JSON.stringify(report)).not.toContain("sk-last-error-secret");
+    expect(JSON.stringify(report)).not.toContain("sk-session-metadata-secret");
+    expect(JSON.stringify(report)).not.toContain("provider transcript");
     expect(JSON.stringify(report)).not.toContain("\u001B[31m");
   });
 
-  it("prints terminal-safe human runtime list output", async () => {
+  it("prints terminal-safe human sessions list output", async () => {
     const workspace = await createTestWorkspace();
-    seedRuntimeRegistry(workspace);
+    seedSessionRegistry(workspace);
 
     const result = await runCli({
       workspace,
-      argv: ["runtime", "list", "--config", workspace.configPath],
+      argv: ["sessions", "list", "--config", workspace.configPath],
     });
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
-    expect(result.stdout).toContain("AgentProxy runtimes: 2");
-    expect(result.stdout).toContain("runtime_attached");
-    expect(result.stdout).toContain("attached/attached");
-    expect(result.stdout).toContain("http://127.0.0.1:7777/path");
-    expect(result.stdout).not.toContain("token-secret");
-    expect(result.stdout).not.toContain("sk-url-secret");
-    expect(result.stdout).not.toContain("runtime-secret");
+    expect(result.stdout).toContain("AgentProxy sessions: 2");
+    expect(result.stdout).toContain("apx_recent");
+    expect(result.stdout).toContain("running");
+    expect(result.stdout).toContain("Latest token=[REDACTED]");
+    expect(result.stdout).toContain("ses_recent_token=[REDACTED]");
+    expect(result.stdout).not.toContain("apx_deleted");
+    expect(result.stdout).not.toContain("provider-secret");
+    expect(result.stdout).not.toContain("title-secret");
+    expect(result.stdout).not.toContain("sk-session-metadata-secret");
+    expect(result.stdout).not.toContain("provider transcript");
     expect(result.stdout).not.toContain("\u001B[31m");
   });
 
-  it("succeeds with an empty list when the registry database is absent", async () => {
+  it("succeeds with an empty list when the session registry database is absent", async () => {
     const workspace = await createTestWorkspace();
 
     const result = await runCli({
       workspace,
-      argv: ["runtime", "list", "--json", "--config", workspace.configPath],
+      argv: ["sessions", "list", "--json", "--config", workspace.configPath],
     });
 
     expect(result.exitCode).toBe(0);
@@ -259,7 +288,7 @@ describe("agentproxy runtime CLI", () => {
         storage: "absent",
         databaseExists: false,
       },
-      runtimes: [],
+      sessions: [],
     });
     expect(existsSync(workspace.storagePath)).toBe(false);
     expect(existsSync(path.dirname(workspace.storagePath))).toBe(false);
@@ -272,7 +301,7 @@ describe("agentproxy runtime CLI", () => {
     const missing = await runCli({
       workspace: enabledWorkspace,
       argv: [
-        "runtime",
+        "sessions",
         "list",
         "--provider",
         "missing-provider",
@@ -293,7 +322,7 @@ describe("agentproxy runtime CLI", () => {
     const missingHuman = await runCli({
       workspace: enabledWorkspace,
       argv: [
-        "runtime",
+        "sessions",
         "list",
         "--provider",
         "\u001B[31mmissing-token=provider-secret\u001B[0m",
@@ -309,7 +338,7 @@ describe("agentproxy runtime CLI", () => {
 
     const disabled = await runCli({
       workspace: disabledWorkspace,
-      argv: ["runtime", "list", "--json", "--config", disabledWorkspace.configPath],
+      argv: ["sessions", "list", "--json", "--config", disabledWorkspace.configPath],
     });
     expect(disabled.exitCode).toBe(4);
     expect(JSON.parse(disabled.stdout)).toMatchObject({
@@ -321,12 +350,19 @@ describe("agentproxy runtime CLI", () => {
     });
   });
 
-  it("leaves runtime stop, later session commands, and config as planned placeholders", async () => {
+  it("leaves later session commands, runtime stop, and config as planned placeholders", async () => {
     const workspace = await createTestWorkspace();
 
     for (const argv of [
-      ["runtime", "stop", "runtime_123", "--config", workspace.configPath],
       ["sessions", "show", "apx_123", "--config", workspace.configPath],
+      ["sessions", "resume", "apx_123", "--config", workspace.configPath],
+      ["sessions", "abort", "apx_123", "--config", workspace.configPath],
+      ["sessions", "delete", "apx_123", "--config", workspace.configPath],
+      ["sessions", "export", "apx_123", "--config", workspace.configPath],
+      ["sessions", "import", "session.json", "--config", workspace.configPath],
+      ["sessions", "share", "apx_123", "--config", workspace.configPath],
+      ["sessions", "unshare", "apx_123", "--config", workspace.configPath],
+      ["runtime", "stop", "runtime_123", "--config", workspace.configPath],
       ["config", "get", "--config", workspace.configPath],
     ]) {
       const result = await runCli({ workspace, argv });

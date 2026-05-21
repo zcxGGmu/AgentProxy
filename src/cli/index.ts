@@ -36,6 +36,7 @@ import {
   type AgentProxyRunEventSummary,
 } from "./run.js";
 import { formatRuntimeListHumanReport, listAgentProxyRuntimes } from "./runtime.js";
+import { formatSessionListHumanReport, listAgentProxySessions } from "./sessions.js";
 
 export const AGENTPROXY_VERSION = "0.1.0";
 
@@ -45,11 +46,12 @@ const implementedCoreWorkflows = [
   "agentproxy chat [--workspace .]",
   "agentproxy providers list|inspect",
   "agentproxy runtime list",
+  "agentproxy sessions list",
   "agentproxy provider exec <id> -- <native args>",
 ];
 
 const plannedCoreWorkflows = [
-  "agentproxy sessions list|show|resume|abort|delete|export|import|share|unshare",
+  "agentproxy sessions show|resume|abort|delete|export|import|share|unshare",
   "agentproxy runtime stop",
   "agentproxy config get|set",
 ];
@@ -156,7 +158,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
   sessions
     .command("list")
     .description("List known sessions.")
-    .action(plannedAction("sessions list", output));
+    .action(createSessionsListAction(output, options));
   sessions
     .command("show")
     .argument("<id>", "Session id.")
@@ -519,6 +521,33 @@ function createRuntimeListAction(
         output.writeJson(report);
       } else {
         output.writeResult(formatRuntimeListHumanReport(report));
+      }
+      process.exitCode = 0;
+    } catch (error) {
+      handleCliError(error, output, this);
+    }
+  };
+}
+
+function createSessionsListAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command) => Promise<void> {
+  return async function (this: Command) {
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const report = await listAgentProxySessions({
+        providerId: globalOptions.provider,
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(this),
+      });
+
+      if (globalOptions.json) {
+        output.writeJson(report);
+      } else {
+        output.writeResult(formatSessionListHumanReport(report));
       }
       process.exitCode = 0;
     } catch (error) {
