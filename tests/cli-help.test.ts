@@ -191,7 +191,7 @@ describe("agentproxy CLI placeholder", () => {
         "node",
         "agentproxy",
         "sessions",
-        "show",
+        "resume",
         "apx_123",
         "--json",
         "--provider",
@@ -222,12 +222,12 @@ describe("agentproxy CLI placeholder", () => {
     });
 
     try {
-      await program.parseAsync(["node", "agentproxy", "sessions", "show", "apx_123"]);
+      await program.parseAsync(["node", "agentproxy", "sessions", "resume", "apx_123"]);
 
       expect(process.exitCode).toBe(6);
       expect(stdout.chunks.join("")).toBe("");
       expect(stderr.chunks.join("")).toContain(
-        "CAPABILITY_UNSUPPORTED: agentproxy sessions show is planned",
+        "CAPABILITY_UNSUPPORTED: agentproxy sessions resume is planned",
       );
     } finally {
       process.exitCode = originalExitCode;

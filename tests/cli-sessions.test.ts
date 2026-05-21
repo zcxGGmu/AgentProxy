@@ -270,6 +270,76 @@ describe("agentproxy sessions CLI", () => {
     expect(result.stdout).not.toContain("\u001B[31m");
   });
 
+  it("prints one JSON sessions show report without the planned placeholder", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "show", "apx_recent", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("planned for a later phase");
+    const report = JSON.parse(result.stdout);
+    expect(report).toMatchObject({
+      ok: true,
+      providerId: "opencode",
+      workspacePath: workspace.workspacePath,
+      source: {
+        storage: "readonly",
+        databaseExists: true,
+      },
+      session: {
+        id: "apx_recent",
+        providerId: "opencode",
+        providerSessionId: "ses_recent_token=[REDACTED]",
+        workspacePath: workspace.workspacePath,
+        title: "Latest token=[REDACTED]",
+        status: "running",
+        model: "anthropic/claude-sonnet-4-5",
+        runtimeId: "runtime_1",
+        parentSessionId: "apx_parent",
+        createdAt: "2026-05-21T06:00:00.000Z",
+        updatedAt: "2026-05-21T07:30:00.000Z",
+        lastRunAt: "2026-05-21T07:35:00.000Z",
+        lastSyncAt: "2026-05-21T07:36:00.000Z",
+        lastError: "Authorization: [REDACTED]",
+        sourceOfTruth: "provider_content_agentproxy_index",
+      },
+    });
+    expect(JSON.stringify(report)).not.toContain("provider-secret");
+    expect(JSON.stringify(report)).not.toContain("title-secret");
+    expect(JSON.stringify(report)).not.toContain("sk-last-error-secret");
+    expect(JSON.stringify(report)).not.toContain("sk-session-metadata-secret");
+    expect(JSON.stringify(report)).not.toContain("provider transcript");
+    expect(JSON.stringify(report)).not.toContain("\u001B[31m");
+  });
+
+  it("prints terminal-safe human sessions show output", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "show", "apx_recent", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("AgentProxy session: apx_recent");
+    expect(result.stdout).toContain("Status: running");
+    expect(result.stdout).toContain("Title: Latest token=[REDACTED]");
+    expect(result.stdout).toContain("Provider session: ses_recent_token=[REDACTED]");
+    expect(result.stdout).toContain("Source of truth: provider_content_agentproxy_index");
+    expect(result.stdout).not.toContain("provider-secret");
+    expect(result.stdout).not.toContain("title-secret");
+    expect(result.stdout).not.toContain("sk-session-metadata-secret");
+    expect(result.stdout).not.toContain("provider transcript");
+    expect(result.stdout).not.toContain("\u001B[31m");
+  });
+
   it("succeeds with an empty list when the session registry database is absent", async () => {
     const workspace = await createTestWorkspace();
 
@@ -292,6 +362,60 @@ describe("agentproxy sessions CLI", () => {
     });
     expect(existsSync(workspace.storagePath)).toBe(false);
     expect(existsSync(path.dirname(workspace.storagePath))).toBe(false);
+  });
+
+  it("does not create storage and reports SESSION_NOT_FOUND when showing from an absent database", async () => {
+    const workspace = await createTestWorkspace();
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "show", "apx_missing", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "SESSION_NOT_FOUND",
+        providerId: "opencode",
+        operation: "sessions.show",
+      },
+    });
+    expect(existsSync(workspace.storagePath)).toBe(false);
+    expect(existsSync(path.dirname(workspace.storagePath))).toBe(false);
+  });
+
+  it("treats missing, tombstoned, wrong-workspace, and wrong-provider sessions as not found", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+
+    for (const sessionId of [
+      "apx_missing",
+      "apx_deleted",
+      "apx_other_workspace",
+      "apx_other_provider",
+    ]) {
+      const result = await runCli({
+        workspace,
+        argv: ["sessions", "show", sessionId, "--json", "--config", workspace.configPath],
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe("");
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        ok: false,
+        error: {
+          code: "SESSION_NOT_FOUND",
+          providerId: "opencode",
+          operation: "sessions.show",
+        },
+      });
+      expect(result.stdout).not.toContain("deleted-secret");
+      expect(result.stdout).not.toContain("deleted-metadata-secret");
+      expect(result.stdout).not.toContain("Other workspace");
+      expect(result.stdout).not.toContain("Other provider");
+    }
   });
 
   it("maps invalid and disabled provider errors without leaking controls", async () => {
@@ -336,6 +460,31 @@ describe("agentproxy sessions CLI", () => {
     expect(missingHuman.stderr).not.toContain("\u001B[31m");
     expect(missingHuman.stderr).not.toContain("provider-secret");
 
+    const missingShow = await runCli({
+      workspace: enabledWorkspace,
+      argv: [
+        "sessions",
+        "show",
+        "apx_recent",
+        "--provider",
+        "\u001B[31mmissing-token=provider-secret\u001B[0m",
+        "--json",
+        "--config",
+        enabledWorkspace.configPath,
+      ],
+    });
+    expect(missingShow.exitCode).toBe(4);
+    expect(JSON.parse(missingShow.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_NOT_FOUND",
+        providerId: "missing-token=[REDACTED]",
+        operation: "sessions.show",
+      },
+    });
+    expect(missingShow.stdout).not.toContain("\u001B[31m");
+    expect(missingShow.stdout).not.toContain("provider-secret");
+
     const disabled = await runCli({
       workspace: disabledWorkspace,
       argv: ["sessions", "list", "--json", "--config", disabledWorkspace.configPath],
@@ -348,13 +497,26 @@ describe("agentproxy sessions CLI", () => {
         providerId: "opencode",
       },
     });
+
+    const disabledShow = await runCli({
+      workspace: disabledWorkspace,
+      argv: ["sessions", "show", "apx_recent", "--json", "--config", disabledWorkspace.configPath],
+    });
+    expect(disabledShow.exitCode).toBe(4);
+    expect(JSON.parse(disabledShow.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_UNAVAILABLE",
+        providerId: "opencode",
+        operation: "sessions.show",
+      },
+    });
   });
 
-  it("leaves later session commands, runtime stop, and config as planned placeholders", async () => {
+  it("leaves later mutating session commands, runtime stop, and config as planned placeholders", async () => {
     const workspace = await createTestWorkspace();
 
     for (const argv of [
-      ["sessions", "show", "apx_123", "--config", workspace.configPath],
       ["sessions", "resume", "apx_123", "--config", workspace.configPath],
       ["sessions", "abort", "apx_123", "--config", workspace.configPath],
       ["sessions", "delete", "apx_123", "--config", workspace.configPath],

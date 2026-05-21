@@ -36,7 +36,12 @@ import {
   type AgentProxyRunEventSummary,
 } from "./run.js";
 import { formatRuntimeListHumanReport, listAgentProxyRuntimes } from "./runtime.js";
-import { formatSessionListHumanReport, listAgentProxySessions } from "./sessions.js";
+import {
+  formatSessionListHumanReport,
+  formatSessionShowHumanReport,
+  listAgentProxySessions,
+  showAgentProxySession,
+} from "./sessions.js";
 
 export const AGENTPROXY_VERSION = "0.1.0";
 
@@ -47,11 +52,12 @@ const implementedCoreWorkflows = [
   "agentproxy providers list|inspect",
   "agentproxy runtime list",
   "agentproxy sessions list",
+  "agentproxy sessions show <id>",
   "agentproxy provider exec <id> -- <native args>",
 ];
 
 const plannedCoreWorkflows = [
-  "agentproxy sessions show|resume|abort|delete|export|import|share|unshare",
+  "agentproxy sessions resume|abort|delete|export|import|share|unshare",
   "agentproxy runtime stop",
   "agentproxy config get|set",
 ];
@@ -163,7 +169,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
     .command("show")
     .argument("<id>", "Session id.")
     .description("Show session details.")
-    .action(plannedAction("sessions show", output));
+    .action(createSessionsShowAction(output, options));
   sessions
     .command("resume")
     .argument("<id>", "Session id.")
@@ -548,6 +554,33 @@ function createSessionsListAction(
         output.writeJson(report);
       } else {
         output.writeResult(formatSessionListHumanReport(report));
+      }
+      process.exitCode = 0;
+    } catch (error) {
+      handleCliError(error, output, this);
+    }
+  };
+}
+
+function createSessionsShowAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command, sessionId: string) => Promise<void> {
+  return async function (this: Command, sessionId) {
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const report = await showAgentProxySession(sessionId, {
+        providerId: globalOptions.provider,
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(this),
+      });
+
+      if (globalOptions.json) {
+        output.writeJson(report);
+      } else {
+        output.writeResult(formatSessionShowHumanReport(report));
       }
       process.exitCode = 0;
     } catch (error) {

@@ -41,6 +41,10 @@ export interface AgentProxySessionSummary {
   lastError?: string;
 }
 
+export interface AgentProxySessionDetail extends AgentProxySessionSummary {
+  sourceOfTruth?: string;
+}
+
 export interface AgentProxySessionListReport {
   ok: true;
   providerId: string;
@@ -49,13 +53,22 @@ export interface AgentProxySessionListReport {
   sessions: AgentProxySessionSummary[];
 }
 
+export interface AgentProxySessionShowReport {
+  ok: true;
+  providerId: string;
+  workspacePath: string;
+  source: AgentProxySessionListSource;
+  session: AgentProxySessionDetail;
+}
+
 const SESSIONS_LIST_OPERATION = "sessions.list";
+const SESSIONS_SHOW_OPERATION = "sessions.show";
 
 export async function listAgentProxySessions(
   options: RunAgentProxySessionListOptions = {},
 ): Promise<AgentProxySessionListReport> {
   const providerId = options.providerId ?? OPENCODE_PROVIDER_ID;
-  assertSessionsProviderSupported(providerId);
+  assertSessionsProviderSupported(providerId, SESSIONS_LIST_OPERATION);
 
   const resolvedConfig = await resolveAgentProxyConfig({
     ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
@@ -64,7 +77,7 @@ export async function listAgentProxySessions(
     ...(options.cli !== undefined ? { cli: options.cli } : {}),
   });
   const config = resolvedConfig.config;
-  assertOpenCodeSessionsProviderEnabled(config.providers.opencode.enabled);
+  assertOpenCodeSessionsProviderEnabled(config.providers.opencode.enabled, SESSIONS_LIST_OPERATION);
 
   let storage: AgentProxyStorage | undefined;
   try {
@@ -110,6 +123,55 @@ export async function listAgentProxySessions(
   }
 }
 
+export async function showAgentProxySession(
+  sessionId: string,
+  options: RunAgentProxySessionListOptions = {},
+): Promise<AgentProxySessionShowReport> {
+  const providerId = options.providerId ?? OPENCODE_PROVIDER_ID;
+  assertSessionsProviderSupported(providerId, SESSIONS_SHOW_OPERATION);
+
+  const resolvedConfig = await resolveAgentProxyConfig({
+    ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+    ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+    ...(options.env !== undefined ? { env: options.env } : {}),
+    ...(options.cli !== undefined ? { cli: options.cli } : {}),
+  });
+  const config = resolvedConfig.config;
+  assertOpenCodeSessionsProviderEnabled(config.providers.opencode.enabled, SESSIONS_SHOW_OPERATION);
+
+  let storage: AgentProxyStorage | undefined;
+  try {
+    if (!existsSync(config.storage.path)) {
+      throw createSessionNotFoundError(sessionId, providerId);
+    }
+
+    storage = openAgentProxyStorage({
+      databasePath: config.storage.path,
+      migrate: false,
+      readonly: true,
+      fileMustExist: true,
+    });
+
+    const session = storage.sessions.getById(sessionId);
+    if (!isVisibleSession(session, providerId, config.workspacePath)) {
+      throw createSessionNotFoundError(sessionId, providerId);
+    }
+
+    return redactSessionShowReport({
+      ok: true,
+      providerId,
+      workspacePath: sanitizeMachineString(config.workspacePath),
+      source: {
+        storage: "readonly",
+        databaseExists: true,
+      },
+      session: detailSession(session),
+    });
+  } finally {
+    storage?.close();
+  }
+}
+
 export function formatSessionListHumanReport(report: AgentProxySessionListReport): string {
   const lines = [`AgentProxy sessions: ${report.sessions.length.toString()}`];
   if (report.sessions.length === 0) {
@@ -136,6 +198,44 @@ export function formatSessionListHumanReport(report: AgentProxySessionListReport
     if (session.lastError !== undefined) {
       lines.push(`  Last error: ${sanitizeHumanInline(session.lastError)}`);
     }
+  }
+
+  return lines.join("\n");
+}
+
+export function formatSessionShowHumanReport(report: AgentProxySessionShowReport): string {
+  const session = report.session;
+  const lines = [`AgentProxy session: ${sanitizeHumanInline(session.id)}`];
+
+  lines.push(`Status: ${sanitizeHumanInline(session.status)}`);
+  if (session.title !== undefined) {
+    lines.push(`Title: ${sanitizeHumanInline(session.title)}`);
+  }
+  lines.push(`Provider: ${sanitizeHumanInline(session.providerId)}`);
+  lines.push(`Provider session: ${sanitizeHumanInline(session.providerSessionId)}`);
+  lines.push(`Workspace: ${sanitizeHumanInline(session.workspacePath)}`);
+  if (session.model !== undefined) {
+    lines.push(`Model: ${sanitizeHumanInline(session.model)}`);
+  }
+  if (session.runtimeId !== undefined) {
+    lines.push(`Runtime: ${sanitizeHumanInline(session.runtimeId)}`);
+  }
+  if (session.parentSessionId !== undefined) {
+    lines.push(`Parent session: ${sanitizeHumanInline(session.parentSessionId)}`);
+  }
+  lines.push(`Created: ${sanitizeHumanInline(session.createdAt)}`);
+  lines.push(`Updated: ${sanitizeHumanInline(session.updatedAt)}`);
+  if (session.lastRunAt !== undefined) {
+    lines.push(`Last run: ${sanitizeHumanInline(session.lastRunAt)}`);
+  }
+  if (session.lastSyncAt !== undefined) {
+    lines.push(`Last sync: ${sanitizeHumanInline(session.lastSyncAt)}`);
+  }
+  if (session.lastError !== undefined) {
+    lines.push(`Last error: ${sanitizeHumanInline(session.lastError)}`);
+  }
+  if (session.sourceOfTruth !== undefined) {
+    lines.push(`Source of truth: ${sanitizeHumanInline(session.sourceOfTruth)}`);
   }
 
   return lines.join("\n");
@@ -170,27 +270,41 @@ function summarizeSession(session: StoredSessionRecord): AgentProxySessionSummar
   };
 }
 
+function detailSession(session: StoredSessionRecord): AgentProxySessionDetail {
+  return {
+    ...summarizeSession(session),
+    ...(session.sourceOfTruth !== undefined
+      ? { sourceOfTruth: sanitizeMachineString(session.sourceOfTruth) }
+      : {}),
+  };
+}
+
 function redactSessionListReport(report: AgentProxySessionListReport): AgentProxySessionListReport {
   return redactValue(report) as AgentProxySessionListReport;
 }
 
-function assertSessionsProviderSupported(providerId: string): void {
+function redactSessionShowReport(report: AgentProxySessionShowReport): AgentProxySessionShowReport {
+  return redactValue(report) as AgentProxySessionShowReport;
+}
+
+function assertSessionsProviderSupported(providerId: string, operation: string): void {
   if (providerId === OPENCODE_PROVIDER_ID) {
     return;
   }
 
+  const safeProviderId = sanitizeMachineString(providerId);
   throw createAgentProxyError({
     code: "PROVIDER_NOT_FOUND",
-    message: `Provider not found: ${providerId}`,
-    operation: SESSIONS_LIST_OPERATION,
-    providerId,
+    message: `Provider not found: ${safeProviderId}`,
+    operation,
+    providerId: safeProviderId,
     details: {
-      suggestion: "AgentProxy v1 session listing currently supports the opencode provider.",
+      suggestion: "AgentProxy v1 session commands currently support the opencode provider.",
     },
   });
 }
 
-function assertOpenCodeSessionsProviderEnabled(enabled: boolean): void {
+function assertOpenCodeSessionsProviderEnabled(enabled: boolean, operation: string): void {
   if (enabled) {
     return;
   }
@@ -198,10 +312,38 @@ function assertOpenCodeSessionsProviderEnabled(enabled: boolean): void {
   throw createAgentProxyError({
     code: "PROVIDER_UNAVAILABLE",
     message: "OpenCode provider is disabled in AgentProxy config.",
-    operation: SESSIONS_LIST_OPERATION,
+    operation,
     providerId: OPENCODE_PROVIDER_ID,
     details: {
-      suggestion: "Enable providers.opencode.enabled before listing OpenCode sessions.",
+      suggestion: "Enable providers.opencode.enabled before using OpenCode session commands.",
+    },
+  });
+}
+
+function isVisibleSession(
+  session: StoredSessionRecord | undefined,
+  providerId: string,
+  workspacePath: string,
+): session is StoredSessionRecord {
+  return (
+    session !== undefined &&
+    session.providerId === providerId &&
+    session.workspacePath === workspacePath &&
+    session.deletedAt === undefined
+  );
+}
+
+function createSessionNotFoundError(sessionId: string, providerId: string): Error {
+  const safeSessionId = sanitizeMachineString(sessionId);
+  return createAgentProxyError({
+    code: "SESSION_NOT_FOUND",
+    message: `Session not found: ${safeSessionId}`,
+    operation: SESSIONS_SHOW_OPERATION,
+    providerId,
+    details: {
+      sessionId: safeSessionId,
+      suggestion:
+        "Run agentproxy sessions list for this provider and workspace, then retry with a visible AgentProxy session id.",
     },
   });
 }
