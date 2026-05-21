@@ -37,10 +37,14 @@ import {
 } from "./run.js";
 import { formatRuntimeListHumanReport, listAgentProxyRuntimes } from "./runtime.js";
 import {
+  formatSessionResumeHumanEvent,
+  formatSessionResumeReportForJson,
   formatSessionListHumanReport,
   formatSessionShowHumanReport,
   listAgentProxySessions,
+  resumeAgentProxyCliSession,
   showAgentProxySession,
+  type AgentProxySessionResumeSessionSummary,
 } from "./sessions.js";
 
 export const AGENTPROXY_VERSION = "0.1.0";
@@ -53,11 +57,12 @@ const implementedCoreWorkflows = [
   "agentproxy runtime list",
   "agentproxy sessions list",
   "agentproxy sessions show <id>",
+  "agentproxy sessions resume <id> [--prompt ...]",
   "agentproxy provider exec <id> -- <native args>",
 ];
 
 const plannedCoreWorkflows = [
-  "agentproxy sessions resume|abort|delete|export|import|share|unshare",
+  "agentproxy sessions abort|delete|export|import|share|unshare",
   "agentproxy runtime stop",
   "agentproxy config get|set",
 ];
@@ -175,7 +180,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
     .argument("<id>", "Session id.")
     .option("--prompt <prompt>", "Prompt to send after resuming.")
     .description("Resume a session.")
-    .action(plannedAction("sessions resume", output));
+    .action(createSessionsResumeAction(output, options));
   sessions
     .command("abort")
     .argument("<id>", "Session id.")
@@ -589,6 +594,76 @@ function createSessionsShowAction(
   };
 }
 
+function createSessionsResumeAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command, sessionId: string) => Promise<void> {
+  return async function (this: Command, sessionId) {
+    let openTextLine = false;
+    const writeHumanLine = (message: string): void => {
+      if (openTextLine) {
+        output.stdout.write("\n");
+        openTextLine = false;
+      }
+      output.writeResult(message);
+    };
+    const writeHumanEvent = (event: AgentProxyRunEventSummary, humanOutput?: string): void => {
+      const formatted = formatSessionResumeHumanEvent(event, humanOutput);
+      if (formatted === undefined || formatted === "") {
+        return;
+      }
+      if (event.type === "message.delta") {
+        output.stdout.write(formatted);
+        openTextLine = !formatted.endsWith("\n");
+        return;
+      }
+
+      writeHumanLine(formatted);
+    };
+    const writeResumedSession = (session: AgentProxySessionResumeSessionSummary): void => {
+      writeHumanLine(`Session: ${sanitizeHumanInline(session.sessionId)}`);
+      writeHumanLine(`Provider session: ${sanitizeHumanInline(session.providerSessionId)}`);
+      writeHumanLine(
+        `Runtime: ${sanitizeHumanInline(session.runtime.runtimeId ?? "configured")} (${sanitizeHumanInline(
+          session.runtime.mode,
+        )})`,
+      );
+    };
+
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const resumeOptions = this.opts<{ prompt?: string }>();
+      const report = await resumeAgentProxyCliSession(sessionId, {
+        providerId: globalOptions.provider,
+        ...(resumeOptions.prompt !== undefined ? { prompt: resumeOptions.prompt } : {}),
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(this),
+        ...(globalOptions.json
+          ? {}
+          : {
+              onSessionResumed: writeResumedSession,
+              onEvent: writeHumanEvent,
+            }),
+      });
+
+      if (globalOptions.json) {
+        output.writeJson(formatSessionResumeReportForJson(report));
+      } else {
+        if (openTextLine) {
+          output.stdout.write("\n");
+          openTextLine = false;
+        }
+        output.writeResult(`Status: ${report.status}`);
+      }
+      process.exitCode = mapSessionResumeReportToExitCode(report);
+    } catch (error) {
+      handleCliError(error, output, this);
+    }
+  };
+}
+
 function mapRunReportToExitCode(report: { status: string }): number {
   if (report.status === "completed") {
     return 0;
@@ -597,6 +672,14 @@ function mapRunReportToExitCode(report: { status: string }): number {
     return 1;
   }
   return 9;
+}
+
+function mapSessionResumeReportToExitCode(report: { status: string; promptSent: boolean }): number {
+  if (!report.promptSent) {
+    return report.status === "failed" ? 1 : 0;
+  }
+
+  return mapRunReportToExitCode(report);
 }
 
 function createProviderExecAction(

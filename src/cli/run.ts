@@ -1,27 +1,19 @@
-import {
-  type AgentProxyCliConfigOverrides,
-  type AgentProxyConfig,
-  resolveAgentProxyConfig,
-} from "../config/index.js";
+import { type AgentProxyCliConfigOverrides, resolveAgentProxyConfig } from "../config/index.js";
 import { type AgentEvent, createAgentProxyError } from "../core/index.js";
 import { redactString, redactValue } from "../logging/index.js";
-import {
-  OPENCODE_PROVIDER_ID,
-  OpenCodeProvider,
-  normalizeRuntimeBaseUrl,
-} from "../providers/opencode/index.js";
-import {
-  OpenCodeManagedRuntimeManager,
-  RuntimeRegistry,
-  selectOpenCodeRuntimeBaseUrl,
-  type OpenCodeRuntimeBaseUrlSelection,
-} from "../runtimes/index.js";
+import { OPENCODE_PROVIDER_ID } from "../providers/opencode/index.js";
+import { RuntimeRegistry } from "../runtimes/index.js";
 import { sendAgentProxyMessage, startAgentProxySession } from "../sessions/index.js";
 import {
   openAgentProxyStorage,
   type AgentProxyStorage,
   type StoredSessionRecord,
 } from "../storage/index.js";
+import {
+  createOpenCodeCommandProvider,
+  ensureOpenCodeCommandRuntime,
+  type AgentProxyOpenCodeCommandRuntimeSummary,
+} from "./opencode-runtime.js";
 
 export interface RunPromptStdinSource extends AsyncIterable<string | Buffer | Uint8Array> {}
 
@@ -52,7 +44,7 @@ export interface AgentProxyRunSessionSummary {
 }
 
 export interface AgentProxyRunRuntimeSummary {
-  source: OpenCodeRuntimeBaseUrlSelection["source"];
+  source: AgentProxyOpenCodeCommandRuntimeSummary["source"];
   mode: "managed" | "attached";
   startedByRun: boolean;
   baseUrl: string;
@@ -133,11 +125,6 @@ export interface AgentProxyRunReport {
   generatedAt: string;
 }
 
-interface EnsuredRunRuntime {
-  runtime: AgentProxyRunRuntimeSummary;
-  cleanup?: () => Promise<void>;
-}
-
 const RUN_OPERATION = "run";
 const DEFAULT_RUN_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_MAX_PROMPT_BYTES = 1024 * 1024;
@@ -188,14 +175,21 @@ export async function runAgentProxyPrompt(
       storage,
       ...(input.now !== undefined ? { now: input.now } : {}),
     });
-    const ensuredRuntime = await ensureRunRuntime({
+    const ensuredCommandRuntime = await ensureOpenCodeCommandRuntime({
       config,
       storage,
       registry,
       env: input.env,
+      operation: RUN_OPERATION,
     });
-    cleanup = ensuredRuntime.cleanup;
-    const provider = createRunProvider(config, ensuredRuntime.runtime.baseUrl, input.env);
+    cleanup = ensuredCommandRuntime.cleanup;
+    const runtime = summarizeRunRuntime(ensuredCommandRuntime.runtime);
+    const provider = createOpenCodeCommandProvider({
+      config,
+      baseUrl: runtime.baseUrl,
+      env: input.env,
+      operation: RUN_OPERATION,
+    });
     const started = await startAgentProxySession({
       provider,
       storage,
@@ -204,18 +198,16 @@ export async function runAgentProxyPrompt(
         workspacePath: config.workspacePath,
         signal: runController.signal,
         ...(input.model !== undefined ? { model: input.model } : {}),
-        ...(ensuredRuntime.runtime.runtimeId !== undefined
-          ? { runtimeId: ensuredRuntime.runtime.runtimeId }
-          : {}),
+        ...(runtime.runtimeId !== undefined ? { runtimeId: runtime.runtimeId } : {}),
         metadata: {
-          runtimeBaseUrl: ensuredRuntime.runtime.baseUrl,
-          runtimeBaseUrlSource: ensuredRuntime.runtime.source,
+          runtimeBaseUrl: runtime.baseUrl,
+          runtimeBaseUrlSource: runtime.source,
         },
       },
       now,
     });
     runSessionId = started.session.id;
-    input.onSessionStarted?.(summarizeStartedSession(started.session, ensuredRuntime.runtime));
+    input.onSessionStarted?.(summarizeStartedSession(started.session, runtime));
 
     const events: AgentProxyRunEventSummary[] = [];
     const collectEvents = input.collectEvents ?? true;
@@ -233,12 +225,10 @@ export async function runAgentProxyPrompt(
         prompt,
         signal: runController.signal,
         ...(input.model !== undefined ? { model: input.model } : {}),
-        ...(ensuredRuntime.runtime.runtimeId !== undefined
-          ? { runtimeId: ensuredRuntime.runtime.runtimeId }
-          : {}),
+        ...(runtime.runtimeId !== undefined ? { runtimeId: runtime.runtimeId } : {}),
         metadata: {
-          runtimeBaseUrl: ensuredRuntime.runtime.baseUrl,
-          runtimeBaseUrlSource: ensuredRuntime.runtime.source,
+          runtimeBaseUrl: runtime.baseUrl,
+          runtimeBaseUrlSource: runtime.source,
         },
       },
       now,
@@ -266,7 +256,7 @@ export async function runAgentProxyPrompt(
       providerSessionId: finalSession.providerSessionId,
       status: finalSession.status,
       ...(input.model !== undefined ? { model: input.model } : {}),
-      runtime: ensuredRuntime.runtime,
+      runtime,
       events,
       ...(eventsTruncated ? { eventsTruncated } : {}),
       counts: {
@@ -310,7 +300,7 @@ export async function runAgentProxyPrompt(
 }
 
 export function formatRunReportForJson(report: AgentProxyRunReport): unknown {
-  return redactValue(report);
+  return sanitizeStructuredOutput(report);
 }
 
 export function formatRunEventForHuman(
@@ -487,147 +477,16 @@ function validateOpenCodeRunModel(model: string | undefined): void {
   });
 }
 
-async function ensureRunRuntime(input: {
-  config: AgentProxyConfig;
-  storage: AgentProxyStorage;
-  registry: RuntimeRegistry;
-  env: NodeJS.ProcessEnv | Record<string, string | undefined> | undefined;
-}): Promise<EnsuredRunRuntime> {
-  const selected = selectOpenCodeRuntimeBaseUrl(input.config, input.registry);
-  if (selected.baseUrl !== undefined) {
-    return {
-      runtime: {
-        source: selected.source,
-        mode: selected.mode ?? input.config.providers.opencode.runtime.mode,
-        startedByRun: false,
-        baseUrl: normalizeRunRuntimeBaseUrl(selected.baseUrl),
-        ...(selected.runtimeId !== undefined ? { runtimeId: selected.runtimeId } : {}),
-      },
-    };
-  }
-
-  const opencode = input.config.providers.opencode;
-  if (!opencode.enabled) {
-    throw createAgentProxyError({
-      code: "PROVIDER_UNAVAILABLE",
-      message: "OpenCode provider is disabled in AgentProxy config.",
-      operation: RUN_OPERATION,
-      providerId: OPENCODE_PROVIDER_ID,
-      details: {
-        suggestion: "Enable providers.opencode.enabled before running OpenCode workflows.",
-      },
-    });
-  }
-
-  if (opencode.runtime.mode !== "managed") {
-    throw createAgentProxyError({
-      code: "RUNTIME_HEALTH_FAILED",
-      message: "No OpenCode runtime base URL is available for agentproxy run.",
-      operation: RUN_OPERATION,
-      providerId: OPENCODE_PROVIDER_ID,
-      details: {
-        runtimeMode: opencode.runtime.mode,
-        suggestion:
-          "Set providers.opencode.runtime.baseUrl, register an attached runtime, or switch to managed runtime mode.",
-      },
-    });
-  }
-
-  const manager = new OpenCodeManagedRuntimeManager({
-    storage: input.storage,
-    binary: opencode.binary,
-    inheritParentEnv: false,
-    cwd: input.config.workspacePath,
-    env: createManagedRuntimeEnv(input.config, input.env),
-  });
-  const runtime = await manager.startManagedRuntime({
-    workspacePath: input.config.workspacePath,
-    hostname: opencode.runtime.hostname,
-    port: opencode.runtime.port,
-  });
-  if (runtime.baseUrl === undefined) {
-    throw createAgentProxyError({
-      code: "RUNTIME_HEALTH_FAILED",
-      message: "OpenCode managed runtime started without a base URL.",
-      operation: RUN_OPERATION,
-      providerId: OPENCODE_PROVIDER_ID,
-      details: {
-        runtimeId: runtime.id,
-      },
-    });
-  }
-
+function summarizeRunRuntime(
+  runtime: AgentProxyOpenCodeCommandRuntimeSummary,
+): AgentProxyRunRuntimeSummary {
   return {
-    runtime: {
-      source: "registry",
-      mode: "managed",
-      startedByRun: true,
-      baseUrl: normalizeRunRuntimeBaseUrl(runtime.baseUrl),
-      runtimeId: runtime.id,
-    },
-    cleanup: async () => {
-      await manager.stopManagedRuntime(runtime.id);
-    },
+    source: runtime.source,
+    mode: runtime.mode,
+    startedByRun: runtime.startedByCommand,
+    baseUrl: runtime.baseUrl,
+    ...(runtime.runtimeId !== undefined ? { runtimeId: runtime.runtimeId } : {}),
   };
-}
-
-function createRunProvider(
-  config: AgentProxyConfig,
-  baseUrl: string,
-  env: NodeJS.ProcessEnv | Record<string, string | undefined> | undefined,
-): OpenCodeProvider {
-  const opencode = config.providers.opencode;
-  if (!opencode.enabled) {
-    throw createAgentProxyError({
-      code: "PROVIDER_UNAVAILABLE",
-      message: "OpenCode provider is disabled in AgentProxy config.",
-      operation: RUN_OPERATION,
-      providerId: OPENCODE_PROVIDER_ID,
-      details: {
-        suggestion: "Enable providers.opencode.enabled before running OpenCode workflows.",
-      },
-    });
-  }
-
-  return new OpenCodeProvider({
-    binary: opencode.binary,
-    baseUrl,
-    cwd: config.workspacePath,
-    passthroughEnv: opencode.passthroughEnv,
-    ...(env !== undefined ? { env } : {}),
-  });
-}
-
-function createManagedRuntimeEnv(
-  config: AgentProxyConfig,
-  env: NodeJS.ProcessEnv | Record<string, string | undefined> | undefined,
-): Record<string, string | undefined> {
-  return {
-    PATH: env?.PATH ?? process.env.PATH,
-    Path: env?.Path ?? process.env.Path,
-    HOME: env?.HOME ?? process.env.HOME,
-    USER: env?.USER ?? process.env.USER,
-    TMPDIR: env?.TMPDIR ?? process.env.TMPDIR,
-    ...config.providers.opencode.passthroughEnv,
-  };
-}
-
-function normalizeRunRuntimeBaseUrl(baseUrl: string): string {
-  const normalized = normalizeRuntimeBaseUrl(baseUrl);
-  if (normalized.failureReason !== undefined || normalized.baseUrl === "") {
-    throw createAgentProxyError({
-      code: "CONFIG_INVALID",
-      message: "OpenCode runtime base URL is invalid for agentproxy run.",
-      operation: RUN_OPERATION,
-      providerId: OPENCODE_PROVIDER_ID,
-      details: {
-        failureReason: normalized.failureReason ?? "invalid_url",
-        suggestion: "Use an http(s) OpenCode runtime URL without credentials.",
-      },
-    });
-  }
-
-  return normalized.baseUrl;
 }
 
 function summarizeStartedSession(
@@ -643,7 +502,7 @@ function summarizeStartedSession(
   };
 }
 
-function summarizeRunEvent(event: AgentEvent): AgentProxyRunEventSummary {
+export function summarizeRunEvent(event: AgentEvent): AgentProxyRunEventSummary {
   switch (event.type) {
     case "message.delta":
       return redactSummary({
@@ -722,7 +581,7 @@ function summarizeRunEvent(event: AgentEvent): AgentProxyRunEventSummary {
   }
 }
 
-function formatRawRunEventForHuman(event: AgentEvent): string | undefined {
+export function formatRawRunEventForHuman(event: AgentEvent): string | undefined {
   switch (event.type) {
     case "message.delta":
       return sanitizeHumanText(event.delta);
@@ -752,5 +611,25 @@ export function sanitizeHumanText(value: string): string {
 }
 
 function redactSummary<TSummary extends AgentProxyRunEventSummary>(summary: TSummary): TSummary {
-  return redactValue(summary) as TSummary;
+  return sanitizeStructuredOutput(summary);
+}
+
+export function sanitizeStructuredOutput<TValue>(value: TValue): TValue {
+  return sanitizeStructuredValue(redactValue(value)) as TValue;
+}
+
+function sanitizeStructuredValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    return sanitizeHumanText(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeStructuredValue(item));
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, sanitizeStructuredValue(entry)]),
+    );
+  }
+
+  return value;
 }

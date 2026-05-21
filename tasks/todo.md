@@ -11,6 +11,53 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Phase 5 Sessions Resume CLI Minimal Workflow
+
+Scope: advance only the Phase 5 `agentproxy sessions resume <id>` CLI task group. This workflow resumes an existing visible AgentProxy local session mapping, optionally sends a prompt to the same provider session, and renders sanitized human/JSON output. Do not implement `sessions abort`, `sessions delete`, `sessions export`, `sessions import`, `sessions share`, `sessions unshare`, `runtime stop`, `config`, `chat --session`, Phase 6 AgentProxy TUI, provider transcript display, or any new Agent runtime behavior.
+
+Implementation checklist:
+
+- [x] Add focused failing CLI tests for `sessions resume <id>` human/JSON output, prompt dispatch, resume-only sync, absent/missing/tombstoned/wrong-provider/wrong-workspace records, disabled/invalid provider behavior, runtime unavailable behavior, terminal/control-character safety, and later-command placeholder boundaries.
+- [x] Extract a narrow CLI OpenCode runtime/provider helper from the existing `run` workflow so `run` and `sessions resume` share runtime base URL selection, managed one-shot runtime lifecycle, provider creation, managed env allowlist, and base URL validation.
+- [x] Extend `src/cli/sessions.ts` with a real `sessions resume` action/service that opens SQLite read-write only for the target operation, requires a visible local mapping, calls `resumeAgentProxySession()`, and calls `sendAgentProxyMessage()` only when `--prompt` is provided.
+- [x] Wire only `agentproxy sessions resume <id>` from planned placeholder to a real action; keep `sessions abort/delete/export/import/share/unshare`, `runtime stop`, `config`, `chat --session`, and Phase 6 TUI untouched.
+- [x] Keep JSON output transcript-free and provider-payload-safe by emitting only stable session/runtime/event summary fields, counts, status, and redacted summaries; never emit raw provider transcript, raw event payloads, metadata blobs, share URLs, or prompt text.
+- [x] Update `docs/development-progress-tracker.zh.md` completed/unfinished status and Review notes after verification.
+- [x] Run focused sessions/run CLI tests, related lifecycle/message tests, full applicable project verification, code review, and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean; `git log -1 --oneline` is `bdca363 文档：同步 Phase 5 Sessions Show 后续开发状态`, so the latest Phase 5 implementation baseline remains `7849c56 阶段进展：完成 Phase 5 Sessions Show CLI`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Phase 4.4 already provides `resumeAgentProxySession()` for provider resume, target id mismatch protection, tombstone protection, and local mapping persistence.
+- Phase 4.5 already provides `sendAgentProxyMessage()` for prompt dispatch, event stream mapping, sanitized event persistence, and terminal status writeback.
+- Phase 5 `run [prompt]` already provides runtime selection, managed one-shot runtime behavior, OpenCode provider creation, event summary shape, human terminal sanitization, JSON transcript-free output, timeout/error handling patterns, and stable exit mapping.
+- Phase 5 `sessions list/show` already provides local session visibility filtering, provider/workspace/tombstone safety, and sanitized local session summaries.
+
+Acceptance criteria for this iteration:
+
+- [x] `agentproxy sessions resume <id>` is a real command and no longer returns the generic planned `CAPABILITY_UNSUPPORTED` placeholder.
+- [x] The command addresses sessions by AgentProxy local session id and refuses absent DB, missing, tombstoned, wrong-provider, and wrong-workspace records with stable `SESSION_NOT_FOUND` without leaking hidden record content.
+- [x] Resume without `--prompt` calls provider resume/get-session for the existing provider session, updates the local mapping, emits stable session/runtime summary output, and does not start a message stream.
+- [x] Resume with `--prompt` resumes the existing provider session, sends the prompt to the same provider session, persists sanitized message events, and maps final session status to the same stable exit-code semantics as `run`.
+- [x] `sessions resume --json` emits exactly one valid redacted JSON object on stdout, with no human prose mixed in and no prompt/transcript/raw provider payload.
+- [x] Human output is terminal-control-character safe and does not print raw metadata blobs, transcripts, provider event payloads, URL credentials, query strings, headers, secrets, prompt text, or provider-controlled control characters.
+- [x] Runtime selection behavior matches `run`: configured base URL and registry runtime are reused; managed mode may start and best-effort stop a one-shot runtime; attached mode without runtime URL maps to stable runtime error.
+- [x] Non-OpenCode provider selection maps to `PROVIDER_NOT_FOUND`; disabled OpenCode config maps to `PROVIDER_UNAVAILABLE`.
+- [x] `sessions abort/delete/export/import/share/unshare`, `runtime stop`, `config`, `chat --session`, and Phase 6 AgentProxy TUI remain unimplemented or explicitly unsupported.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
+Risks and constraints:
+
+- Do not create a new provider session from `sessions resume`; resume must target the existing providerSessionId from the local mapping.
+- Do not duplicate or relax the managed runtime env allowlist from `run`; shared helper must preserve the thin proxy boundary and not pass full parent env to provider binaries.
+- Do not expose prompt text, assistant deltas, provider raw events, or metadata blobs in JSON reports; event summaries must remain count/status oriented.
+- Do not implement interactive/native `chat --session`; this iteration is headless CLI resume only.
+
+Review notes:
+
+- 2026-05-21: Completed the Phase 5 `sessions resume` CLI minimal workflow. Added `src/cli/opencode-runtime.ts` so `run` and `sessions resume` share OpenCode runtime selection, managed one-shot lifecycle, provider construction, base URL validation, and managed env allowlist. Extended `src/cli/sessions.ts` and `src/cli/index.ts` so `agentproxy sessions resume <id>` resumes an existing visible local session mapping, optionally sends `--prompt` to the same providerSessionId, emits transcript-free JSON summaries, maps prompt terminal status through run-style exit codes, and leaves later session mutations, `runtime stop`, `config`, `chat --session`, and Phase 6 TUI untouched. Code/security review found a blocking human transcript leak in resume output; fixed by not rendering assistant delta text for resume, added timeout failure writeback before provider resume completes, sanitized provider-derived titles/event fields before SQLite persistence, and expanded standalone token redaction. Verification passed: `pnpm exec vitest run tests/cli-sessions.test.ts tests/session-messages.test.ts tests/cli-run.test.ts tests/cli-help.test.ts tests/cli-runtime.test.ts tests/session-lifecycle.test.ts tests/opencode-provider-sessions.test.ts tests/opencode-provider-messages.test.ts` (8 files, 71 tests), `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run test` (29 files, 232 tests), `pnpm run build`, and `git diff --check`. Residual risk: real OpenCode resume smoke calibration remains a later compatibility task; `sessions abort/delete/export/import/share/unshare`, `runtime stop`, `config`, `chat --session`, and Phase 6 AgentProxy TUI remain intentionally unimplemented.
+
 ## Current Iteration - 2026-05-21 Documentation Sync After Phase 5 Sessions Show CLI
 
 Scope: update tracking documents after `7849c56 阶段进展：完成 Phase 5 Sessions Show CLI`. This is a documentation-only synchronization so the next Codex session can continue from the correct first unfinished Phase 5 CLI MVP task group. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { createAgentProxyError, type ProviderMetadata } from "../core/index.js";
-import { redactValue } from "../logging/index.js";
+import { redactString, redactValue } from "../logging/index.js";
 import type {
   AgentProvider,
   ResumeSessionRequest,
@@ -15,6 +15,16 @@ import {
 import type { ProviderSession } from "./types.js";
 
 const AGENTPROXY_LIFECYCLE_SESSION_ID_PREFIX = "apx";
+// biome-ignore lint/complexity/useRegexLiterals: String.raw keeps control escapes out of the source.
+const ANSI_ESCAPE_PATTERN = new RegExp(
+  String.raw`\u001B(?:\][^\u0007]*(?:\u0007|\u001B\\)|[\[\]()#;?]*(?:[0-?]*[ -/]*[@-~]))|\u009B[0-?]*[ -/]*[@-~]`,
+  "gu",
+);
+// biome-ignore lint/complexity/useRegexLiterals: String.raw keeps control escapes out of the source.
+const UNSAFE_CONTROL_PATTERN = new RegExp(
+  String.raw`[\u0000-\u0008\u000B\u000C\u000D\u000E-\u001F\u007F-\u009F]`,
+  "gu",
+);
 
 export interface StartAgentProxySessionInput {
   provider: AgentProvider;
@@ -219,7 +229,10 @@ function persistProviderSessionMapping(input: {
     input.context,
   );
   const storedModel = input.providerSession.model ?? existing?.model;
-  const title = input.providerSession.title ?? existing?.title;
+  const title =
+    input.providerSession.title === undefined
+      ? existing?.title
+      : sanitizePersistedSessionString(input.providerSession.title);
   const lastRunAt = input.providerSession.lastRunAt ?? existing?.lastRunAt;
   const metadata = mergeLifecycleMetadata({
     localMetadata: existing?.metadata ?? {},
@@ -363,6 +376,26 @@ function createLifecycleMetadata(
   };
 }
 
+function sanitizePersistedSessionString(value: string): string {
+  return redactString(value).replace(ANSI_ESCAPE_PATTERN, "").replace(UNSAFE_CONTROL_PATTERN, "");
+}
+
+function sanitizePersistedValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    return sanitizePersistedSessionString(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizePersistedValue(item));
+  }
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, sanitizePersistedValue(entry)]),
+    );
+  }
+
+  return value;
+}
+
 function markPromptFailure(
   storage: AgentProxyStorage,
   session: StoredSessionRecord,
@@ -417,7 +450,7 @@ function defaultCreateSessionId(): string {
 }
 
 function jsonSafeMetadata(metadata: ProviderMetadata): ProviderMetadata {
-  const serialized = JSON.stringify(redactValue(metadata));
+  const serialized = JSON.stringify(sanitizePersistedValue(redactValue(metadata)));
   const parsed: unknown = serialized === undefined ? {} : JSON.parse(serialized);
   return isPlainObject(parsed) ? parsed : {};
 }

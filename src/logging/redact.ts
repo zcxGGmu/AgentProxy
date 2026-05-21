@@ -28,6 +28,11 @@ const SENSITIVE_WORDS = new Set([
 const INLINE_SECRET_PATTERNS: readonly [RegExp, string][] = [
   [/(\bAuthorization\s*[:=]\s*)(?:Bearer|Basic)?\s*[^\s,;]+/gi, "$1[REDACTED]"],
   [/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/gi, "$1 [REDACTED]"],
+  [/\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}\b/g, AGENTPROXY_REDACTED_VALUE],
+  [/\bgh[pousr]_[A-Za-z0-9_]{20,}\b/g, AGENTPROXY_REDACTED_VALUE],
+  [/\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, AGENTPROXY_REDACTED_VALUE],
+  [/\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g, AGENTPROXY_REDACTED_VALUE],
+  [/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g, AGENTPROXY_REDACTED_VALUE],
   [
     /(["']?\b[A-Za-z0-9_.-]*(?:access[-_\s]?token|refresh[-_\s]?token|api[-_\s]?key|apikey|authorization|credentials?|passwd|password|secret|token|pwd)[A-Za-z0-9_.-]*\b["']?\s*[:=]\s*)("[^"]*"|'[^']*'|[^\s,;}'"]+)/gi,
     "$1[REDACTED]",

@@ -71,15 +71,15 @@ describe("session message dispatch persistence", () => {
         type: "message.delta",
         role: "assistant",
         delta: "transcript secret-token",
-        messageId: "msg_1",
+        messageId: "msg_token=message-secret",
         metadata: {
           rawSecret: "secret-token",
         },
       };
       yield {
         type: "permission.requested",
-        permissionId: "per_1",
-        action: "bash",
+        permissionId: "\u001B[31mper_token=permission-secret\u001B[0m",
+        action: "bash api_key=sk-action-secret\rspoof sk-proj-abcdefghijklmnop",
         metadata: {
           pattern: "secret-token",
         },
@@ -146,7 +146,7 @@ describe("session message dispatch persistence", () => {
         payload: {
           type: "message.delta",
           role: "assistant",
-          messageId: "msg_1",
+          messageId: "msg_token=[REDACTED]",
           metadata: {},
         },
       },
@@ -158,8 +158,8 @@ describe("session message dispatch persistence", () => {
         createdAt: "2026-05-20T20:00:03.000Z",
         payload: {
           type: "permission.requested",
-          permissionId: "per_1",
-          action: "bash",
+          permissionId: "per_token=[REDACTED]",
+          action: "bash api_key=[REDACTED]spoof [REDACTED]",
           metadata: {},
         },
       },
@@ -183,6 +183,15 @@ describe("session message dispatch persistence", () => {
     );
     expect(JSON.stringify(storage.sessionEvents.listBySessionId("apx_message"))).not.toContain(
       "secret-token",
+    );
+    expect(JSON.stringify(storage.sessionEvents.listBySessionId("apx_message"))).not.toContain(
+      "sk-action-secret",
+    );
+    expect(JSON.stringify(storage.sessionEvents.listBySessionId("apx_message"))).not.toContain(
+      "\u001B[31m",
+    );
+    expect(JSON.stringify(storage.sessionEvents.listBySessionId("apx_message"))).not.toContain(
+      "\u009B",
     );
   });
 

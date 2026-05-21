@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createAgentProxyError, type AgentEvent, type ProviderMetadata } from "../core/index.js";
-import { redactValue } from "../logging/index.js";
+import { redactString, redactValue } from "../logging/index.js";
 import type { AgentProvider, SendMessageRequest } from "../providers/types.js";
 import type {
   AgentProxyStorage,
@@ -9,6 +9,16 @@ import type {
 } from "../storage/index.js";
 
 const AGENTPROXY_MESSAGE_EVENT_ID_PREFIX = "evt";
+// biome-ignore lint/complexity/useRegexLiterals: String.raw keeps control escapes out of the source.
+const ANSI_ESCAPE_PATTERN = new RegExp(
+  String.raw`\u001B(?:\][^\u0007]*(?:\u0007|\u001B\\)|[\[\]()#;?]*(?:[0-?]*[ -/]*[@-~]))|\u009B[0-?]*[ -/]*[@-~]`,
+  "gu",
+);
+// biome-ignore lint/complexity/useRegexLiterals: String.raw keeps control escapes out of the source.
+const UNSAFE_CONTROL_PATTERN = new RegExp(
+  String.raw`[\u0000-\u0008\u000B\u000C\u000D\u000E-\u001F\u007F-\u009F]`,
+  "gu",
+);
 
 export interface SendAgentProxyMessageInput {
   provider: AgentProvider;
@@ -197,43 +207,45 @@ function sanitizeEventForStorage(event: AgentEvent): Record<string, unknown> {
       return {
         type: event.type,
         role: event.role,
-        ...(event.messageId !== undefined ? { messageId: event.messageId } : {}),
+        ...(event.messageId !== undefined
+          ? { messageId: sanitizeStoredString(event.messageId) }
+          : {}),
         metadata: {},
       };
     case "tool.started":
       return {
         type: event.type,
-        toolCallId: event.toolCallId,
-        toolName: event.toolName,
+        toolCallId: sanitizeStoredString(event.toolCallId),
+        toolName: sanitizeStoredString(event.toolName),
         metadata: {},
       };
     case "tool.finished":
       return {
         type: event.type,
-        toolCallId: event.toolCallId,
-        toolName: event.toolName,
+        toolCallId: sanitizeStoredString(event.toolCallId),
+        toolName: sanitizeStoredString(event.toolName),
         ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}),
         metadata: {},
       };
     case "permission.requested":
       return {
         type: event.type,
-        permissionId: event.permissionId,
-        action: event.action,
+        permissionId: sanitizeStoredString(event.permissionId),
+        action: sanitizeStoredString(event.action),
         metadata: {},
       };
     case "permission.resolved":
       return {
         type: event.type,
-        permissionId: event.permissionId,
+        permissionId: sanitizeStoredString(event.permissionId),
         decision: event.decision,
         metadata: {},
       };
     case "file.changed":
       return {
         type: event.type,
-        path: event.path,
-        change: event.change,
+        path: sanitizeStoredString(event.path),
+        change: sanitizeStoredString(event.change),
         metadata: {},
       };
     case "diff.updated":
@@ -257,25 +269,27 @@ function sanitizeEventForStorage(event: AgentEvent): Record<string, unknown> {
     case "session.status_changed":
       return {
         type: event.type,
-        from: event.from,
-        to: event.to,
+        from: sanitizeStoredString(event.from),
+        to: sanitizeStoredString(event.to),
         metadata: sanitizeMetadata(event.metadata),
       };
     case "session.started":
       return {
         type: event.type,
-        providerSessionId: event.providerSessionId,
+        providerSessionId: sanitizeStoredString(event.providerSessionId),
         ...(event.agentproxySessionId !== undefined
-          ? { agentproxySessionId: event.agentproxySessionId }
+          ? { agentproxySessionId: sanitizeStoredString(event.agentproxySessionId) }
           : {}),
-        workspacePath: event.workspacePath,
-        ...(event.model !== undefined ? { model: event.model } : {}),
+        ...(event.workspacePath !== undefined
+          ? { workspacePath: sanitizeStoredString(event.workspacePath) }
+          : {}),
+        ...(event.model !== undefined ? { model: sanitizeStoredString(event.model) } : {}),
         metadata: sanitizeMetadata(event.metadata),
       };
     case "provider.raw_event":
       return {
         type: event.type,
-        providerEventType: event.providerEventType,
+        providerEventType: sanitizeStoredString(event.providerEventType),
         metadata: sanitizeMetadata(event.metadata),
       };
   }
@@ -295,8 +309,28 @@ function mergeLifecycleMetadata(
 }
 
 function sanitizeMetadata(metadata: ProviderMetadata): ProviderMetadata {
-  const safe = jsonSafe(redactValue(metadata));
+  const safe = jsonSafe(sanitizeStoredValue(redactValue(metadata)));
   return dropRedactedValues(safe);
+}
+
+function sanitizeStoredValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    return sanitizeStoredString(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeStoredValue(item));
+  }
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, sanitizeStoredValue(entry)]),
+    );
+  }
+
+  return value;
+}
+
+function sanitizeStoredString(value: string): string {
+  return redactString(value).replace(ANSI_ESCAPE_PATTERN, "").replace(UNSAFE_CONTROL_PATTERN, "");
 }
 
 function dropRedactedValues(metadata: ProviderMetadata): ProviderMetadata {
