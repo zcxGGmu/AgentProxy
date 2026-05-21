@@ -1111,7 +1111,7 @@ describe("agentproxy sessions CLI", () => {
     });
   });
 
-  it("leaves later mutating session commands, runtime stop, and config as planned placeholders", async () => {
+  it("leaves later mutating session commands and config as planned placeholders", async () => {
     const workspace = await createTestWorkspace();
 
     for (const argv of [
@@ -1121,7 +1121,6 @@ describe("agentproxy sessions CLI", () => {
       ["sessions", "import", "session.json", "--config", workspace.configPath],
       ["sessions", "share", "apx_123", "--config", workspace.configPath],
       ["sessions", "unshare", "apx_123", "--config", workspace.configPath],
-      ["runtime", "stop", "runtime_123", "--config", workspace.configPath],
       ["config", "get", "--config", workspace.configPath],
     ]) {
       const result = await runCli({ workspace, argv });

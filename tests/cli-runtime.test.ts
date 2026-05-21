@@ -5,7 +5,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createProgram } from "../src/cli/index.js";
 import { createOutputWriters } from "../src/logging/index.js";
-import { RuntimeRegistry } from "../src/runtimes/index.js";
+import { OPENCODE_ATTACHED_RUNTIME_METADATA_KEY, RuntimeRegistry } from "../src/runtimes/index.js";
 import { openAgentProxyStorage } from "../src/storage/index.js";
 
 const tempRoots: string[] = [];
@@ -220,6 +220,124 @@ describe("agentproxy runtime CLI", () => {
     expect(JSON.stringify(report)).not.toContain("\u001B[31m");
   });
 
+  it("stops an attached runtime and emits a detached JSON report", async () => {
+    const workspace = await createTestWorkspace();
+    seedRuntimeRegistry(workspace);
+
+    const result = await runCli({
+      workspace,
+      argv: ["runtime", "stop", "runtime_attached", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("planned for a later phase");
+
+    const report = JSON.parse(result.stdout);
+    expect(report).toMatchObject({
+      ok: true,
+      providerId: "opencode",
+      workspacePath: workspace.workspacePath,
+      source: {
+        storage: "readwrite",
+        databaseExists: true,
+      },
+      action: "detach_only",
+      runtime: {
+        id: "runtime_attached",
+        providerId: "opencode",
+        mode: "attached",
+        status: "detached",
+        baseUrl: "http://127.0.0.1:7777/path",
+      },
+    });
+    expect(JSON.stringify(report)).not.toContain("token-secret");
+    expect(JSON.stringify(report)).not.toContain("sk-url-secret");
+    expect(JSON.stringify(report)).not.toContain("runtime-secret");
+    expect(JSON.stringify(report)).not.toContain("\u001B[31m");
+
+    const storage = openAgentProxyStorage({ databasePath: workspace.storagePath, readonly: true });
+    try {
+      expect(storage.runtimes.get("runtime_attached")).toMatchObject({
+        id: "runtime_attached",
+        providerId: "opencode",
+        mode: "attached",
+        status: "detached",
+        stoppedAt: expect.any(String),
+      });
+      expect(
+        storage.runtimes.get("runtime_attached")?.metadata[OPENCODE_ATTACHED_RUNTIME_METADATA_KEY],
+      ).toMatchObject({
+        stopAction: "detach_only",
+        stopRequested: true,
+      });
+    } finally {
+      storage.close();
+    }
+  });
+
+  it("prints terminal-safe human output when stopping an attached runtime", async () => {
+    const workspace = await createTestWorkspace();
+    seedRuntimeRegistry(workspace);
+
+    const result = await runCli({
+      workspace,
+      argv: ["runtime", "stop", "runtime_attached", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Runtime detached: runtime_attached");
+    expect(result.stdout).toContain("Status: detached");
+    expect(result.stdout).not.toContain("token-secret");
+    expect(result.stdout).not.toContain("sk-url-secret");
+    expect(result.stdout).not.toContain("runtime-secret");
+    expect(result.stdout).not.toContain("\u001B[31m");
+  });
+
+  it("refuses registry-only managed runtimes without killing the childless record", async () => {
+    const workspace = await createTestWorkspace();
+    seedRuntimeRegistry(workspace);
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "runtime",
+        "stop",
+        "\u001B[31mruntime-token=runtime-id-secret\u001B[0m",
+        "--json",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(6);
+    expect(result.stdout).not.toContain("planned for a later phase");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "CAPABILITY_UNSUPPORTED",
+        operation: "runtime.stop",
+      },
+    });
+    expect(result.stdout).not.toContain("runtime-id-secret");
+
+    const storage = openAgentProxyStorage({ databasePath: workspace.storagePath, readonly: true });
+    try {
+      expect(storage.runtimes.get("runtime_attached")).toMatchObject({
+        status: "attached",
+      });
+      expect(
+        storage.runtimes.get("\u001B[31mruntime-token=runtime-id-secret\u001B[0m"),
+      ).toMatchObject({
+        status: "healthy",
+        pid: 3333,
+      });
+    } finally {
+      storage.close();
+    }
+  });
+
   it("prints terminal-safe human runtime list output", async () => {
     const workspace = await createTestWorkspace();
     seedRuntimeRegistry(workspace);
@@ -290,11 +408,51 @@ describe("agentproxy runtime CLI", () => {
       },
     });
 
+    const notFound = await runCli({
+      workspace: enabledWorkspace,
+      argv: [
+        "runtime",
+        "stop",
+        "runtime_missing",
+        "--json",
+        "--config",
+        enabledWorkspace.configPath,
+      ],
+    });
+    expect(notFound.exitCode).toBe(1);
+    expect(JSON.parse(notFound.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "SESSION_NOT_FOUND",
+        operation: "runtime.stop",
+      },
+    });
+    expect(existsSync(enabledWorkspace.storagePath)).toBe(false);
+    expect(existsSync(path.dirname(enabledWorkspace.storagePath))).toBe(false);
+
+    const filteredWorkspace = await createTestWorkspace();
+    seedRuntimeRegistry(filteredWorkspace);
+    for (const runtimeId of ["runtime_other_workspace", "runtime_other_provider"]) {
+      const filtered = await runCli({
+        workspace: filteredWorkspace,
+        argv: ["runtime", "stop", runtimeId, "--json", "--config", filteredWorkspace.configPath],
+      });
+      expect(filtered.exitCode).toBe(1);
+      expect(JSON.parse(filtered.stdout)).toMatchObject({
+        ok: false,
+        error: {
+          code: "SESSION_NOT_FOUND",
+          operation: "runtime.stop",
+        },
+      });
+    }
+
     const missingHuman = await runCli({
       workspace: enabledWorkspace,
       argv: [
         "runtime",
-        "list",
+        "stop",
+        "runtime_123",
         "--provider",
         "\u001B[31mmissing-token=provider-secret\u001B[0m",
         "--config",
@@ -309,7 +467,14 @@ describe("agentproxy runtime CLI", () => {
 
     const disabled = await runCli({
       workspace: disabledWorkspace,
-      argv: ["runtime", "list", "--json", "--config", disabledWorkspace.configPath],
+      argv: [
+        "runtime",
+        "stop",
+        "runtime_attached",
+        "--json",
+        "--config",
+        disabledWorkspace.configPath,
+      ],
     });
     expect(disabled.exitCode).toBe(4);
     expect(JSON.parse(disabled.stdout)).toMatchObject({
@@ -321,11 +486,10 @@ describe("agentproxy runtime CLI", () => {
     });
   });
 
-  it("leaves runtime stop, later session commands, and config as planned placeholders", async () => {
+  it("leaves later session commands and config as planned placeholders", async () => {
     const workspace = await createTestWorkspace();
 
     for (const argv of [
-      ["runtime", "stop", "runtime_123", "--config", workspace.configPath],
       ["sessions", "abort", "apx_123", "--config", workspace.configPath],
       ["config", "get", "--config", workspace.configPath],
     ]) {

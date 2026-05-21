@@ -505,12 +505,12 @@ describe("agentproxy providers CLI", () => {
 
     const result = await runCli({
       workspace,
-      argv: ["runtime", "stop", "runtime_123", "--config", workspace.configPath],
+      argv: ["sessions", "abort", "apx_123", "--config", workspace.configPath],
     });
 
     expect(result.exitCode).toBe(6);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("CAPABILITY_UNSUPPORTED");
-    expect(result.stderr).toContain("agentproxy runtime stop is planned");
+    expect(result.stderr).toContain("agentproxy sessions abort is planned");
   });
 });

@@ -11,6 +11,50 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Phase 5 Runtime Stop CLI Minimal Workflow
+
+Scope: advance only the Phase 5 `agentproxy runtime stop <runtime-id>` CLI task group. This workflow stops or detaches a runtime registry entry according to the existing runtime lifecycle safety boundary: attached runtimes are detached locally, while managed runtimes can only be stopped when owned by the current AgentProxy process; registry-only managed runtimes must not be killed by historical PID. Do not implement `sessions abort/delete/export/import/share/unshare`, `config`, `chat --session`, Phase 6 AgentProxy TUI, runtime start/attach CLI, or any new Agent runtime behavior.
+
+Implementation checklist:
+
+- [x] Add focused CLI tests for `runtime stop <runtime-id>` JSON/human output, attached detach-only success, missing DB/missing/wrong-provider/wrong-workspace records, disabled/invalid provider behavior, managed registry-only refusal, terminal/control-character safety, and later-command placeholder boundaries.
+- [x] Extend `src/cli/runtime.ts` with a narrow runtime stop action/service that resolves config, opens existing SQLite read-write only for the target operation, filters by provider/workspace, and delegates attached detach to the existing attached runtime manager.
+- [x] Wire only `agentproxy runtime stop <runtime-id>` from planned placeholder to a real action; keep sessions mutation commands, `config`, `chat --session`, and Phase 6 TUI untouched.
+- [x] Keep JSON output metadata-safe by emitting only stable runtime summary fields and action status; do not emit raw runtime metadata, URL credentials, query strings, headers, secrets, or provider-controlled payloads.
+- [x] Update `docs/development-progress-tracker.zh.md` completed/unfinished status and Review notes after verification.
+- [x] Run focused runtime CLI/runtime lifecycle tests, full applicable project verification, code review, and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean; `git log -1 --oneline` is `819d8eb 文档：明确 Phase 5 剩余开发状态`, so the latest Phase 5 implementation baseline remains `fecc676 阶段进展：完成 Phase 5 Sessions Resume CLI`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Phase 3.3 already provides managed runtime stop for current-process owned child processes and explicitly rejects registry-only or attached stop attempts.
+- Phase 3.4 already provides attached runtime detach-only stop through `OpenCodeAttachedRuntimeManager.stopAttachedRuntime()`.
+- Phase 5 `runtime list` already provides provider/config resolution, registry visibility filtering, stable runtime summaries, JSON/human output split, missing DB handling, and terminal/secret sanitization patterns.
+
+Acceptance criteria for this iteration:
+
+- [x] `agentproxy runtime stop <runtime-id>` is a real command and no longer returns the generic planned `CAPABILITY_UNSUPPORTED` placeholder.
+- [x] The command addresses runtimes by AgentProxy runtime id and refuses absent DB, missing, wrong-provider, and wrong-workspace records with a stable non-leaky error.
+- [x] Attached OpenCode runtime records transition to `detached` with detach-only metadata and no process kill attempt.
+- [x] Registry-only managed runtime records are refused with `CAPABILITY_UNSUPPORTED` or an equivalent stable unsupported operation; the command must not kill a historical PID or mark a still-unknown process as stopped.
+- [x] `runtime stop --json` emits exactly one valid redacted JSON object on stdout, with no human prose mixed in and no raw metadata.
+- [x] Human output is terminal-control-character safe and does not print URL credentials, query strings, headers, secrets, metadata blobs, or provider-controlled control characters.
+- [x] Non-OpenCode provider selection maps to `PROVIDER_NOT_FOUND`; disabled OpenCode config maps to `PROVIDER_UNAVAILABLE`.
+- [x] `sessions abort/delete/export/import/share/unshare`, `config`, `chat --session`, and Phase 6 AgentProxy TUI remain unimplemented or explicitly unsupported.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
+Risks and constraints:
+
+- Do not implement process discovery or PID killing in the CLI. Stopping managed runtimes safely requires current-process child ownership, which a standalone CLI command generally does not have.
+- Do not turn attached detach into a provider shutdown. Attached means AgentProxy disconnects from local registry state only.
+- Avoid creating storage when the DB is absent; missing registry should be handled as not found.
+- Keep AgentProxy as a thin control plane and not a replacement runtime.
+
+Review notes:
+
+- 2026-05-21: Completed the Phase 5 `runtime stop` CLI minimal workflow. Extended `src/cli/runtime.ts` and `src/cli/index.ts` so `agentproxy runtime stop <runtime-id>` resolves config, opens an existing runtime registry DB without creating absent storage, filters by selected provider/workspace, detaches attached OpenCode runtime records through the existing attached runtime manager, and refuses registry-only managed runtime records with stable `CAPABILITY_UNSUPPORTED` without killing historical PIDs. Updated `tests/cli-runtime.test.ts` and placeholder boundary tests so JSON/human output stays metadata-safe, URL/query/secret/control-character safe, and later `sessions abort/delete/export/import/share/unshare`, `config`, `chat --session`, and Phase 6 TUI remain untouched. Code review approved with no blocking findings. Verification passed: `pnpm exec vitest run tests/cli-runtime.test.ts`, `pnpm exec vitest run tests/cli-runtime.test.ts tests/cli-providers.test.ts tests/cli-chat.test.ts tests/cli-sessions.test.ts tests/cli-run.test.ts tests/cli-help.test.ts tests/opencode-managed-runtime.test.ts tests/opencode-attached-runtime.test.ts` (8 files, 86 tests), `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run test` (29 files, 235 tests), `pnpm run build`, and `git diff --check`. Residual risk: standalone CLI cannot stop a managed process it does not own; managed runtime process stop remains limited to current-process ownership or a future long-lived control plane.
+
 ## Current Iteration - 2026-05-21 Documentation Sync After Phase 5 Sessions Resume CLI
 
 Scope: update tracking documents after `bbed697 文档：同步 Phase 5 Sessions Resume 后续开发状态` so the next Codex session can continue from the correct remaining Phase 5 CLI MVP task group. This is documentation-only. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.

@@ -35,7 +35,12 @@ import {
   sanitizeHumanText,
   type AgentProxyRunEventSummary,
 } from "./run.js";
-import { formatRuntimeListHumanReport, listAgentProxyRuntimes } from "./runtime.js";
+import {
+  formatRuntimeListHumanReport,
+  formatRuntimeStopHumanReport,
+  listAgentProxyRuntimes,
+  stopAgentProxyRuntime,
+} from "./runtime.js";
 import {
   formatSessionResumeHumanEvent,
   formatSessionResumeReportForJson,
@@ -54,7 +59,7 @@ const implementedCoreWorkflows = [
   "agentproxy run [prompt]",
   "agentproxy chat [--workspace .]",
   "agentproxy providers list|inspect",
-  "agentproxy runtime list",
+  "agentproxy runtime list|stop",
   "agentproxy sessions list",
   "agentproxy sessions show <id>",
   "agentproxy sessions resume <id> [--prompt ...]",
@@ -63,7 +68,6 @@ const implementedCoreWorkflows = [
 
 const plannedCoreWorkflows = [
   "agentproxy sessions abort|delete|export|import|share|unshare",
-  "agentproxy runtime stop",
   "agentproxy config get|set",
 ];
 
@@ -243,8 +247,8 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
   runtime
     .command("stop")
     .argument("<runtime-id>", "Runtime id.")
-    .description("Stop a managed runtime.")
-    .action(plannedAction("runtime stop", output));
+    .description("Stop or detach a runtime.")
+    .action(createRuntimeStopAction(output, options));
 
   const config = program
     .command("config")
@@ -532,6 +536,33 @@ function createRuntimeListAction(
         output.writeJson(report);
       } else {
         output.writeResult(formatRuntimeListHumanReport(report));
+      }
+      process.exitCode = 0;
+    } catch (error) {
+      handleCliError(error, output, this);
+    }
+  };
+}
+
+function createRuntimeStopAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command, runtimeId: string) => Promise<void> {
+  return async function (this: Command, runtimeId) {
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const report = await stopAgentProxyRuntime(runtimeId, {
+        providerId: globalOptions.provider,
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(this),
+      });
+
+      if (globalOptions.json) {
+        output.writeJson(report);
+      } else {
+        output.writeResult(formatRuntimeStopHumanReport(report));
       }
       process.exitCode = 0;
     } catch (error) {
