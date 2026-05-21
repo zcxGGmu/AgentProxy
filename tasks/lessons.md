@@ -53,3 +53,4 @@
 - 由 `run` 启动 managed runtime 时不能把完整 parent env 传给 provider binary；只能传最小执行环境和显式配置的 OpenCode passthrough env。
 - one-shot `run` 不能把 `session.completed` 视为天然成功；必须根据最终 session status 映射稳定退出码，避免 provider 报错但 CLI 仍 exit 0。
 - one-shot `run` 的 timeout 必须显式抛出 `EVENT_STREAM_INTERRUPTED` 或同类稳定错误，并把本地 session 记录回写为 failed，不能把 abort 当成自然完成。
+- Phase 5 仍属于 CLI MVP 阶段；`agentproxy chat` 只能表述和实现为 CLI native OpenCode TUI launcher，不能把它写成或推进成 Phase 6 的 AgentProxy TUI/Ink 控制面。

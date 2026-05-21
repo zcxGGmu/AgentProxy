@@ -11,7 +11,36 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
-## Current Iteration - 2026-05-21 Phase 5.3 Chat Native TUI Launcher Minimal Entry
+## Current Iteration - 2026-05-21 Documentation Sync After Phase 5.3 Chat CLI Launcher
+
+Scope: update tracking documents after `4e07797 阶段进展：完成 Phase 5.3 Chat Native TUI Launcher`, clarifying that the completed work is still Phase 5 CLI work: `agentproxy chat` launches the provider-native OpenCode UI and does not mean Phase 6 AgentProxy TUI has started. Do not change source code or implement any `sessions`, `providers`, `runtime`, `config`, or TUI behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit.
+- [x] Update `docs/development-progress-tracker.zh.md` latest status, completed/unfinished lists, current baseline, and next-start prompt.
+- [x] Preserve the corrected lesson that Phase 5 `chat` must be described as a CLI native OpenCode launcher rather than Phase 6 AgentProxy TUI.
+- [x] Run documentation-appropriate verification.
+- [x] Commit the documentation sync with a detailed Chinese commit message.
+
+Acceptance criteria:
+
+- [x] The tracker clearly lists Phase 5.1, Phase 5.2, Phase 5.3 `run`, and Phase 5.3 CLI `chat` native OpenCode launcher as completed.
+- [x] The tracker clearly lists Phase 5 remaining CLI MVP commands (`sessions`, `providers list/inspect`, `runtime`, `config`) as unfinished.
+- [x] Phase 6 AgentProxy TUI remains explicitly unfinished and not started.
+- [x] The next-start prompt tells the next Codex session to continue from Phase 5 remaining CLI MVP commands, not full TUI.
+
+Risks and constraints:
+
+- Do not rewrite the development plan unless this documentation sync exposes a real design gap.
+- Do not treat the documentation sync as a new implementation phase.
+- Avoid ambiguous wording that says "TUI completed"; the completed item is only the CLI launcher for OpenCode's native UI.
+
+Review notes:
+
+- 2026-05-21: Refreshed the progress tracker after the Phase 5.3 chat boundary correction. The tracker now states that `agentproxy chat` is a Phase 5 CLI native OpenCode launcher, not Phase 6 AgentProxy TUI. It also keeps Phase 5 remaining CLI MVP commands (`sessions`, `providers list/inspect`, `runtime`, `config`) as the next unfinished work, and keeps Phase 6 AgentProxy TUI explicitly not started. Verification passed with `git status --short`, `git log -1 --oneline`, `git diff --check`, and `pnpm run format:check`; source code was not touched.
+
+## Current Iteration - 2026-05-21 Phase 5.3 Chat CLI Native OpenCode Launcher Minimal Entry
 
 Scope: advance only the smallest `agentproxy chat` entry from Phase 5.3 by launching the OpenCode native TUI as the provider-owned interactive surface for the selected workspace. Do not implement a full AgentProxy Ink TUI, session-specific native resume, prompt prefill, `/tui` server API control, `sessions`, `runtime`, `config`, `providers list/inspect`, or new Agent runtime behavior.
 
