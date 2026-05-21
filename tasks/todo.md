@@ -11,6 +11,50 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Phase 5 Sessions Abort CLI Minimal Workflow
+
+Scope: advance only the Phase 5 `agentproxy sessions abort <id>` CLI task group. This workflow aborts an existing visible AgentProxy local session mapping through the OpenCode provider session operation API and updates the local registry with a sanitized failed/aborted state. Do not implement `sessions delete`, `sessions export`, `sessions import`, `sessions share`, `sessions unshare`, `config`, `chat --session`, Phase 6 AgentProxy TUI, provider transcript display, or any new Agent runtime behavior.
+
+Implementation checklist:
+
+- [x] Add focused CLI tests for `sessions abort <id>` human/JSON output, provider abort dispatch, absent/missing/tombstoned/wrong-provider/wrong-workspace records, disabled/invalid provider behavior, runtime unavailable behavior, terminal/control-character safety, and later-command placeholder boundaries.
+- [x] Extend `src/cli/sessions.ts` with a narrow abort action/service that resolves config, requires an existing visible local session mapping, opens SQLite read-write only for the target operation, reuses the OpenCode runtime/provider helper, calls existing `abortAgentProxySession()`, and emits stable sanitized output.
+- [x] Wire only `agentproxy sessions abort <id>` from planned placeholder to a real action; keep `sessions delete/export/import/share/unshare`, `config`, `chat --session`, and Phase 6 TUI untouched.
+- [x] Keep JSON output transcript-free and provider-payload-safe by emitting only stable session/runtime/action summary fields; never emit raw provider transcript, raw provider payloads, metadata blobs, share URLs, or prompt text.
+- [x] Update `docs/development-progress-tracker.zh.md` completed/unfinished status and Review notes after verification.
+- [x] Run focused sessions CLI/session action tests, related CLI placeholder boundary tests, full applicable project verification, code review, and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean; `git log -1 --oneline` is `342c098 文档：同步 Phase 5 Runtime Stop 后续开发状态`, so the latest Phase 5 implementation baseline remains `fb827fe 阶段进展：完成 Phase 5 Runtime Stop CLI`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Phase 4.6 already provides `OpenCodeProvider.abortSession()` and provider-agnostic `abortAgentProxySession()` with local registry update behavior.
+- Phase 5 `sessions resume` already provides runtime selection, provider creation, visible local session mapping checks, sanitized JSON/human output, and placeholder boundary patterns to reuse.
+- Phase 5 `runtime stop` and `sessions show/list` already provide missing DB no-create behavior and provider/workspace visibility filtering patterns.
+
+Acceptance criteria for this iteration:
+
+- [x] `agentproxy sessions abort <id>` is a real command and no longer returns the generic planned `CAPABILITY_UNSUPPORTED` placeholder.
+- [x] The command addresses sessions by AgentProxy local session id and refuses absent DB, missing, tombstoned, wrong-provider, and wrong-workspace records with stable `SESSION_NOT_FOUND` without leaking hidden record content.
+- [x] The command calls the provider abort operation for the existing providerSessionId, updates the local session status/timestamps through the existing session operation service, and does not create a new provider session or message stream.
+- [x] `sessions abort --json` emits exactly one valid redacted JSON object on stdout, with no human prose mixed in and no transcript/raw provider payload.
+- [x] Human output is terminal-control-character safe and does not print raw metadata blobs, transcripts, provider event payloads, URL credentials, query strings, headers, secrets, prompt text, or provider-controlled control characters.
+- [x] Runtime selection behavior matches the existing command helper: configured base URL and registry runtime are reused; attached mode without runtime URL maps to stable runtime error; managed one-shot behavior remains provider-owned and best-effort cleaned up.
+- [x] Non-OpenCode provider selection maps to `PROVIDER_NOT_FOUND`; disabled OpenCode config maps to `PROVIDER_UNAVAILABLE`.
+- [x] `sessions delete/export/import/share/unshare`, `config`, `chat --session`, and Phase 6 AgentProxy TUI remain unimplemented or explicitly unsupported.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
+Risks and constraints:
+
+- Do not infer abort success from local state alone; provider abort must be invoked for the mapped provider session.
+- Do not expose provider operation response details or metadata; abort is a control-plane action summary only.
+- Do not broaden this into delete/export/import/share/unshare; those remain separate later CLI workflows.
+- Keep AgentProxy as a thin OpenCode control plane and do not implement Agent runtime cancellation logic locally.
+
+Review notes:
+
+- 2026-05-21: Completed the Phase 5 `sessions abort` CLI minimal workflow. Added focused tests first and confirmed the red state while `sessions abort` was still a planned placeholder, then extended `src/cli/sessions.ts` and `src/cli/index.ts` so `agentproxy sessions abort <id>` resolves config, requires a visible local AgentProxy session mapping, reuses OpenCode runtime/provider command helpers, calls the existing provider-backed `abortAgentProxySession()`, writes local failed/abort metadata, and emits transcript-free JSON plus terminal-safe human output. Updated placeholder boundary tests so `sessions delete/export/import/share/unshare`, `config`, `chat --session`, and Phase 6 TUI remain untouched. Code-reviewer agents were invoked twice but timed out without findings; completed a blocking local diff review covering visible mapping, no-create DB behavior, provider success-before-local-write, cleanup, output redaction, and placeholder boundaries with no blocking issues found. Verification passed: `pnpm exec vitest run tests/session-actions.test.ts tests/cli-sessions.test.ts`, `pnpm exec vitest run tests/session-actions.test.ts tests/cli-sessions.test.ts tests/cli-help.test.ts tests/cli-chat.test.ts tests/cli-run.test.ts tests/cli-runtime.test.ts tests/cli-providers.test.ts` (7 files, 75 tests), `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm exec vitest run --maxWorkers=1 --testTimeout=10000` (29 files, 241 tests), `pnpm run test` (29 files, 241 tests), `pnpm run build`, and `git diff --check`. Residual risk: real OpenCode abort smoke calibration remains a later compatibility task; remaining Phase 5 CLI work is still `sessions delete/export/import/share/unshare` and `config`.
+
 ## Current Iteration - 2026-05-21 Documentation Sync After Phase 5 Runtime Stop CLI
 
 Scope: update only the project tracking documents after `fb827fe 阶段进展：完成 Phase 5 Runtime Stop CLI` so the next Codex session can resume from the correct remaining Phase 5 CLI MVP task group. This is documentation-only. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.

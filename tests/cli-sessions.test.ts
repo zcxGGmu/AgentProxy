@@ -220,6 +220,60 @@ async function startFakeOpenCodeResumeServer(
   };
 }
 
+async function startFakeOpenCodeAbortServer(
+  input: { providerSessionId?: string; responseStatus?: number } = {},
+): Promise<{
+  baseUrl: string;
+  abortDirectories: string[];
+  abortCalls: string[];
+}> {
+  const providerSessionId = input.providerSessionId ?? "ses_abort";
+  const responseStatus = input.responseStatus ?? 204;
+  const abortDirectories: string[] = [];
+  const abortCalls: string[] = [];
+
+  const server = createServer((request, response) => {
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    const decodedPathname = decodeURIComponent(url.pathname);
+
+    if (request.method === "POST" && decodedPathname === `/session/${providerSessionId}/abort`) {
+      abortCalls.push(`${request.method} ${decodedPathname}`);
+      abortDirectories.push(url.searchParams.get("directory") ?? "");
+      response.writeHead(responseStatus, { "content-type": "application/json" });
+      response.end(
+        responseStatus === 204
+          ? undefined
+          : JSON.stringify({
+              error: "abort failed token=provider-error-secret",
+            }),
+      );
+      return;
+    }
+
+    response.writeHead(404, { "content-type": "application/json" });
+    response.end(JSON.stringify({ error: "not found token=server-secret" }));
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+  servers.push(server);
+  const address = server.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("Expected fake OpenCode server to listen on a TCP address.");
+  }
+
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    abortDirectories,
+    abortCalls,
+  };
+}
+
 async function readRequestJson(request: IncomingMessage): Promise<unknown> {
   let body = "";
   for await (const chunk of request) {
@@ -819,6 +873,94 @@ describe("agentproxy sessions CLI", () => {
     }
   });
 
+  it("aborts an existing session and prints a transcript-free JSON report", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeServer = await startFakeOpenCodeAbortServer({
+      providerSessionId: "ses_recent_token=provider-secret",
+    });
+    await updateConfigRuntimeBaseUrl(workspace, fakeServer.baseUrl);
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "abort", "apx_recent", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("planned for a later phase");
+    const report = JSON.parse(result.stdout);
+    expect(report).toMatchObject({
+      ok: true,
+      providerId: "opencode",
+      sessionId: "apx_recent",
+      providerSessionId: "ses_recent_token=[REDACTED]",
+      status: "failed",
+      action: {
+        type: "abort",
+      },
+      runtime: {
+        source: "config",
+        mode: "attached",
+        startedByCommand: false,
+      },
+    });
+    expect(typeof report.action.abortedAt).toBe("string");
+    expect(JSON.stringify(report)).not.toContain("provider-secret");
+    expect(JSON.stringify(report)).not.toContain("title-secret");
+    expect(JSON.stringify(report)).not.toContain("sk-session-metadata-secret");
+    expect(JSON.stringify(report)).not.toContain("provider transcript");
+    expect(JSON.stringify(report)).not.toContain("\u001B[31m");
+    expect(fakeServer.abortCalls).toEqual(["POST /session/ses_recent_token=provider-secret/abort"]);
+    expect(fakeServer.abortDirectories).toEqual([workspace.workspacePath]);
+
+    const storage = openAgentProxyStorage({ databasePath: workspace.storagePath });
+    try {
+      const session = storage.sessions.getById("apx_recent");
+      expect(session).toMatchObject({
+        id: "apx_recent",
+        providerSessionId: "ses_recent_token=provider-secret",
+        status: "failed",
+        metadata: {
+          sessionOperations: {
+            abort: {
+              abortedAt: report.action.abortedAt,
+            },
+          },
+        },
+      });
+      expect(JSON.stringify(session)).not.toContain("sk-session-metadata-secret");
+    } finally {
+      storage.close();
+    }
+  });
+
+  it("prints terminal-safe human abort output", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeServer = await startFakeOpenCodeAbortServer({
+      providerSessionId: "ses_recent_token=provider-secret",
+    });
+    await updateConfigRuntimeBaseUrl(workspace, fakeServer.baseUrl);
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "abort", "apx_recent", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Session aborted: apx_recent");
+    expect(result.stdout).toContain("Provider session: ses_recent_token=[REDACTED]");
+    expect(result.stdout).toContain("Status: failed");
+    expect(result.stdout).not.toContain("provider-secret");
+    expect(result.stdout).not.toContain("title-secret");
+    expect(result.stdout).not.toContain("sk-session-metadata-secret");
+    expect(result.stdout).not.toContain("provider transcript");
+    expect(result.stdout).not.toContain("\u001B[31m");
+    expect(fakeServer.abortDirectories).toEqual([workspace.workspacePath]);
+  });
+
   it("succeeds with an empty list when the session registry database is absent", async () => {
     const workspace = await createTestWorkspace();
 
@@ -881,6 +1023,28 @@ describe("agentproxy sessions CLI", () => {
         code: "SESSION_NOT_FOUND",
         providerId: "opencode",
         operation: "sessions.resume",
+      },
+    });
+    expect(existsSync(workspace.storagePath)).toBe(false);
+    expect(existsSync(path.dirname(workspace.storagePath))).toBe(false);
+  });
+
+  it("does not create storage and reports SESSION_NOT_FOUND when aborting from an absent database", async () => {
+    const workspace = await createTestWorkspace();
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "abort", "apx_missing", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "SESSION_NOT_FOUND",
+        providerId: "opencode",
+        operation: "sessions.abort",
       },
     });
     expect(existsSync(workspace.storagePath)).toBe(false);
@@ -955,6 +1119,43 @@ describe("agentproxy sessions CLI", () => {
     expect(fakeServer.messageBodies).toEqual([]);
   });
 
+  it("treats missing, tombstoned, wrong-workspace, and wrong-provider sessions as not found for abort", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeServer = await startFakeOpenCodeAbortServer({
+      providerSessionId: "ses_recent_token=provider-secret",
+    });
+    await updateConfigRuntimeBaseUrl(workspace, fakeServer.baseUrl);
+
+    for (const sessionId of [
+      "apx_missing",
+      "apx_deleted",
+      "apx_other_workspace",
+      "apx_other_provider",
+    ]) {
+      const result = await runCli({
+        workspace,
+        argv: ["sessions", "abort", sessionId, "--json", "--config", workspace.configPath],
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe("");
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        ok: false,
+        error: {
+          code: "SESSION_NOT_FOUND",
+          providerId: "opencode",
+          operation: "sessions.abort",
+        },
+      });
+      expect(result.stdout).not.toContain("deleted-secret");
+      expect(result.stdout).not.toContain("deleted-metadata-secret");
+      expect(result.stdout).not.toContain("Other workspace");
+      expect(result.stdout).not.toContain("Other provider");
+    }
+    expect(fakeServer.abortCalls).toEqual([]);
+  });
+
   it("maps resume runtime availability errors to a stable runtime exit code", async () => {
     const workspace = await createTestWorkspace();
     seedSessionRegistry(workspace);
@@ -962,6 +1163,21 @@ describe("agentproxy sessions CLI", () => {
     const result = await runCli({
       workspace,
       argv: ["sessions", "resume", "apx_recent", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(9);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("RUNTIME_HEALTH_FAILED");
+    expect(result.stderr).not.toContain("provider-secret");
+  });
+
+  it("maps abort runtime availability errors to a stable runtime exit code", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "abort", "apx_recent", "--config", workspace.configPath],
     });
 
     expect(result.exitCode).toBe(9);
@@ -1109,13 +1325,51 @@ describe("agentproxy sessions CLI", () => {
         operation: "sessions.resume",
       },
     });
+
+    const missingAbort = await runCli({
+      workspace: enabledWorkspace,
+      argv: [
+        "sessions",
+        "abort",
+        "apx_recent",
+        "--provider",
+        "\u001B[31mmissing-token=provider-secret\u001B[0m",
+        "--json",
+        "--config",
+        enabledWorkspace.configPath,
+      ],
+    });
+    expect(missingAbort.exitCode).toBe(4);
+    expect(JSON.parse(missingAbort.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_NOT_FOUND",
+        providerId: "missing-token=[REDACTED]",
+        operation: "sessions.abort",
+      },
+    });
+    expect(missingAbort.stdout).not.toContain("\u001B[31m");
+    expect(missingAbort.stdout).not.toContain("provider-secret");
+
+    const disabledAbort = await runCli({
+      workspace: disabledWorkspace,
+      argv: ["sessions", "abort", "apx_recent", "--json", "--config", disabledWorkspace.configPath],
+    });
+    expect(disabledAbort.exitCode).toBe(4);
+    expect(JSON.parse(disabledAbort.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_UNAVAILABLE",
+        providerId: "opencode",
+        operation: "sessions.abort",
+      },
+    });
   });
 
   it("leaves later mutating session commands and config as planned placeholders", async () => {
     const workspace = await createTestWorkspace();
 
     for (const argv of [
-      ["sessions", "abort", "apx_123", "--config", workspace.configPath],
       ["sessions", "delete", "apx_123", "--config", workspace.configPath],
       ["sessions", "export", "apx_123", "--config", workspace.configPath],
       ["sessions", "import", "session.json", "--config", workspace.configPath],

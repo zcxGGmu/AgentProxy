@@ -191,7 +191,7 @@ describe("agentproxy CLI placeholder", () => {
         "node",
         "agentproxy",
         "sessions",
-        "abort",
+        "delete",
         "apx_123",
         "--json",
         "--provider",
@@ -222,12 +222,12 @@ describe("agentproxy CLI placeholder", () => {
     });
 
     try {
-      await program.parseAsync(["node", "agentproxy", "sessions", "abort", "apx_123"]);
+      await program.parseAsync(["node", "agentproxy", "sessions", "delete", "apx_123"]);
 
       expect(process.exitCode).toBe(6);
       expect(stdout.chunks.join("")).toBe("");
       expect(stderr.chunks.join("")).toContain(
-        "CAPABILITY_UNSUPPORTED: agentproxy sessions abort is planned",
+        "CAPABILITY_UNSUPPORTED: agentproxy sessions delete is planned",
       );
     } finally {
       process.exitCode = originalExitCode;

@@ -44,8 +44,11 @@ import {
 import {
   formatSessionResumeHumanEvent,
   formatSessionResumeReportForJson,
+  formatSessionAbortHumanReport,
+  formatSessionAbortReportForJson,
   formatSessionListHumanReport,
   formatSessionShowHumanReport,
+  abortAgentProxyCliSession,
   listAgentProxySessions,
   resumeAgentProxyCliSession,
   showAgentProxySession,
@@ -63,11 +66,12 @@ const implementedCoreWorkflows = [
   "agentproxy sessions list",
   "agentproxy sessions show <id>",
   "agentproxy sessions resume <id> [--prompt ...]",
+  "agentproxy sessions abort <id>",
   "agentproxy provider exec <id> -- <native args>",
 ];
 
 const plannedCoreWorkflows = [
-  "agentproxy sessions abort|delete|export|import|share|unshare",
+  "agentproxy sessions delete|export|import|share|unshare",
   "agentproxy config get|set",
 ];
 
@@ -189,7 +193,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
     .command("abort")
     .argument("<id>", "Session id.")
     .description("Abort a running session.")
-    .action(plannedAction("sessions abort", output));
+    .action(createSessionsAbortAction(output, options));
   sessions
     .command("delete")
     .argument("<id>", "Session id.")
@@ -689,6 +693,33 @@ function createSessionsResumeAction(
         output.writeResult(`Status: ${report.status}`);
       }
       process.exitCode = mapSessionResumeReportToExitCode(report);
+    } catch (error) {
+      handleCliError(error, output, this);
+    }
+  };
+}
+
+function createSessionsAbortAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command, sessionId: string) => Promise<void> {
+  return async function (this: Command, sessionId) {
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const report = await abortAgentProxyCliSession(sessionId, {
+        providerId: globalOptions.provider,
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(this),
+      });
+
+      if (globalOptions.json) {
+        output.writeJson(formatSessionAbortReportForJson(report));
+      } else {
+        output.writeResult(formatSessionAbortHumanReport(report));
+      }
+      process.exitCode = 0;
     } catch (error) {
       handleCliError(error, output, this);
     }

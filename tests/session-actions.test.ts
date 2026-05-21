@@ -11,6 +11,7 @@ import type {
   ShareResult,
 } from "../src/providers/index.js";
 import {
+  abortAgentProxySession,
   deleteAgentProxySession,
   exportAgentProxySession,
   importAgentProxySession,
@@ -53,6 +54,48 @@ afterEach(async () => {
 });
 
 describe("session operation service", () => {
+  it("aborts a provider session and records local abort metadata without payload data", async () => {
+    const { storage, workspacePath } = await createStorage();
+    storage.sessions.upsert(createStoredSession({ workspacePath }));
+    let abortCalls = 0;
+    const provider = operationProvider({
+      abortSession: async (ctx) => {
+        abortCalls += 1;
+        expect(ctx).toMatchObject({
+          providerId: "opencode",
+          providerSessionId: "ses_actions",
+          sessionId: "apx_actions",
+          workspacePath,
+        });
+      },
+    });
+
+    const result = await abortAgentProxySession({
+      provider,
+      storage,
+      context: actionContext(workspacePath),
+      now: () => new Date("2026-05-20T21:05:00.000Z"),
+    });
+
+    expect(abortCalls).toBe(1);
+    expect(result).toMatchObject({
+      id: "apx_actions",
+      providerSessionId: "ses_actions",
+      status: "failed",
+      updatedAt: "2026-05-20T21:05:00.000Z",
+      lastRunAt: "2026-05-20T21:05:00.000Z",
+      lastSyncAt: "2026-05-20T21:05:00.000Z",
+      metadata: {
+        sessionOperations: {
+          abort: {
+            abortedAt: "2026-05-20T21:05:00.000Z",
+          },
+        },
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain("provider payload");
+  });
+
   it("requires confirmation before provider delete and writes a local tombstone", async () => {
     const { storage, workspacePath } = await createStorage();
     storage.sessions.upsert(createStoredSession({ workspacePath }));

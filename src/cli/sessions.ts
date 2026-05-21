@@ -4,7 +4,11 @@ import { resolveAgentProxyConfig } from "../config/index.js";
 import { createAgentProxyError } from "../core/index.js";
 import { OPENCODE_PROVIDER_ID } from "../providers/opencode/index.js";
 import { RuntimeRegistry } from "../runtimes/index.js";
-import { resumeAgentProxySession, sendAgentProxyMessage } from "../sessions/index.js";
+import {
+  abortAgentProxySession,
+  resumeAgentProxySession,
+  sendAgentProxyMessage,
+} from "../sessions/index.js";
 import {
   openAgentProxyStorage,
   type AgentProxyStorage,
@@ -40,6 +44,10 @@ export interface RunAgentProxySessionResumeOptions extends RunAgentProxySessionL
   timeoutMs?: number;
   onSessionResumed?: (session: AgentProxySessionResumeSessionSummary) => void;
   onEvent?: (event: AgentProxyRunEventSummary, humanOutput?: string) => void;
+}
+
+export interface RunAgentProxySessionAbortOptions extends RunAgentProxySessionListOptions {
+  now?: () => Date;
 }
 
 export interface AgentProxySessionListSource {
@@ -118,9 +126,24 @@ export interface AgentProxySessionResumeReport {
   generatedAt: string;
 }
 
+export interface AgentProxySessionAbortReport {
+  ok: true;
+  providerId: string;
+  sessionId: string;
+  providerSessionId: string;
+  status: string;
+  runtime: AgentProxySessionResumeRuntimeSummary;
+  action: {
+    type: "abort";
+    abortedAt: string;
+  };
+  generatedAt: string;
+}
+
 const SESSIONS_LIST_OPERATION = "sessions.list";
 const SESSIONS_SHOW_OPERATION = "sessions.show";
 const SESSIONS_RESUME_OPERATION = "sessions.resume";
+const SESSIONS_ABORT_OPERATION = "sessions.abort";
 const DEFAULT_RESUME_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_MAX_RESUME_PROMPT_BYTES = 1024 * 1024;
 const DEFAULT_MAX_EVENT_SUMMARIES = 1000;
@@ -416,6 +439,120 @@ export async function resumeAgentProxyCliSession(
   return redactSessionResumeReport(report);
 }
 
+export async function abortAgentProxyCliSession(
+  sessionId: string,
+  options: RunAgentProxySessionAbortOptions = {},
+): Promise<AgentProxySessionAbortReport> {
+  const providerId = options.providerId ?? OPENCODE_PROVIDER_ID;
+  assertSessionsProviderSupported(providerId, SESSIONS_ABORT_OPERATION);
+
+  const resolvedConfig = await resolveAgentProxyConfig({
+    ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+    ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+    ...(options.env !== undefined ? { env: options.env } : {}),
+    ...(options.cli !== undefined ? { cli: options.cli } : {}),
+  });
+  const config = resolvedConfig.config;
+  assertOpenCodeSessionsProviderEnabled(
+    config.providers.opencode.enabled,
+    SESSIONS_ABORT_OPERATION,
+  );
+
+  let storage: AgentProxyStorage | undefined;
+  let cleanup: (() => Promise<void>) | undefined;
+  let cleanupError: unknown;
+  let report: AgentProxySessionAbortReport | undefined;
+  const now = options.now ?? (() => new Date());
+
+  try {
+    if (!existsSync(config.storage.path)) {
+      throw createSessionNotFoundError(sessionId, providerId, SESSIONS_ABORT_OPERATION);
+    }
+
+    storage = openAgentProxyStorage({
+      databasePath: config.storage.path,
+    });
+
+    const existing = storage.sessions.getById(sessionId);
+    if (!isVisibleSession(existing, providerId, config.workspacePath)) {
+      throw createSessionNotFoundError(sessionId, providerId, SESSIONS_ABORT_OPERATION);
+    }
+
+    const registry = new RuntimeRegistry({
+      storage,
+      ...(options.now !== undefined ? { now: options.now } : {}),
+    });
+    const ensuredRuntime = await ensureOpenCodeCommandRuntime({
+      config,
+      storage,
+      registry,
+      env: options.env,
+      operation: SESSIONS_ABORT_OPERATION,
+    });
+    cleanup = ensuredRuntime.cleanup;
+    const runtime = summarizeResumeRuntime(ensuredRuntime.runtime);
+    const provider = createOpenCodeCommandProvider({
+      config,
+      baseUrl: runtime.baseUrl,
+      env: options.env,
+      operation: SESSIONS_ABORT_OPERATION,
+    });
+    const aborted = await abortAgentProxySession({
+      provider,
+      storage,
+      context: {
+        providerId,
+        providerSessionId: existing.providerSessionId,
+        sessionId: existing.id,
+        workspacePath: config.workspacePath,
+        ...(runtime.runtimeId !== undefined ? { runtimeId: runtime.runtimeId } : {}),
+        metadata: {
+          runtimeBaseUrl: runtime.baseUrl,
+          runtimeBaseUrlSource: runtime.source,
+        },
+      },
+      now,
+    });
+    const abortedAt = readAbortOperationTimestamp(aborted) ?? aborted.updatedAt;
+
+    report = {
+      ok: true,
+      providerId,
+      sessionId: aborted.id,
+      providerSessionId: aborted.providerSessionId,
+      status: aborted.status,
+      runtime,
+      action: {
+        type: "abort",
+        abortedAt,
+      },
+      generatedAt: now().toISOString(),
+    };
+  } finally {
+    try {
+      await cleanup?.();
+    } catch (error) {
+      cleanupError = error;
+    } finally {
+      storage?.close();
+    }
+  }
+
+  if (cleanupError !== undefined) {
+    throw cleanupError;
+  }
+  if (report === undefined) {
+    throw createAgentProxyError({
+      code: "PROVIDER_UNAVAILABLE",
+      message: "agentproxy sessions abort finished without a report.",
+      operation: SESSIONS_ABORT_OPERATION,
+      providerId,
+    });
+  }
+
+  return redactSessionAbortReport(report);
+}
+
 export function formatSessionListHumanReport(report: AgentProxySessionListReport): string {
   const lines = [`AgentProxy sessions: ${report.sessions.length.toString()}`];
   if (report.sessions.length === 0) {
@@ -499,6 +636,22 @@ export function formatSessionResumeReportForJson(report: AgentProxySessionResume
   return sanitizeStructuredOutput(report);
 }
 
+export function formatSessionAbortHumanReport(report: AgentProxySessionAbortReport): string {
+  return [
+    `Session aborted: ${sanitizeHumanInline(report.sessionId)}`,
+    `Provider session: ${sanitizeHumanInline(report.providerSessionId)}`,
+    `Status: ${sanitizeHumanInline(report.status)}`,
+    `Runtime: ${sanitizeHumanInline(report.runtime.runtimeId ?? "configured")} (${sanitizeHumanInline(
+      report.runtime.mode,
+    )})`,
+    `Aborted: ${sanitizeHumanInline(report.action.abortedAt)}`,
+  ].join("\n");
+}
+
+export function formatSessionAbortReportForJson(report: AgentProxySessionAbortReport): unknown {
+  return sanitizeStructuredOutput(report);
+}
+
 function summarizeResumeRuntime(
   runtime: AgentProxyOpenCodeCommandRuntimeSummary,
 ): AgentProxySessionResumeRuntimeSummary {
@@ -574,6 +727,24 @@ function redactSessionResumeReport(
   report: AgentProxySessionResumeReport,
 ): AgentProxySessionResumeReport {
   return sanitizeStructuredOutput(report);
+}
+
+function redactSessionAbortReport(
+  report: AgentProxySessionAbortReport,
+): AgentProxySessionAbortReport {
+  return sanitizeStructuredOutput(report);
+}
+
+function readAbortOperationTimestamp(session: StoredSessionRecord): string | undefined {
+  const operations = session.metadata.sessionOperations;
+  if (!isPlainObject(operations)) {
+    return undefined;
+  }
+  const abort = operations.abort;
+  if (!isPlainObject(abort)) {
+    return undefined;
+  }
+  return typeof abort.abortedAt === "string" ? abort.abortedAt : undefined;
 }
 
 function assertSessionsProviderSupported(providerId: string, operation: string): void {
@@ -707,4 +878,8 @@ function markResumeTimedOut(storage: AgentProxyStorage, sessionId: string, faile
 
 function sanitizeMachineString(value: string): string {
   return sanitizeHumanText(value);
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
