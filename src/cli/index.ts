@@ -46,9 +46,12 @@ import {
   formatSessionResumeReportForJson,
   formatSessionAbortHumanReport,
   formatSessionAbortReportForJson,
+  formatSessionDeleteHumanReport,
+  formatSessionDeleteReportForJson,
   formatSessionListHumanReport,
   formatSessionShowHumanReport,
   abortAgentProxyCliSession,
+  deleteAgentProxyCliSession,
   listAgentProxySessions,
   resumeAgentProxyCliSession,
   showAgentProxySession,
@@ -67,11 +70,12 @@ const implementedCoreWorkflows = [
   "agentproxy sessions show <id>",
   "agentproxy sessions resume <id> [--prompt ...]",
   "agentproxy sessions abort <id>",
+  "agentproxy sessions delete <id> --yes",
   "agentproxy provider exec <id> -- <native args>",
 ];
 
 const plannedCoreWorkflows = [
-  "agentproxy sessions delete|export|import|share|unshare",
+  "agentproxy sessions export|import|share|unshare",
   "agentproxy config get|set",
 ];
 
@@ -199,7 +203,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
     .argument("<id>", "Session id.")
     .option("--yes", "Skip interactive confirmation.")
     .description("Delete a session tombstone-aware.")
-    .action(plannedAction("sessions delete", output));
+    .action(createSessionsDeleteAction(output, options));
   sessions
     .command("export")
     .argument("<id>", "Session id.")
@@ -718,6 +722,35 @@ function createSessionsAbortAction(
         output.writeJson(formatSessionAbortReportForJson(report));
       } else {
         output.writeResult(formatSessionAbortHumanReport(report));
+      }
+      process.exitCode = 0;
+    } catch (error) {
+      handleCliError(error, output, this);
+    }
+  };
+}
+
+function createSessionsDeleteAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command, sessionId: string) => Promise<void> {
+  return async function (this: Command, sessionId) {
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const deleteOptions = this.opts<{ yes?: boolean }>();
+      const report = await deleteAgentProxyCliSession(sessionId, {
+        providerId: globalOptions.provider,
+        confirmed: deleteOptions.yes === true,
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(this),
+      });
+
+      if (globalOptions.json) {
+        output.writeJson(formatSessionDeleteReportForJson(report));
+      } else {
+        output.writeResult(formatSessionDeleteHumanReport(report));
       }
       process.exitCode = 0;
     } catch (error) {

@@ -47,12 +47,14 @@
 - Message 事件流不能把 provider 的 step-ended 当成 session/message terminal；严格 message stream 只处理显式携带目标 `sessionID` 的 provider 事件，避免无归属 raw payload 被错误归到当前 session。
 - 本地 message lifecycle 在消费者提前 `return()` 或 signal abort 时也必须写回终态，不能让 session 长期卡在 `running`。
 - Session export/import 如果只能走 provider 原生命令，应保持为窄 provider operation，不等同于通用 passthrough；raw export 必须有独立确认，export payload、import source 和 share URL 不落 SQLite。
+- destructive CLI 必须先确认再开 writable storage；否则 SQLite migration/打开本身就可能留下副作用，`--yes` 之前不能碰可写 storage。
 - Provider passthrough 的 binary 定位也属于透传执行边界：不能为了 locate 先用完整 parent env 执行 `--version`，否则会绕过 env allowlist；默认也不要加隐式 timeout 或输出上限改写 provider 原始行为。
 - `agentproxy run --json` 默认不能输出 assistant transcript 或 provider 原始事件文本；JSON 只保留事件类型、状态、计数和脱敏摘要，避免脚本日志长期保存对话内容。
 - CLI human 输出中的 provider-controlled delta、tool 名称、permission action、file path 和 providerSessionId 必须做终端安全净化，至少移除 ANSI/OSC/C0/C1 控制字符并做 secret redaction。
 - 由 `run` 启动 managed runtime 时不能把完整 parent env 传给 provider binary；只能传最小执行环境和显式配置的 OpenCode passthrough env。
 - one-shot `run` 不能把 `session.completed` 视为天然成功；必须根据最终 session status 映射稳定退出码，避免 provider 报错但 CLI 仍 exit 0。
 - one-shot `run` 的 timeout 必须显式抛出 `EVENT_STREAM_INTERRUPTED` 或同类稳定错误，并把本地 session 记录回写为 failed，不能把 abort 当成自然完成。
+- 测试套件中包含 fake binary/server/process 生命周期用例时，默认 Vitest timeout 要反映真实验证预算；不要只在临时命令里加 `--testTimeout`，否则 `pnpm run test` 会不稳定。
 - Phase 5 仍属于 CLI MVP 阶段；`agentproxy chat` 只能表述和实现为 CLI native OpenCode TUI launcher，不能把它写成或推进成 Phase 6 的 AgentProxy TUI/Ink 控制面。
 - 只读 CLI inspect/list 命令如果只需要 registry 辅助信息，不能默认创建或迁移 SQLite；DB 不存在应降级为无 registry 状态，DB 存在才用 readonly + migrate:false 打开。
 - CLI human diagnostics 不能只做 secret redaction；Commander parse error、fallback catch 和自定义错误输出都必须统一移除 ANSI/OSC/C0/C1 控制字符。

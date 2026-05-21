@@ -6,6 +6,7 @@ import { OPENCODE_PROVIDER_ID } from "../providers/opencode/index.js";
 import { RuntimeRegistry } from "../runtimes/index.js";
 import {
   abortAgentProxySession,
+  deleteAgentProxySession,
   resumeAgentProxySession,
   sendAgentProxyMessage,
 } from "../sessions/index.js";
@@ -47,6 +48,11 @@ export interface RunAgentProxySessionResumeOptions extends RunAgentProxySessionL
 }
 
 export interface RunAgentProxySessionAbortOptions extends RunAgentProxySessionListOptions {
+  now?: () => Date;
+}
+
+export interface RunAgentProxySessionDeleteOptions extends RunAgentProxySessionListOptions {
+  confirmed?: boolean;
   now?: () => Date;
 }
 
@@ -140,10 +146,25 @@ export interface AgentProxySessionAbortReport {
   generatedAt: string;
 }
 
+export interface AgentProxySessionDeleteReport {
+  ok: true;
+  providerId: string;
+  sessionId: string;
+  providerSessionId: string;
+  runtime: AgentProxySessionResumeRuntimeSummary;
+  action: {
+    type: "delete";
+    deletedAt: string;
+    tombstoneReason: "provider_deleted";
+  };
+  generatedAt: string;
+}
+
 const SESSIONS_LIST_OPERATION = "sessions.list";
 const SESSIONS_SHOW_OPERATION = "sessions.show";
 const SESSIONS_RESUME_OPERATION = "sessions.resume";
 const SESSIONS_ABORT_OPERATION = "sessions.abort";
+const SESSIONS_DELETE_OPERATION = "sessions.delete";
 const DEFAULT_RESUME_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_MAX_RESUME_PROMPT_BYTES = 1024 * 1024;
 const DEFAULT_MAX_EVENT_SUMMARIES = 1000;
@@ -553,6 +574,121 @@ export async function abortAgentProxyCliSession(
   return redactSessionAbortReport(report);
 }
 
+export async function deleteAgentProxyCliSession(
+  sessionId: string,
+  options: RunAgentProxySessionDeleteOptions = {},
+): Promise<AgentProxySessionDeleteReport> {
+  const providerId = options.providerId ?? OPENCODE_PROVIDER_ID;
+  assertSessionsProviderSupported(providerId, SESSIONS_DELETE_OPERATION);
+
+  const resolvedConfig = await resolveAgentProxyConfig({
+    ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+    ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+    ...(options.env !== undefined ? { env: options.env } : {}),
+    ...(options.cli !== undefined ? { cli: options.cli } : {}),
+  });
+  const config = resolvedConfig.config;
+  assertOpenCodeSessionsProviderEnabled(
+    config.providers.opencode.enabled,
+    SESSIONS_DELETE_OPERATION,
+  );
+  assertDeleteConfirmed(options.confirmed);
+
+  let storage: AgentProxyStorage | undefined;
+  let cleanup: (() => Promise<void>) | undefined;
+  let cleanupError: unknown;
+  let report: AgentProxySessionDeleteReport | undefined;
+  const now = options.now ?? (() => new Date());
+
+  try {
+    if (!existsSync(config.storage.path)) {
+      throw createSessionNotFoundError(sessionId, providerId, SESSIONS_DELETE_OPERATION);
+    }
+
+    storage = openAgentProxyStorage({
+      databasePath: config.storage.path,
+    });
+
+    const existing = storage.sessions.getById(sessionId);
+    if (!isVisibleSession(existing, providerId, config.workspacePath)) {
+      throw createSessionNotFoundError(sessionId, providerId, SESSIONS_DELETE_OPERATION);
+    }
+
+    const registry = new RuntimeRegistry({
+      storage,
+      ...(options.now !== undefined ? { now: options.now } : {}),
+    });
+    const ensuredRuntime = await ensureOpenCodeCommandRuntime({
+      config,
+      storage,
+      registry,
+      env: options.env,
+      operation: SESSIONS_DELETE_OPERATION,
+    });
+    cleanup = ensuredRuntime.cleanup;
+    const runtime = summarizeResumeRuntime(ensuredRuntime.runtime);
+    const provider = createOpenCodeCommandProvider({
+      config,
+      baseUrl: runtime.baseUrl,
+      env: options.env,
+      operation: SESSIONS_DELETE_OPERATION,
+    });
+    const deleted = await deleteAgentProxySession({
+      provider,
+      storage,
+      context: {
+        providerId,
+        providerSessionId: existing.providerSessionId,
+        sessionId: existing.id,
+        workspacePath: config.workspacePath,
+        ...(runtime.runtimeId !== undefined ? { runtimeId: runtime.runtimeId } : {}),
+        metadata: {
+          runtimeBaseUrl: runtime.baseUrl,
+          runtimeBaseUrlSource: runtime.source,
+        },
+      },
+      confirmed: true,
+      now,
+    });
+
+    report = {
+      ok: true,
+      providerId,
+      sessionId: deleted.session.id,
+      providerSessionId: deleted.session.providerSessionId,
+      runtime,
+      action: {
+        type: "delete",
+        deletedAt: deleted.deletedAt,
+        tombstoneReason: "provider_deleted",
+      },
+      generatedAt: now().toISOString(),
+    };
+  } finally {
+    try {
+      await cleanup?.();
+    } catch (error) {
+      cleanupError = error;
+    } finally {
+      storage?.close();
+    }
+  }
+
+  if (cleanupError !== undefined) {
+    throw cleanupError;
+  }
+  if (report === undefined) {
+    throw createAgentProxyError({
+      code: "PROVIDER_UNAVAILABLE",
+      message: "agentproxy sessions delete finished without a report.",
+      operation: SESSIONS_DELETE_OPERATION,
+      providerId,
+    });
+  }
+
+  return redactSessionDeleteReport(report);
+}
+
 export function formatSessionListHumanReport(report: AgentProxySessionListReport): string {
   const lines = [`AgentProxy sessions: ${report.sessions.length.toString()}`];
   if (report.sessions.length === 0) {
@@ -652,6 +788,22 @@ export function formatSessionAbortReportForJson(report: AgentProxySessionAbortRe
   return sanitizeStructuredOutput(report);
 }
 
+export function formatSessionDeleteHumanReport(report: AgentProxySessionDeleteReport): string {
+  return [
+    `Session deleted: ${sanitizeHumanInline(report.sessionId)}`,
+    `Provider session: ${sanitizeHumanInline(report.providerSessionId)}`,
+    `Runtime: ${sanitizeHumanInline(report.runtime.runtimeId ?? "configured")} (${sanitizeHumanInline(
+      report.runtime.mode,
+    )})`,
+    `Deleted: ${sanitizeHumanInline(report.action.deletedAt)}`,
+    `Tombstone: ${sanitizeHumanInline(report.action.tombstoneReason)}`,
+  ].join("\n");
+}
+
+export function formatSessionDeleteReportForJson(report: AgentProxySessionDeleteReport): unknown {
+  return sanitizeStructuredOutput(report);
+}
+
 function summarizeResumeRuntime(
   runtime: AgentProxyOpenCodeCommandRuntimeSummary,
 ): AgentProxySessionResumeRuntimeSummary {
@@ -732,6 +884,12 @@ function redactSessionResumeReport(
 function redactSessionAbortReport(
   report: AgentProxySessionAbortReport,
 ): AgentProxySessionAbortReport {
+  return sanitizeStructuredOutput(report);
+}
+
+function redactSessionDeleteReport(
+  report: AgentProxySessionDeleteReport,
+): AgentProxySessionDeleteReport {
   return sanitizeStructuredOutput(report);
 }
 
@@ -850,6 +1008,23 @@ function createResumeTimeoutError(timeoutMs: number): Error {
     details: {
       timeoutMs,
       suggestion: "Check the OpenCode runtime health or resume with a shorter prompt.",
+    },
+  });
+}
+
+function assertDeleteConfirmed(confirmed: boolean | undefined): void {
+  if (confirmed === true) {
+    return;
+  }
+
+  throw createAgentProxyError({
+    code: "CONFIG_INVALID",
+    message: "Session delete requires explicit confirmation.",
+    operation: SESSIONS_DELETE_OPERATION,
+    providerId: OPENCODE_PROVIDER_ID,
+    details: {
+      failureReason: "confirmation_required",
+      suggestion: "Pass --yes before retrying agentproxy sessions delete.",
     },
   });
 }

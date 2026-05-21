@@ -11,6 +11,50 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Phase 5 Sessions Delete CLI Minimal Workflow
+
+Scope: advance only the Phase 5 `agentproxy sessions delete <id>` CLI task group. This workflow deletes an existing visible AgentProxy local session mapping through the OpenCode provider session operation API and records the local tombstone using the existing session operation service. Do not implement `sessions export`, `sessions import`, `sessions share`, `sessions unshare`, `config`, `chat --session`, Phase 6 AgentProxy TUI, provider transcript display, or any new Agent runtime behavior.
+
+Implementation checklist:
+
+- [x] Add focused CLI tests for `sessions delete <id>` human/JSON output, provider delete dispatch, absent/missing/tombstoned/wrong-provider/wrong-workspace records, disabled/invalid provider behavior, runtime unavailable behavior, terminal/control-character safety, and later-command placeholder boundaries.
+- [x] Extend `src/cli/sessions.ts` with a narrow delete action/service that resolves config, requires an existing visible local session mapping, opens SQLite read-write only for the target operation, reuses the OpenCode runtime/provider helper, calls the existing provider-backed delete session service, and emits stable sanitized output.
+- [x] Wire only `agentproxy sessions delete <id>` from planned placeholder to a real action; keep `sessions export/import/share/unshare`, `config`, `chat --session`, and Phase 6 TUI untouched.
+- [x] Keep JSON output transcript-free and provider-payload-safe by emitting only stable session/runtime/action summary fields; never emit raw provider transcript, raw provider payloads, metadata blobs, share URLs, export payloads, import sources, or prompt text.
+- [x] Update `docs/development-progress-tracker.zh.md` completed/unfinished status and Review notes after verification.
+- [x] Run focused sessions CLI/session action tests, related CLI placeholder boundary tests, full applicable project verification, code review, and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean; `git log -1 --oneline` is `dca16af 文档：同步 Phase 5 Sessions Abort 后续开发状态`, so the latest Phase 5 implementation baseline remains `1b1a017 阶段进展：完成 Phase 5 Sessions Abort CLI`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Phase 4.6 already provides `OpenCodeProvider.deleteSession()` and provider-agnostic session operation behavior with local tombstone preservation.
+- Phase 5 `sessions resume` and `sessions abort` already provide runtime selection, provider creation, visible local session mapping checks, sanitized JSON/human output, and placeholder boundary patterns to reuse.
+- Phase 5 `sessions show/list` already provide missing DB no-create behavior and provider/workspace visibility filtering patterns.
+
+Acceptance criteria for this iteration:
+
+- [x] `agentproxy sessions delete <id>` is a real command and no longer returns the generic planned `CAPABILITY_UNSUPPORTED` placeholder.
+- [x] The command addresses sessions by AgentProxy local session id and refuses absent DB, missing, already tombstoned, wrong-provider, and wrong-workspace records with stable `SESSION_NOT_FOUND` without leaking hidden record content.
+- [x] The command calls the provider delete operation for the existing providerSessionId, updates the local session tombstone/timestamps through the existing session operation service, and does not create a new provider session or message stream.
+- [x] `sessions delete --json` emits exactly one valid redacted JSON object on stdout, with no human prose mixed in and no transcript/raw provider payload.
+- [x] Human output is terminal-control-character safe and does not print raw metadata blobs, transcripts, provider event payloads, URL credentials, query strings, headers, secrets, prompt text, export payloads, import sources, share URLs, or provider-controlled control characters.
+- [x] Runtime selection behavior matches the existing command helper: configured base URL and registry runtime are reused; attached mode without runtime URL maps to stable runtime error; managed one-shot behavior remains provider-owned and best-effort cleaned up.
+- [x] Non-OpenCode provider selection maps to `PROVIDER_NOT_FOUND`; disabled OpenCode config maps to `PROVIDER_UNAVAILABLE`.
+- [x] `sessions export/import/share/unshare`, `config`, `chat --session`, and Phase 6 AgentProxy TUI remain unimplemented or explicitly unsupported.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
+Risks and constraints:
+
+- Do not infer delete success from local state alone; provider delete must be invoked for the mapped provider session before marking the local mapping tombstoned.
+- Do not expose provider operation response details, metadata, transcript, export payload, import source, or share URL; delete is a control-plane action summary only.
+- Do not broaden this into export/import/share/unshare or config; those remain separate later CLI workflows.
+- Keep AgentProxy as a thin OpenCode control plane and do not implement Agent runtime deletion logic locally.
+
+Review notes:
+
+- 2026-05-21: Implemented the Phase 5 `sessions delete` CLI minimal workflow. Added focused failing tests first, then extended `src/cli/sessions.ts` and `src/cli/index.ts` so `agentproxy sessions delete <id> --yes` resolves config, requires a visible local AgentProxy session mapping, checks explicit confirmation before any writable storage/runtime/provider work, reuses OpenCode runtime/provider command helpers, calls existing provider-backed `deleteAgentProxySession()`, and records the local provider_deleted tombstone only after provider delete succeeds. JSON and human outputs are transcript-free, metadata-free, terminal-control-character safe, and redacted. Updated placeholder boundary tests so `sessions export/import/share/unshare`, `config`, `chat --session`, and Phase 6 TUI remain untouched. Code review found one blocking confirmation-order issue where no-`--yes` delete could still open writable SQLite and run migrations; fixed by moving confirmation before storage open, adding an absent-storage no-confirmation regression test, and recording the lesson. Default `pnpm run test` initially timed out under the prior 5s Vitest budget for existing fake binary/server/process tests, so `vitest.config.ts` now sets the project timeout to 10s and the default test script passes. Verification passed: `pnpm exec vitest run tests/cli-sessions.test.ts --testTimeout=10000` (31 tests), `pnpm exec vitest run tests/cli-sessions.test.ts tests/cli-help.test.ts tests/cli-chat.test.ts tests/cli-run.test.ts tests/cli-runtime.test.ts tests/cli-providers.test.ts tests/session-actions.test.ts tests/opencode-provider-session-actions.test.ts --testTimeout=10000` (8 files, 87 tests), `pnpm exec vitest run --maxWorkers=1 --testTimeout=10000` (29 files, 249 tests), `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run test` (29 files, 249 tests), `pnpm run build`, and `git diff --check`. Code review approved with no blocking findings after the fix. Residual risk: real OpenCode delete smoke calibration remains a later compatibility task; remaining Phase 5 CLI work is still `sessions export/import/share/unshare` and `config`.
+
 ## Current Iteration - 2026-05-21 Documentation Sync After Phase 5 Sessions Abort CLI
 
 Scope: update only the project tracking documents after `1b1a017 阶段进展：完成 Phase 5 Sessions Abort CLI` so the next Codex session can resume from the correct remaining Phase 5 CLI MVP task group. This is documentation-only. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.
