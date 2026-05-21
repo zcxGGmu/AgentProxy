@@ -11,6 +11,40 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Documentation Sync After Phase 5 Sessions List CLI
+
+Scope: update tracking documents after `6626584 阶段进展：完成 Phase 5 Sessions List CLI`. This is a documentation-only synchronization so the next Codex session can continue from the correct first unfinished Phase 5 CLI MVP task group. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit.
+- [x] Update `docs/development-progress-tracker.zh.md` latest status, concrete implementation baseline, completed/unfinished summaries, Review entry, and next-start prompt.
+- [x] Keep Phase 5 remaining CLI MVP work limited to `sessions show/resume/abort/delete/export/import/share/unshare`, `runtime stop`, and `config`; keep Phase 6 AgentProxy TUI explicitly not started.
+- [x] Run documentation-appropriate verification.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean; `git log -1 --oneline` is `6626584 阶段进展：完成 Phase 5 Sessions List CLI`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Phase 5 implementation baseline should now be `6626584` unless a later documentation-only commit is on top.
+
+Acceptance criteria:
+
+- [x] The tracker explicitly states completed work through Phase 5 `sessions list`.
+- [x] The tracker explicitly states Phase 5 is still in progress and `sessions show/resume/abort/delete/export/import/share/unshare`, `runtime stop`, and `config` remain unfinished.
+- [x] The next-start prompt tells the next Codex session to verify git state and continue from one remaining Phase 5 CLI MVP task group, not Phase 6 TUI.
+- [x] The tracker uses concrete commit `6626584` for the latest Phase 5 sessions list implementation baseline instead of a placeholder.
+
+Risks and constraints:
+
+- Do not mark Phase 5 complete.
+- Do not treat `agentproxy chat` as Phase 6 AgentProxy TUI.
+- Do not edit source or tests for this documentation sync.
+
+Review notes:
+
+- 2026-05-21: Documentation sync completed after confirming a clean tree at `6626584`. Updated `docs/development-progress-tracker.zh.md` to use concrete Phase 5 sessions list implementation baseline `6626584`, kept Phase 5 remaining CLI MVP work limited to `sessions show/resume/abort/delete/export/import/share/unshare`, `runtime stop`, and `config`, and kept Phase 6 AgentProxy TUI explicitly not started. Verification passed: `git status --short`, `git log -1 --oneline`, `git diff --check`, and `pnpm run format:check`. Source code and tests were not changed.
+
 ## Current Iteration - 2026-05-21 Phase 5 Sessions List CLI Minimal Workflow
 
 Scope: advance only the Phase 5 `agentproxy sessions list` read-only CLI task group. This workflow reads AgentProxy's local SQLite session index and prints a sanitized session inventory for the selected provider/workspace. Do not implement `sessions show`, `sessions resume`, `sessions abort`, `sessions delete`, `sessions export`, `sessions import`, `sessions share`, `sessions unshare`, `runtime stop`, `config`, Phase 6 AgentProxy TUI, provider transcript display, or new Agent runtime behavior.
