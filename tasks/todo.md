@@ -11,6 +11,45 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Documentation Sync After Phase 5 Sessions Delete CLI
+
+Scope: update only the project tracking documents after `080e015 阶段进展：完成 Phase 5 Sessions Delete CLI` so the next Codex session can resume from the correct remaining Phase 5 CLI MVP task group. This is documentation-only. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit.
+- [x] Update `docs/development-progress-tracker.zh.md` latest status, concrete implementation baseline, completed/unfinished summaries, Review entry, and next-start prompt.
+- [x] Keep Phase 5 marked in progress and Gate 5 not passed.
+- [x] Keep remaining work limited to one small task group from `sessions export/import/share/unshare` or `config`.
+- [x] Keep Phase 6 AgentProxy TUI explicitly not started.
+- [x] Run documentation-appropriate verification and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean.
+- Latest commit is `080e015 阶段进展：完成 Phase 5 Sessions Delete CLI`.
+- Latest Phase 5 implementation baseline remains `080e015 阶段进展：完成 Phase 5 Sessions Delete CLI` unless a later documentation-only commit is present.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+
+Acceptance criteria:
+
+- [x] The tracker clearly states Phase 5 is not complete and Gate 5 has not passed.
+- [x] Completed Phase 5 CLI workflows are listed explicitly through `sessions delete`.
+- [x] Remaining Phase 5 CLI MVP workflows are listed explicitly as `sessions export/import/share/unshare` and `config`.
+- [x] The next-start prompt tells the next Codex session to verify git state and continue from exactly one remaining Phase 5 CLI MVP task group, not Phase 6 TUI.
+- [x] Documentation verification passes with no source/test changes.
+
+Risks and constraints:
+
+- Do not imply Phase 5 or Gate 5 is complete.
+- Do not treat `agentproxy chat` as Phase 6 AgentProxy TUI.
+- Do not start implementing remaining CLI commands in this documentation sync.
+- Keep AgentProxy as a thin OpenCode control plane; v1 remains OpenCode-only.
+
+Review notes:
+
+- 2026-05-21: Documented the latest Phase 5 Sessions Delete CLI baseline after `080e015 阶段进展：完成 Phase 5 Sessions Delete CLI`. Updated `docs/development-progress-tracker.zh.md` to replace placeholder “本次提交” wording with concrete `080e015` references, keep Phase 5 in progress, keep Gate 5 not passed, keep Phase 6 TUI not started, and list the remaining Phase 5 CLI MVP work as only `sessions export/import/share/unshare` and `config`. Also refreshed the next-start prompt to point at the current `/Users/zq/Desktop/ai-projs/posp/AgentProxy` workspace path instead of the template tree, and aligned `tasks/todo.md` history so completed `sessions` / `providers` / `runtime` items are no longer shown as pending. Verification passed: `git status --short`, `git log -1 --oneline`, `pnpm run format:check`, and `git diff --check`.
+
 ## Current Iteration - 2026-05-21 Phase 5 Sessions Delete CLI Minimal Workflow
 
 Scope: advance only the Phase 5 `agentproxy sessions delete <id>` CLI task group. This workflow deletes an existing visible AgentProxy local session mapping through the OpenCode provider session operation API and records the local tombstone using the existing session operation service. Do not implement `sessions export`, `sessions import`, `sessions share`, `sessions unshare`, `config`, `chat --session`, Phase 6 AgentProxy TUI, provider transcript display, or any new Agent runtime behavior.
@@ -2284,11 +2323,11 @@ Acceptance criteria:
 
 ### 4.4 Sessions Commands
 
-- [ ] Implement `sessions list`.
-- [ ] Implement `sessions show`.
-- [ ] Implement `sessions resume`.
-- [ ] Implement `sessions abort`.
-- [ ] Implement `sessions delete`.
+- [x] Implement `sessions list`.
+- [x] Implement `sessions show`.
+- [x] Implement `sessions resume`.
+- [x] Implement `sessions abort`.
+- [x] Implement `sessions delete`.
 - [ ] Implement `sessions export`.
 - [ ] Implement `sessions import`.
 - [ ] Implement `sessions share`.
@@ -2304,11 +2343,11 @@ Acceptance criteria:
 
 ### 4.5 Providers And Runtime Commands
 
-- [ ] Implement `providers list`.
-- [ ] Implement `providers inspect`.
-- [ ] Implement `provider exec`.
-- [ ] Implement `runtime list`.
-- [ ] Implement `runtime stop`.
+- [x] Implement `providers list`.
+- [x] Implement `providers inspect`.
+- [x] Implement `provider exec`.
+- [x] Implement `runtime list`.
+- [x] Implement `runtime stop`.
 - [ ] Implement `config get`.
 - [ ] Implement `config set`.
 
