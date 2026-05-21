@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { createAgentProxyError, type ProviderMetadata } from "../core/index.js";
-import { redactValue } from "../logging/index.js";
+import { redactString, redactValue } from "../logging/index.js";
 import type {
   AgentProvider,
   ExportResult,
@@ -18,6 +18,16 @@ import {
 import type { ProviderSession } from "./types.js";
 
 const AGENTPROXY_ACTIONS_SESSION_ID_PREFIX = "apx";
+// biome-ignore lint/complexity/useRegexLiterals: String.raw keeps control escapes out of the source.
+const ANSI_ESCAPE_PATTERN = new RegExp(
+  String.raw`\u001B(?:\][^\u0007]*(?:\u0007|\u001B\\)|[\[\]()#;?]*(?:[0-?]*[ -/]*[@-~]))|\u009B[0-?]*[ -/]*[@-~]`,
+  "gu",
+);
+// biome-ignore lint/complexity/useRegexLiterals: String.raw keeps control escapes out of the source.
+const UNSAFE_CONTROL_PATTERN = new RegExp(
+  String.raw`[\u0000-\u0008\u000B\u000C\u000D\u000E-\u001F\u007F-\u009F]`,
+  "gu",
+);
 
 export interface SessionActionServiceInput<TContext extends SessionActionRequest> {
   provider: AgentProvider;
@@ -142,14 +152,22 @@ export async function importAgentProxySession(
   }
 
   const workspacePath = resolveWorkspacePath(input.context, providerSession, existing);
+  const title =
+    providerSession.title === undefined
+      ? sanitizeOptionalPersistedString(existing?.title)
+      : sanitizePersistedString(providerSession.title);
+  const model =
+    providerSession.model === undefined
+      ? sanitizeOptionalPersistedString(existing?.model)
+      : sanitizePersistedString(providerSession.model);
   const record: StoredSessionRecord = {
     id: existing?.id ?? (input.createSessionId ?? defaultCreateSessionId)(),
     providerId: providerSession.providerId,
     providerSessionId: providerSession.providerSessionId,
     workspacePath,
-    ...(providerSession.title !== undefined ? { title: providerSession.title } : {}),
+    ...(title !== undefined ? { title } : {}),
     status: providerSession.status,
-    ...(providerSession.model !== undefined ? { model: providerSession.model } : {}),
+    ...(model !== undefined ? { model } : {}),
     ...(input.context.runtimeId !== undefined
       ? { runtimeId: input.context.runtimeId }
       : existing?.runtimeId !== undefined
@@ -332,13 +350,37 @@ function throwConfirmationRequired(
 }
 
 function jsonSafeMetadata(metadata: ProviderMetadata): ProviderMetadata {
-  const serialized = JSON.stringify(redactValue(metadata));
+  const serialized = JSON.stringify(sanitizePersistedValue(redactValue(metadata)));
   const parsed: unknown = serialized === undefined ? {} : JSON.parse(serialized);
   return isPlainObject(parsed) ? parsed : {};
 }
 
 function defaultCreateSessionId(): string {
   return `${AGENTPROXY_ACTIONS_SESSION_ID_PREFIX}_${randomUUID()}`;
+}
+
+function sanitizeOptionalPersistedString(value: string | undefined): string | undefined {
+  return value === undefined ? undefined : sanitizePersistedString(value);
+}
+
+function sanitizePersistedValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    return sanitizePersistedString(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizePersistedValue(item));
+  }
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, sanitizePersistedValue(entry)]),
+    );
+  }
+
+  return value;
+}
+
+function sanitizePersistedString(value: string): string {
+  return redactString(value).replace(ANSI_ESCAPE_PATTERN, "").replace(UNSAFE_CONTROL_PATTERN, "");
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

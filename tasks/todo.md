@@ -11,6 +11,51 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-22 Phase 5 Sessions Import CLI Minimal Workflow
+
+Scope: advance only the Phase 5 `agentproxy sessions import <source>` CLI task group. This workflow imports a provider-native OpenCode session artifact or share source through the existing provider import operation and persists only the AgentProxy local session mapping. Do not implement `sessions share`, `sessions unshare`, `config`, `chat --session`, Phase 6 AgentProxy TUI, generic provider passthrough expansion, or any new Agent runtime behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit before implementation.
+- [x] Add focused CLI tests for `sessions import <source>` human/JSON output, provider import dispatch, local mapping persistence, existing mapping update behavior, tombstone conflict handling, disabled/invalid provider behavior, missing OpenCode binary behavior, terminal/control-character safety, no import source persistence, and later-command placeholder boundaries.
+- [x] Extend `src/cli/sessions.ts` with a narrow import action/service that resolves config, opens writable SQLite because import creates or updates a local mapping, calls existing `importAgentProxySession()`, and emits stable sanitized output.
+- [x] Wire only `agentproxy sessions import <source>` from planned placeholder to a real action; keep `sessions share/unshare`, `config`, `chat --session`, and Phase 6 TUI untouched.
+- [x] Keep JSON/human output transcript-free and source-safe by emitting only stable session/action summary fields; never emit raw provider transcript, raw provider payloads, metadata blobs, share URLs with credentials, import source URLs, file contents, or provider-controlled control characters.
+- [x] Update `docs/development-progress-tracker.zh.md` completed/unfinished status and Review notes after verification.
+- [x] Run focused sessions CLI/session action tests, related CLI placeholder boundary tests, full applicable project verification, code review, and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean; `git log -1 --oneline` is `6622115 文档：同步 Phase 5 Sessions Export 后最新状态`, so the latest Phase 5 implementation baseline remains `479ed89 阶段进展：完成 Phase 5 Sessions Export CLI`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Phase 4.6 already provides `OpenCodeProvider.importSession()` and provider-agnostic `importAgentProxySession()` with import mapping persistence and import source redaction.
+- Phase 5 `sessions export` already provides provider-native OpenCode CLI operation patterns, binary error mapping, restricted env boundary, and sanitized JSON/human output helpers to reuse.
+- Phase 5 `sessions show/list` already provide stable session summary formatting and provider/workspace visibility filtering patterns.
+
+Acceptance criteria for this iteration:
+
+- [x] `agentproxy sessions import <source>` is a real command and no longer returns the generic planned `CAPABILITY_UNSUPPORTED` placeholder.
+- [x] The command calls the existing provider import operation for the supplied source, persists the returned provider session as an AgentProxy local session mapping, and does not create, resume, delete, share, unshare, export, or send messages to a session.
+- [x] The command opens SQLite only because it must persist the imported mapping; it must not store the import source, raw provider payload, transcript, share URL secret, or file contents in SQLite.
+- [x] If the provider returns an existing non-tombstoned provider session id, the local mapping is updated in place; if the existing mapping is tombstoned, the command fails with stable `SESSION_NOT_FOUND` and does not overwrite the tombstone.
+- [x] `sessions import --json` emits exactly one valid redacted JSON object on stdout, with no human prose mixed in and no source/transcript/raw metadata leakage.
+- [x] Human output is terminal-control-character safe and does not print raw metadata blobs, transcripts, provider event payloads, URL credentials, query strings, headers, secrets, export payloads, import sources, share URLs, or provider-controlled control characters.
+- [x] Non-OpenCode provider selection maps to `PROVIDER_NOT_FOUND`; disabled OpenCode config maps to `PROVIDER_UNAVAILABLE`; missing OpenCode binary maps to stable provider unavailable behavior.
+- [x] `sessions share/unshare`, `config`, `chat --session`, and Phase 6 AgentProxy TUI remain unimplemented or explicitly unsupported.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
+Risks and constraints:
+
+- Import sources can contain secrets, so they must be provider input only and must not appear in output, SQLite metadata, or diagnostics.
+- Provider-native import currently uses the OpenCode CLI boundary; keep it as a narrow provider operation rather than broadening passthrough or inventing generic import semantics.
+- Import is a writable control-plane operation, but it must not restore tombstones implicitly or reclassify deleted local mappings.
+- Avoid touching Phase 6 TUI or implementing share/unshare/config in the same iteration.
+
+Review notes:
+
+- 2026-05-22: Implemented the Phase 5 `sessions import` CLI minimal workflow. Added focused failing tests first, then extended `src/cli/sessions.ts` and `src/cli/index.ts` so `agentproxy sessions import <source>` resolves config, opens writable SQLite for the required mapping persistence, calls the existing provider-backed `importAgentProxySession()`, and emits stable transcript-free JSON/human summaries. The command imports through the existing OpenCode provider-native CLI boundary, stores only the AgentProxy local mapping, reuses existing non-tombstoned provider-session mappings, refuses to overwrite tombstoned mappings with `SESSION_NOT_FOUND`, and keeps import sources out of JSON output, human output, and SQLite metadata. Hardened `importAgentProxySession()` so provider-derived title/model/metadata are redacted and stripped of terminal controls before persistence. Updated placeholder tests so `sessions share/unshare`, `config get/set`, `chat --session`, and Phase 6 TUI remain untouched. Code review approved with no blocking findings; one suggested `config set` placeholder regression was added. Verification passed: `pnpm exec vitest run tests/cli-sessions.test.ts tests/session-actions.test.ts --testTimeout=10000`, `pnpm exec vitest run tests/cli-sessions.test.ts tests/cli-help.test.ts tests/cli-chat.test.ts tests/cli-run.test.ts tests/cli-runtime.test.ts tests/cli-providers.test.ts --testTimeout=10000`, `pnpm exec vitest run tests/opencode-provider-session-actions.test.ts tests/session-actions.test.ts --testTimeout=10000`, `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run test` (29 files, 267 tests), `pnpm run build`, and `git diff --check`. Because the default full test suite includes many fake binary/server/process lifecycle tests, `vitest.config.ts` now uses a 30s test timeout so `pnpm run test` reflects the real verification budget instead of relying on ad hoc command-line overrides. Residual risk: real OpenCode import stdout/source shapes still need later smoke calibration; `sessions share/unshare`, `config`, `chat --session`, Gate 5, and Phase 6 AgentProxy TUI remain unimplemented.
+
 ## Current Iteration - 2026-05-22 Documentation Sync After Phase 5 Sessions Export CLI
 
 Scope: update only the project tracking documents after `479ed89 阶段进展：完成 Phase 5 Sessions Export CLI` so the next Codex session can resume from the correct remaining Phase 5 CLI MVP task group. This is documentation-only. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.

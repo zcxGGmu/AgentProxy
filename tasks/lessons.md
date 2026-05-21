@@ -60,6 +60,7 @@
 - one-shot `run` 不能把 `session.completed` 视为天然成功；必须根据最终 session status 映射稳定退出码，避免 provider 报错但 CLI 仍 exit 0。
 - one-shot `run` 的 timeout 必须显式抛出 `EVENT_STREAM_INTERRUPTED` 或同类稳定错误，并把本地 session 记录回写为 failed，不能把 abort 当成自然完成。
 - 测试套件中包含 fake binary/server/process 生命周期用例时，默认 Vitest timeout 要反映真实验证预算；不要只在临时命令里加 `--testTimeout`，否则 `pnpm run test` 会不稳定。
+- 全量验证时不要把 `pnpm run test` 和 `pnpm run build`/`typecheck` 并行跑；fake binary/server 用例会被资源争用放大耗时，容易制造与业务改动无关的超时噪声。
 - Phase 5 仍属于 CLI MVP 阶段；`agentproxy chat` 只能表述和实现为 CLI native OpenCode TUI launcher，不能把它写成或推进成 Phase 6 的 AgentProxy TUI/Ink 控制面。
 - 只读 CLI inspect/list 命令如果只需要 registry 辅助信息，不能默认创建或迁移 SQLite；DB 不存在应降级为无 registry 状态，DB 存在才用 readonly + migrate:false 打开。
 - CLI human diagnostics 不能只做 secret redaction；Commander parse error、fallback catch 和自定义错误输出都必须统一移除 ANSI/OSC/C0/C1 控制字符。

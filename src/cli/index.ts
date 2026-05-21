@@ -53,11 +53,14 @@ import {
   formatSessionExportHumanReport,
   formatSessionExportPayload,
   formatSessionExportReportForJson,
+  formatSessionImportHumanReport,
+  formatSessionImportReportForJson,
   formatSessionListHumanReport,
   formatSessionShowHumanReport,
   abortAgentProxyCliSession,
   deleteAgentProxyCliSession,
   exportAgentProxyCliSession,
+  importAgentProxyCliSession,
   listAgentProxySessions,
   resumeAgentProxyCliSession,
   showAgentProxySession,
@@ -78,13 +81,11 @@ const implementedCoreWorkflows = [
   "agentproxy sessions abort <id>",
   "agentproxy sessions delete <id> --yes",
   "agentproxy sessions export <id> [--sanitize|--raw --yes]",
+  "agentproxy sessions import <source>",
   "agentproxy provider exec <id> -- <native args>",
 ];
 
-const plannedCoreWorkflows = [
-  "agentproxy sessions import|share|unshare",
-  "agentproxy config get|set",
-];
+const plannedCoreWorkflows = ["agentproxy sessions share|unshare", "agentproxy config get|set"];
 
 const globalOptionDefinitions = [
   {
@@ -224,7 +225,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
     .command("import")
     .argument("<source>", "File or URL.")
     .description("Import a provider session.")
-    .action(plannedAction("sessions import", output));
+    .action(createSessionsImportAction(output, options));
   sessions
     .command("share")
     .argument("<id>", "Session id.")
@@ -833,6 +834,33 @@ function createSessionsExportAction(
       if (outputPath !== undefined && outputFile !== undefined) {
         await cleanupReservedSessionExportOutputFile(outputFile, outputPath, outputFileCommitted);
       }
+      handleCliError(error, output, this);
+    }
+  };
+}
+
+function createSessionsImportAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command, source: string) => Promise<void> {
+  return async function (this: Command, source) {
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const report = await importAgentProxyCliSession(source, {
+        providerId: globalOptions.provider,
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(this),
+      });
+
+      if (globalOptions.json) {
+        output.writeJson(formatSessionImportReportForJson(report));
+      } else {
+        output.writeResult(formatSessionImportHumanReport(report));
+      }
+      process.exitCode = 0;
+    } catch (error) {
       handleCliError(error, output, this);
     }
   };

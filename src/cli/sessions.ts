@@ -8,6 +8,7 @@ import {
   abortAgentProxySession,
   deleteAgentProxySession,
   exportAgentProxySession,
+  importAgentProxySession,
   resumeAgentProxySession,
   sendAgentProxyMessage,
 } from "../sessions/index.js";
@@ -62,6 +63,10 @@ export interface RunAgentProxySessionExportOptions extends RunAgentProxySessionL
   sanitize?: boolean;
   rawConfirmed?: boolean;
   outputPath?: string;
+  now?: () => Date;
+}
+
+export interface RunAgentProxySessionImportOptions extends RunAgentProxySessionListOptions {
   now?: () => Date;
 }
 
@@ -183,12 +188,24 @@ export interface AgentProxySessionExportReport {
   generatedAt: string;
 }
 
+export interface AgentProxySessionImportReport {
+  ok: true;
+  providerId: string;
+  session: AgentProxySessionDetail;
+  action: {
+    type: "import";
+    importedAt: string;
+  };
+  generatedAt: string;
+}
+
 const SESSIONS_LIST_OPERATION = "sessions.list";
 const SESSIONS_SHOW_OPERATION = "sessions.show";
 const SESSIONS_RESUME_OPERATION = "sessions.resume";
 const SESSIONS_ABORT_OPERATION = "sessions.abort";
 const SESSIONS_DELETE_OPERATION = "sessions.delete";
 const SESSIONS_EXPORT_OPERATION = "sessions.export";
+const SESSIONS_IMPORT_OPERATION = "sessions.import";
 const DEFAULT_RESUME_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_MAX_RESUME_PROMPT_BYTES = 1024 * 1024;
 const DEFAULT_MAX_EVENT_SUMMARIES = 1000;
@@ -797,6 +814,66 @@ export async function exportAgentProxyCliSession(
   }
 }
 
+export async function importAgentProxyCliSession(
+  source: string,
+  options: RunAgentProxySessionImportOptions = {},
+): Promise<AgentProxySessionImportReport> {
+  const providerId = options.providerId ?? OPENCODE_PROVIDER_ID;
+  assertSessionsProviderSupported(providerId, SESSIONS_IMPORT_OPERATION);
+  validateImportSource(source);
+
+  const resolvedConfig = await resolveAgentProxyConfig({
+    ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+    ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+    ...(options.env !== undefined ? { env: options.env } : {}),
+    ...(options.cli !== undefined ? { cli: options.cli } : {}),
+  });
+  const config = resolvedConfig.config;
+  assertOpenCodeSessionsProviderEnabled(
+    config.providers.opencode.enabled,
+    SESSIONS_IMPORT_OPERATION,
+  );
+
+  let storage: AgentProxyStorage | undefined;
+  try {
+    storage = openAgentProxyStorage({
+      databasePath: config.storage.path,
+    });
+
+    const opencode = config.providers.opencode;
+    const provider = new OpenCodeProvider({
+      binary: opencode.binary,
+      cwd: config.workspacePath,
+      passthroughEnv: opencode.passthroughEnv,
+      ...(options.env !== undefined ? { env: options.env } : {}),
+    });
+    const imported = await importAgentProxySession({
+      provider,
+      storage,
+      context: {
+        providerId,
+        source,
+        workspacePath: config.workspacePath,
+        metadata: {},
+      },
+      ...(options.now !== undefined ? { now: options.now } : {}),
+    });
+
+    return redactSessionImportReport({
+      ok: true,
+      providerId,
+      session: detailSession(imported.session),
+      action: {
+        type: "import",
+        importedAt: imported.importedAt,
+      },
+      generatedAt: (options.now ?? (() => new Date()))().toISOString(),
+    });
+  } finally {
+    storage?.close();
+  }
+}
+
 export function formatSessionListHumanReport(report: AgentProxySessionListReport): string {
   const lines = [`AgentProxy sessions: ${report.sessions.length.toString()}`];
   if (report.sessions.length === 0) {
@@ -937,6 +1014,20 @@ export function formatSessionExportReportForJson(report: AgentProxySessionExport
   return report.sanitized ? sanitizeStructuredOutput(report) : report;
 }
 
+export function formatSessionImportHumanReport(report: AgentProxySessionImportReport): string {
+  return [
+    `Session imported: ${sanitizeHumanInline(report.session.id)}`,
+    `Provider session: ${sanitizeHumanInline(report.session.providerSessionId)}`,
+    `Status: ${sanitizeHumanInline(report.session.status)}`,
+    `Workspace: ${sanitizeHumanInline(report.session.workspacePath)}`,
+    `Imported: ${sanitizeHumanInline(report.action.importedAt)}`,
+  ].join("\n");
+}
+
+export function formatSessionImportReportForJson(report: AgentProxySessionImportReport): unknown {
+  return sanitizeStructuredOutput(report);
+}
+
 function createSessionExportJsonSummary(
   report: AgentProxySessionExportReport,
 ): Omit<AgentProxySessionExportReport, "data"> {
@@ -1047,6 +1138,12 @@ function redactSessionExportReport(
     return report;
   }
 
+  return sanitizeStructuredOutput(report);
+}
+
+function redactSessionImportReport(
+  report: AgentProxySessionImportReport,
+): AgentProxySessionImportReport {
   return sanitizeStructuredOutput(report);
 }
 
@@ -1209,6 +1306,21 @@ function validateExportOptions(options: RunAgentProxySessionExportOptions): void
       details: {
         failureReason: "raw_export_requires_confirmation",
         suggestion: "Pass --raw --yes only when you accept that export data may contain secrets.",
+      },
+    });
+  }
+}
+
+function validateImportSource(source: string): void {
+  if (source.trim() === "") {
+    throw createAgentProxyError({
+      code: "CONFIG_INVALID",
+      message: "Session import source must not be empty.",
+      operation: SESSIONS_IMPORT_OPERATION,
+      providerId: OPENCODE_PROVIDER_ID,
+      details: {
+        failureReason: "empty_import_source",
+        suggestion: "Pass a non-empty file path or share URL as the import source.",
       },
     });
   }

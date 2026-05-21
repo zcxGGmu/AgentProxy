@@ -114,6 +114,23 @@ if (args[0] === "export") {
   process.exit(0)
 }
 
+if (args[0] === "import") {
+  console.log(JSON.stringify({
+    id: "ses_imported_token=provider-secret",
+    directory: process.cwd(),
+    title: "\\u001B[31mImported token=title-secret\\u001B[0m",
+    model: {
+      providerID: "anthropic",
+      modelID: "claude-sonnet-4-5"
+    },
+    time: {
+      created: Date.parse("2026-05-20T21:00:00.000Z"),
+      updated: Date.parse("2026-05-20T21:00:01.000Z")
+    }
+  }))
+  process.exit(0)
+}
+
 console.error("unexpected args " + args.join(" "))
 process.exit(64)
 `,
@@ -1035,6 +1052,236 @@ describe("agentproxy sessions CLI", () => {
       title: "\u001B[31mraw token=payload-secret\u001B[0m",
     });
     expect((await stat(outputPath)).mode & 0o777).toBe(0o600);
+  });
+
+  it("imports a session from native OpenCode import and prints a transcript-free JSON report", async () => {
+    const workspace = await createTestWorkspace();
+    const fakeBinary = await createFakeOpenCodeExportBinary(workspace.root);
+    await updateConfigOpenCodeBinary(workspace, fakeBinary.binaryPath);
+    const source = "https://share.example.test/import?token=source-secret-token";
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "import", source, "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("planned for a later phase");
+    const report = JSON.parse(result.stdout);
+    expect(report).toMatchObject({
+      ok: true,
+      providerId: "opencode",
+      session: {
+        id: expect.stringMatching(/^apx_/u),
+        providerId: "opencode",
+        providerSessionId: "ses_imported_token=[REDACTED]",
+        workspacePath: workspace.workspacePath,
+        title: "Imported token=[REDACTED]",
+        status: "unknown",
+        model: "anthropic/claude-sonnet-4-5",
+        sourceOfTruth: "provider_content_agentproxy_index",
+      },
+      action: {
+        type: "import",
+      },
+    });
+    expect(typeof report.action.importedAt).toBe("string");
+    expect(typeof report.generatedAt).toBe("string");
+    expect(JSON.stringify(report)).not.toContain("source-secret-token");
+    expect(JSON.stringify(report)).not.toContain("provider-secret");
+    expect(JSON.stringify(report)).not.toContain("title-secret");
+    expect(JSON.stringify(report)).not.toContain("\u001B[31m");
+    expect(await readFakeOpenCodeInvocations(fakeBinary.invocationLogPath)).toContainEqual([
+      "import",
+      source,
+    ]);
+
+    const storage = openAgentProxyStorage({
+      databasePath: workspace.storagePath,
+      migrate: false,
+      readonly: true,
+      fileMustExist: true,
+    });
+    try {
+      const session = storage.sessions.getByProviderSessionId(
+        "opencode",
+        "ses_imported_token=provider-secret",
+      );
+      expect(session).toMatchObject({
+        providerId: "opencode",
+        providerSessionId: "ses_imported_token=provider-secret",
+        workspacePath: workspace.workspacePath,
+        title: "Imported token=[REDACTED]",
+        status: "unknown",
+        sourceOfTruth: "provider_content_agentproxy_index",
+      });
+      expect(JSON.stringify(session)).not.toContain("source-secret-token");
+      expect(JSON.stringify(session)).not.toContain("title-secret");
+      expect(JSON.stringify(session)).not.toContain("\u001B[31m");
+    } finally {
+      storage.close();
+    }
+  });
+
+  it("updates an existing imported session mapping in place", async () => {
+    const workspace = await createTestWorkspace();
+    const fakeBinary = await createFakeOpenCodeExportBinary(workspace.root);
+    await updateConfigOpenCodeBinary(workspace, fakeBinary.binaryPath);
+    const storage = openAgentProxyStorage({ databasePath: workspace.storagePath });
+    try {
+      storage.sessions.upsert({
+        id: "apx_existing_import",
+        providerId: "opencode",
+        providerSessionId: "ses_imported_token=provider-secret",
+        workspacePath: workspace.workspacePath,
+        title: "Existing token=old-title-secret",
+        status: "idle",
+        createdAt: "2026-05-20T20:00:00.000Z",
+        updatedAt: "2026-05-20T20:00:01.000Z",
+        metadata: {
+          prior: "token=old-metadata-secret",
+        },
+      });
+    } finally {
+      storage.close();
+    }
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "sessions",
+        "import",
+        "https://share.example.test/import?token=source-secret-token",
+        "--json",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(0);
+    const report = JSON.parse(result.stdout);
+    expect(report.session).toMatchObject({
+      id: "apx_existing_import",
+      providerSessionId: "ses_imported_token=[REDACTED]",
+      title: "Imported token=[REDACTED]",
+      status: "unknown",
+    });
+
+    const updatedStorage = openAgentProxyStorage({
+      databasePath: workspace.storagePath,
+      migrate: false,
+      readonly: true,
+      fileMustExist: true,
+    });
+    try {
+      expect(updatedStorage.sessions.list({ includeTombstones: true })).toHaveLength(1);
+      expect(updatedStorage.sessions.getById("apx_existing_import")).toMatchObject({
+        id: "apx_existing_import",
+        providerSessionId: "ses_imported_token=provider-secret",
+        title: "Imported token=[REDACTED]",
+        status: "unknown",
+      });
+    } finally {
+      updatedStorage.close();
+    }
+  });
+
+  it("does not overwrite a tombstoned matching provider session during import", async () => {
+    const workspace = await createTestWorkspace();
+    const fakeBinary = await createFakeOpenCodeExportBinary(workspace.root);
+    await updateConfigOpenCodeBinary(workspace, fakeBinary.binaryPath);
+    const storage = openAgentProxyStorage({ databasePath: workspace.storagePath });
+    try {
+      storage.sessions.upsert({
+        id: "apx_import_deleted",
+        providerId: "opencode",
+        providerSessionId: "ses_imported_token=provider-secret",
+        workspacePath: workspace.workspacePath,
+        title: "Deleted token=deleted-title-secret",
+        status: "idle",
+        createdAt: "2026-05-20T20:00:00.000Z",
+        updatedAt: "2026-05-20T20:00:01.000Z",
+        deletedAt: "2026-05-20T20:10:00.000Z",
+        tombstoneReason: "provider_deleted",
+        metadata: {
+          prior: "token=deleted-metadata-secret",
+        },
+      });
+    } finally {
+      storage.close();
+    }
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "sessions",
+        "import",
+        "https://share.example.test/import?token=source-secret-token",
+        "--json",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "SESSION_NOT_FOUND",
+        providerId: "opencode",
+        operation: "sessions.import",
+      },
+    });
+    expect(result.stdout).not.toContain("source-secret-token");
+    expect(result.stdout).not.toContain("provider-secret");
+    expect(result.stdout).not.toContain("deleted-title-secret");
+    expect(result.stdout).not.toContain("deleted-metadata-secret");
+
+    const updatedStorage = openAgentProxyStorage({
+      databasePath: workspace.storagePath,
+      migrate: false,
+      readonly: true,
+      fileMustExist: true,
+    });
+    try {
+      expect(updatedStorage.sessions.getById("apx_import_deleted")).toMatchObject({
+        id: "apx_import_deleted",
+        deletedAt: "2026-05-20T20:10:00.000Z",
+        tombstoneReason: "provider_deleted",
+      });
+      expect(updatedStorage.sessions.list({ includeTombstones: true })).toHaveLength(1);
+    } finally {
+      updatedStorage.close();
+    }
+  });
+
+  it("prints terminal-safe human import output", async () => {
+    const workspace = await createTestWorkspace();
+    const fakeBinary = await createFakeOpenCodeExportBinary(workspace.root);
+    await updateConfigOpenCodeBinary(workspace, fakeBinary.binaryPath);
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "sessions",
+        "import",
+        "https://share.example.test/import?token=source-secret-token",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Session imported: apx_");
+    expect(result.stdout).toContain("Provider session: ses_imported_token=[REDACTED]");
+    expect(result.stdout).toContain("Status: unknown");
+    expect(result.stdout).toContain("Imported: ");
+    expect(result.stdout).not.toContain("source-secret-token");
+    expect(result.stdout).not.toContain("provider-secret");
+    expect(result.stdout).not.toContain("title-secret");
+    expect(result.stdout).not.toContain("\u001B[31m");
   });
 
   it("resumes an existing session with a prompt and prints a transcript-free JSON report", async () => {
@@ -1984,6 +2231,39 @@ describe("agentproxy sessions CLI", () => {
     expect(result.stdout).not.toContain("provider-secret");
   });
 
+  it("maps import provider binary errors to a stable provider exit code without leaking source", async () => {
+    const workspace = await createTestWorkspace();
+    const emptyBin = path.join(workspace.root, "empty-bin");
+    await mkdir(emptyBin, { recursive: true });
+
+    const result = await runCli({
+      workspace,
+      env: {
+        PATH: emptyBin,
+      },
+      argv: [
+        "sessions",
+        "import",
+        "https://share.example.test/import?token=source-secret-token",
+        "--json",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(4);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_UNAVAILABLE",
+        providerId: "opencode",
+        operation: "opencode.provider.importSession",
+      },
+    });
+    expect(result.stdout).not.toContain("source-secret-token");
+  });
+
   it("maps invalid and disabled provider errors without leaking controls", async () => {
     const enabledWorkspace = await createTestWorkspace();
     const disabledWorkspace = await createTestWorkspace({ enabled: false });
@@ -2077,6 +2357,54 @@ describe("agentproxy sessions CLI", () => {
         operation: "sessions.show",
       },
     });
+
+    const missingImport = await runCli({
+      workspace: enabledWorkspace,
+      argv: [
+        "sessions",
+        "import",
+        "https://share.example.test/import?token=source-secret-token",
+        "--provider",
+        "\u001B[31mmissing-token=provider-secret\u001B[0m",
+        "--json",
+        "--config",
+        enabledWorkspace.configPath,
+      ],
+    });
+    expect(missingImport.exitCode).toBe(4);
+    expect(JSON.parse(missingImport.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_NOT_FOUND",
+        providerId: "missing-token=[REDACTED]",
+        operation: "sessions.import",
+      },
+    });
+    expect(missingImport.stdout).not.toContain("\u001B[31m");
+    expect(missingImport.stdout).not.toContain("provider-secret");
+    expect(missingImport.stdout).not.toContain("source-secret-token");
+
+    const disabledImport = await runCli({
+      workspace: disabledWorkspace,
+      argv: [
+        "sessions",
+        "import",
+        "https://share.example.test/import?token=source-secret-token",
+        "--json",
+        "--config",
+        disabledWorkspace.configPath,
+      ],
+    });
+    expect(disabledImport.exitCode).toBe(4);
+    expect(JSON.parse(disabledImport.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_UNAVAILABLE",
+        providerId: "opencode",
+        operation: "sessions.import",
+      },
+    });
+    expect(disabledImport.stdout).not.toContain("source-secret-token");
 
     const missingResume = await runCli({
       workspace: enabledWorkspace,
@@ -2262,10 +2590,10 @@ describe("agentproxy sessions CLI", () => {
     const workspace = await createTestWorkspace();
 
     for (const argv of [
-      ["sessions", "import", "session.json", "--config", workspace.configPath],
       ["sessions", "share", "apx_123", "--config", workspace.configPath],
       ["sessions", "unshare", "apx_123", "--config", workspace.configPath],
       ["config", "get", "--config", workspace.configPath],
+      ["config", "set", "providers.opencode.enabled", "true", "--config", workspace.configPath],
     ]) {
       const result = await runCli({ workspace, argv });
 

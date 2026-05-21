@@ -218,14 +218,15 @@ describe("session operation service", () => {
         providerId: ctx.providerId,
         providerSessionId: "ses_imported",
         workspacePath,
-        title: "Imported",
+        title: "\u001B[31mImported token=title-secret\u001B[0m",
         status: "idle",
         createdAt: "2026-05-20T21:00:00.000Z",
         updatedAt: "2026-05-20T21:00:01.000Z",
         metadata: {
+          authorization: "Bearer sk-provider-metadata-secret",
           opencode: {
             session: {
-              directory: workspacePath,
+              directory: `${workspacePath}\u001B[31m`,
             },
           },
         },
@@ -250,11 +251,12 @@ describe("session operation service", () => {
       providerId: "opencode",
       providerSessionId: "ses_imported",
       workspacePath,
-      title: "Imported",
+      title: "Imported token=[REDACTED]",
       status: "idle",
       lastSyncAt: "2026-05-20T21:00:02.000Z",
       sourceOfTruth: AGENTPROXY_SESSION_SOURCE_OF_TRUTH,
       metadata: {
+        authorization: "[REDACTED]",
         opencode: {
           session: {
             directory: workspacePath,
@@ -266,6 +268,9 @@ describe("session operation service", () => {
       },
     });
     expect(JSON.stringify(result.session)).not.toContain("source-secret-token");
+    expect(JSON.stringify(result.session)).not.toContain("title-secret");
+    expect(JSON.stringify(result.session)).not.toContain("sk-provider-metadata-secret");
+    expect(JSON.stringify(result.session)).not.toContain("\u001B[31m");
   });
 
   it("updates local share state without persisting provider share URLs", async () => {

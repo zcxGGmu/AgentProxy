@@ -920,13 +920,13 @@ describe("agentproxy run CLI", () => {
     const result = await runCli({
       cwd: workspacePath,
       homeDir,
-      argv: ["sessions", "import", "session.json"],
+      argv: ["sessions", "share", "apx_123"],
       stdin: Readable.from([]),
     });
 
     expect(result.exitCode).toBe(6);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("CAPABILITY_UNSUPPORTED");
-    expect(result.stderr).toContain("agentproxy sessions import is planned");
+    expect(result.stderr).toContain("agentproxy sessions share is planned");
   });
 });
