@@ -56,6 +56,8 @@ import {
   formatSessionImportHumanReport,
   formatSessionImportReportForJson,
   formatSessionListHumanReport,
+  formatSessionShareHumanReport,
+  formatSessionShareReportForJson,
   formatSessionShowHumanReport,
   abortAgentProxyCliSession,
   deleteAgentProxyCliSession,
@@ -63,6 +65,7 @@ import {
   importAgentProxyCliSession,
   listAgentProxySessions,
   resumeAgentProxyCliSession,
+  shareAgentProxyCliSession,
   showAgentProxySession,
   type AgentProxySessionResumeSessionSummary,
 } from "./sessions.js";
@@ -82,10 +85,11 @@ const implementedCoreWorkflows = [
   "agentproxy sessions delete <id> --yes",
   "agentproxy sessions export <id> [--sanitize|--raw --yes]",
   "agentproxy sessions import <source>",
+  "agentproxy sessions share <id>",
   "agentproxy provider exec <id> -- <native args>",
 ];
 
-const plannedCoreWorkflows = ["agentproxy sessions share|unshare", "agentproxy config get|set"];
+const plannedCoreWorkflows = ["agentproxy sessions unshare", "agentproxy config get|set"];
 
 const globalOptionDefinitions = [
   {
@@ -230,7 +234,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
     .command("share")
     .argument("<id>", "Session id.")
     .description("Share a session through the provider.")
-    .action(plannedAction("sessions share", output));
+    .action(createSessionsShareAction(output, options));
   sessions
     .command("unshare")
     .argument("<id>", "Session id.")
@@ -761,6 +765,33 @@ function createSessionsDeleteAction(
         output.writeJson(formatSessionDeleteReportForJson(report));
       } else {
         output.writeResult(formatSessionDeleteHumanReport(report));
+      }
+      process.exitCode = 0;
+    } catch (error) {
+      handleCliError(error, output, this);
+    }
+  };
+}
+
+function createSessionsShareAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command, sessionId: string) => Promise<void> {
+  return async function (this: Command, sessionId) {
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const report = await shareAgentProxyCliSession(sessionId, {
+        providerId: globalOptions.provider,
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(this),
+      });
+
+      if (globalOptions.json) {
+        output.writeJson(formatSessionShareReportForJson(report));
+      } else {
+        output.writeResult(formatSessionShareHumanReport(report));
       }
       process.exitCode = 0;
     } catch (error) {

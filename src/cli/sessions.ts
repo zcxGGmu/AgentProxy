@@ -11,6 +11,7 @@ import {
   importAgentProxySession,
   resumeAgentProxySession,
   sendAgentProxyMessage,
+  shareAgentProxySession,
 } from "../sessions/index.js";
 import {
   openAgentProxyStorage,
@@ -55,6 +56,10 @@ export interface RunAgentProxySessionAbortOptions extends RunAgentProxySessionLi
 
 export interface RunAgentProxySessionDeleteOptions extends RunAgentProxySessionListOptions {
   confirmed?: boolean;
+  now?: () => Date;
+}
+
+export interface RunAgentProxySessionShareOptions extends RunAgentProxySessionListOptions {
   now?: () => Date;
 }
 
@@ -174,6 +179,20 @@ export interface AgentProxySessionDeleteReport {
   generatedAt: string;
 }
 
+export interface AgentProxySessionShareReport {
+  ok: true;
+  providerId: string;
+  sessionId: string;
+  providerSessionId: string;
+  runtime: AgentProxySessionResumeRuntimeSummary;
+  action: {
+    type: "share";
+    url: string;
+    sharedAt: string;
+  };
+  generatedAt: string;
+}
+
 export interface AgentProxySessionExportReport {
   ok: true;
   providerId: string;
@@ -204,11 +223,22 @@ const SESSIONS_SHOW_OPERATION = "sessions.show";
 const SESSIONS_RESUME_OPERATION = "sessions.resume";
 const SESSIONS_ABORT_OPERATION = "sessions.abort";
 const SESSIONS_DELETE_OPERATION = "sessions.delete";
+const SESSIONS_SHARE_OPERATION = "sessions.share";
 const SESSIONS_EXPORT_OPERATION = "sessions.export";
 const SESSIONS_IMPORT_OPERATION = "sessions.import";
 const DEFAULT_RESUME_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_MAX_RESUME_PROMPT_BYTES = 1024 * 1024;
 const DEFAULT_MAX_EVENT_SUMMARIES = 1000;
+// biome-ignore lint/complexity/useRegexLiterals: String.raw keeps control escapes out of the source.
+const SHARE_URL_ANSI_ESCAPE_PATTERN = new RegExp(
+  String.raw`\u001B(?:\][^\u0007]*(?:\u0007|\u001B\\)|[\[\]()#;?]*(?:[0-?]*[ -/]*[@-~]))|\u009B[0-?]*[ -/]*[@-~]`,
+  "gu",
+);
+// biome-ignore lint/complexity/useRegexLiterals: String.raw keeps control escapes out of the source.
+const SHARE_URL_UNSAFE_CONTROL_PATTERN = new RegExp(
+  String.raw`[\u0000-\u0008\u000B\u000C\u000D\u000E-\u001F\u007F-\u009F]`,
+  "gu",
+);
 
 export async function listAgentProxySessions(
   options: RunAgentProxySessionListOptions = {},
@@ -730,6 +760,155 @@ export async function deleteAgentProxyCliSession(
   return redactSessionDeleteReport(report);
 }
 
+export async function shareAgentProxyCliSession(
+  sessionId: string,
+  options: RunAgentProxySessionShareOptions = {},
+): Promise<AgentProxySessionShareReport> {
+  const providerId = options.providerId ?? OPENCODE_PROVIDER_ID;
+  assertSessionsProviderSupported(providerId, SESSIONS_SHARE_OPERATION);
+
+  const resolvedConfig = await resolveAgentProxyConfig({
+    ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+    ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+    ...(options.env !== undefined ? { env: options.env } : {}),
+    ...(options.cli !== undefined ? { cli: options.cli } : {}),
+  });
+  const config = resolvedConfig.config;
+  assertOpenCodeSessionsProviderEnabled(
+    config.providers.opencode.enabled,
+    SESSIONS_SHARE_OPERATION,
+  );
+
+  let storage: AgentProxyStorage | undefined;
+  let cleanup: (() => Promise<void>) | undefined;
+  let cleanupError: unknown;
+  let report: AgentProxySessionShareReport | undefined;
+  const now = options.now ?? (() => new Date());
+
+  try {
+    const visibleSession = readVisibleSessionFromExistingStorage({
+      databasePath: config.storage.path,
+      sessionId,
+      providerId,
+      workspacePath: config.workspacePath,
+      operation: SESSIONS_SHARE_OPERATION,
+    });
+
+    storage = openAgentProxyStorage({
+      databasePath: config.storage.path,
+    });
+    const existing = storage.sessions.getById(visibleSession.id);
+    if (
+      !isVisibleSession(existing, providerId, config.workspacePath) ||
+      existing.providerSessionId !== visibleSession.providerSessionId
+    ) {
+      throw createSessionNotFoundError(sessionId, providerId, SESSIONS_SHARE_OPERATION);
+    }
+    const registry = new RuntimeRegistry({
+      storage,
+      ...(options.now !== undefined ? { now: options.now } : {}),
+    });
+    const ensuredRuntime = await ensureOpenCodeCommandRuntime({
+      config,
+      storage,
+      registry,
+      env: options.env,
+      operation: SESSIONS_SHARE_OPERATION,
+    });
+    cleanup = ensuredRuntime.cleanup;
+    const runtime = summarizeResumeRuntime(ensuredRuntime.runtime);
+    const provider = createOpenCodeCommandProvider({
+      config,
+      baseUrl: runtime.baseUrl,
+      env: options.env,
+      operation: SESSIONS_SHARE_OPERATION,
+    });
+    const shared = await shareAgentProxySession({
+      provider,
+      storage,
+      context: {
+        providerId,
+        providerSessionId: visibleSession.providerSessionId,
+        sessionId: visibleSession.id,
+        workspacePath: config.workspacePath,
+        ...(runtime.runtimeId !== undefined ? { runtimeId: runtime.runtimeId } : {}),
+        metadata: {
+          runtimeBaseUrl: runtime.baseUrl,
+          runtimeBaseUrlSource: runtime.source,
+        },
+      },
+      now,
+    });
+    const sharedSession = storage.sessions.getById(visibleSession.id) ?? existing;
+    const sharedAt = readShareOperationTimestamp(sharedSession) ?? sharedSession.updatedAt;
+
+    report = {
+      ok: true,
+      providerId,
+      sessionId: visibleSession.id,
+      providerSessionId: sanitizeMachineString(shared.providerSessionId),
+      runtime,
+      action: {
+        type: "share",
+        url: sanitizeShareUrlForOutput(shared.url),
+        sharedAt,
+      },
+      generatedAt: now().toISOString(),
+    };
+  } finally {
+    try {
+      await cleanup?.();
+    } catch (error) {
+      cleanupError = error;
+    } finally {
+      storage?.close();
+    }
+  }
+
+  if (cleanupError !== undefined) {
+    throw cleanupError;
+  }
+  if (report === undefined) {
+    throw createAgentProxyError({
+      code: "PROVIDER_UNAVAILABLE",
+      message: "agentproxy sessions share finished without a report.",
+      operation: SESSIONS_SHARE_OPERATION,
+      providerId,
+    });
+  }
+
+  return redactSessionShareReport(report);
+}
+
+function readVisibleSessionFromExistingStorage(input: {
+  databasePath: string;
+  sessionId: string;
+  providerId: string;
+  workspacePath: string;
+  operation: string;
+}): StoredSessionRecord {
+  if (!existsSync(input.databasePath)) {
+    throw createSessionNotFoundError(input.sessionId, input.providerId, input.operation);
+  }
+
+  const storage = openAgentProxyStorage({
+    databasePath: input.databasePath,
+    migrate: false,
+    readonly: true,
+    fileMustExist: true,
+  });
+  try {
+    const session = storage.sessions.getById(input.sessionId);
+    if (!isVisibleSession(session, input.providerId, input.workspacePath)) {
+      throw createSessionNotFoundError(input.sessionId, input.providerId, input.operation);
+    }
+
+    return session;
+  } finally {
+    storage.close();
+  }
+}
+
 export async function exportAgentProxyCliSession(
   sessionId: string,
   options: RunAgentProxySessionExportOptions = {},
@@ -989,6 +1168,22 @@ export function formatSessionDeleteReportForJson(report: AgentProxySessionDelete
   return sanitizeStructuredOutput(report);
 }
 
+export function formatSessionShareHumanReport(report: AgentProxySessionShareReport): string {
+  return [
+    `Session shared: ${sanitizeHumanInline(report.sessionId)}`,
+    `Provider session: ${sanitizeHumanInline(report.providerSessionId)}`,
+    `Runtime: ${sanitizeHumanInline(report.runtime.runtimeId ?? "configured")} (${sanitizeHumanInline(
+      report.runtime.mode,
+    )})`,
+    `Share URL: ${sanitizeShareUrlForOutput(report.action.url)}`,
+    `Shared: ${sanitizeHumanInline(report.action.sharedAt)}`,
+  ].join("\n");
+}
+
+export function formatSessionShareReportForJson(report: AgentProxySessionShareReport): unknown {
+  return redactSessionShareReport(report);
+}
+
 export function formatSessionExportHumanReport(report: AgentProxySessionExportReport): string {
   return [
     `Session exported: ${sanitizeHumanInline(report.sessionId)}`,
@@ -1131,6 +1326,24 @@ function redactSessionDeleteReport(
   return sanitizeStructuredOutput(report);
 }
 
+function redactSessionShareReport(
+  report: AgentProxySessionShareReport,
+): AgentProxySessionShareReport {
+  return {
+    ok: true,
+    providerId: sanitizeMachineString(report.providerId),
+    sessionId: sanitizeMachineString(report.sessionId),
+    providerSessionId: sanitizeMachineString(report.providerSessionId),
+    runtime: sanitizeStructuredOutput(report.runtime),
+    action: {
+      type: "share",
+      url: sanitizeShareUrlForOutput(report.action.url),
+      sharedAt: sanitizeMachineString(report.action.sharedAt),
+    },
+    generatedAt: sanitizeMachineString(report.generatedAt),
+  };
+}
+
 function redactSessionExportReport(
   report: AgentProxySessionExportReport,
 ): AgentProxySessionExportReport {
@@ -1157,6 +1370,18 @@ function readAbortOperationTimestamp(session: StoredSessionRecord): string | und
     return undefined;
   }
   return typeof abort.abortedAt === "string" ? abort.abortedAt : undefined;
+}
+
+function readShareOperationTimestamp(session: StoredSessionRecord): string | undefined {
+  const operations = session.metadata.sessionOperations;
+  if (!isPlainObject(operations)) {
+    return undefined;
+  }
+  const share = operations.share;
+  if (!isPlainObject(share)) {
+    return undefined;
+  }
+  return typeof share.updatedAt === "string" ? share.updatedAt : undefined;
 }
 
 function assertSessionsProviderSupported(providerId: string, operation: string): void {
@@ -1350,6 +1575,20 @@ function markResumeTimedOut(storage: AgentProxyStorage, sessionId: string, faile
 
 function sanitizeMachineString(value: string): string {
   return sanitizeHumanText(value);
+}
+
+function sanitizeShareUrlForOutput(value: string): string {
+  const firstLine = value.replace(SHARE_URL_ANSI_ESCAPE_PATTERN, "").split(/[\r\n]/u)[0] ?? "";
+  const cleaned = firstLine.replace(SHARE_URL_UNSAFE_CONTROL_PATTERN, "").trim();
+
+  try {
+    const url = new URL(cleaned);
+    url.username = "";
+    url.password = "";
+    return url.toString();
+  } catch {
+    return cleaned;
+  }
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

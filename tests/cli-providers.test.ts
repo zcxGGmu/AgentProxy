@@ -505,12 +505,12 @@ describe("agentproxy providers CLI", () => {
 
     const result = await runCli({
       workspace,
-      argv: ["sessions", "share", "apx_123", "--config", workspace.configPath],
+      argv: ["sessions", "unshare", "apx_123", "--config", workspace.configPath],
     });
 
     expect(result.exitCode).toBe(6);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("CAPABILITY_UNSUPPORTED");
-    expect(result.stderr).toContain("agentproxy sessions share is planned");
+    expect(result.stderr).toContain("agentproxy sessions unshare is planned");
   });
 });

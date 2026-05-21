@@ -368,12 +368,12 @@ describe("agentproxy chat native TUI launcher", () => {
     const result = await runCli({
       cwd: workspacePath,
       homeDir,
-      argv: ["sessions", "share", "apx_123"],
+      argv: ["sessions", "unshare", "apx_123"],
     });
 
     expect(result.exitCode).toBe(6);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("CAPABILITY_UNSUPPORTED");
-    expect(result.stderr).toContain("agentproxy sessions share is planned");
+    expect(result.stderr).toContain("agentproxy sessions unshare is planned");
   });
 });

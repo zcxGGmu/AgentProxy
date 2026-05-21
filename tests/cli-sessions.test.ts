@@ -387,6 +387,67 @@ async function startFakeOpenCodeDeleteServer(
   };
 }
 
+async function startFakeOpenCodeShareServer(
+  input: { providerSessionId?: string; responseStatus?: number; shareUrl?: string } = {},
+): Promise<{
+  baseUrl: string;
+  shareDirectories: string[];
+  shareCalls: string[];
+}> {
+  const providerSessionId = input.providerSessionId ?? "ses_share";
+  const responseStatus = input.responseStatus ?? 200;
+  const shareDirectories: string[] = [];
+  const shareCalls: string[] = [];
+  const shareUrl =
+    input.shareUrl ??
+    "\u001B[31mhttps://user:password@share.example.test/session/ses_recent?token=share-secret-token\u001B[0m\rStatus: spoofed";
+
+  const server = createServer((request, response) => {
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    const decodedPathname = decodeURIComponent(url.pathname);
+
+    if (request.method === "POST" && decodedPathname === `/session/${providerSessionId}/share`) {
+      shareCalls.push(`${request.method} ${decodedPathname}`);
+      shareDirectories.push(url.searchParams.get("directory") ?? "");
+      response.writeHead(responseStatus, { "content-type": "application/json" });
+      response.end(
+        responseStatus === 200
+          ? JSON.stringify({
+              url: shareUrl,
+              token: "provider-response-token-secret",
+              transcript: "provider transcript must not print",
+            })
+          : JSON.stringify({
+              error: "share failed token=provider-error-secret",
+            }),
+      );
+      return;
+    }
+
+    response.writeHead(404, { "content-type": "application/json" });
+    response.end(JSON.stringify({ error: "not found token=server-secret" }));
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+  servers.push(server);
+  const address = server.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("Expected fake OpenCode server to listen on a TCP address.");
+  }
+
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    shareDirectories,
+    shareCalls,
+  };
+}
+
 async function readRequestJson(request: IncomingMessage): Promise<unknown> {
   let body = "";
   for await (const chunk of request) {
@@ -1740,6 +1801,107 @@ describe("agentproxy sessions CLI", () => {
     expect(fakeServer.deleteDirectories).toEqual([workspace.workspacePath]);
   });
 
+  it("shares an existing session and prints a transcript-free JSON report with the returned URL", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeServer = await startFakeOpenCodeShareServer({
+      providerSessionId: "ses_recent_token=provider-secret",
+    });
+    await updateConfigRuntimeBaseUrl(workspace, fakeServer.baseUrl);
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "share", "apx_recent", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("planned for a later phase");
+    const report = JSON.parse(result.stdout);
+    expect(report).toMatchObject({
+      ok: true,
+      providerId: "opencode",
+      sessionId: "apx_recent",
+      providerSessionId: "ses_recent_token=[REDACTED]",
+      action: {
+        type: "share",
+        url: "https://share.example.test/session/ses_recent?token=share-secret-token",
+      },
+      runtime: {
+        source: "config",
+        mode: "attached",
+        startedByCommand: false,
+      },
+    });
+    expect(typeof report.action.sharedAt).toBe("string");
+    expect(typeof report.generatedAt).toBe("string");
+    expect(result.stdout).toContain("share-secret-token");
+    expect(JSON.stringify(report)).not.toContain("provider-secret");
+    expect(JSON.stringify(report)).not.toContain("title-secret");
+    expect(JSON.stringify(report)).not.toContain("sk-session-metadata-secret");
+    expect(JSON.stringify(report)).not.toContain("provider transcript");
+    expect(JSON.stringify(report)).not.toContain("provider-response-token-secret");
+    expect(JSON.stringify(report)).not.toContain("user:password");
+    expect(JSON.stringify(report)).not.toContain("\u001B[31m");
+    expect(JSON.stringify(report)).not.toContain("\rStatus: spoofed");
+    expect(fakeServer.shareCalls).toEqual(["POST /session/ses_recent_token=provider-secret/share"]);
+    expect(fakeServer.shareDirectories).toEqual([workspace.workspacePath]);
+
+    const storage = openAgentProxyStorage({ databasePath: workspace.storagePath });
+    try {
+      const session = storage.sessions.getById("apx_recent");
+      expect(session).toMatchObject({
+        id: "apx_recent",
+        providerSessionId: "ses_recent_token=provider-secret",
+        metadata: {
+          sessionOperations: {
+            share: {
+              shared: true,
+              updatedAt: report.action.sharedAt,
+            },
+          },
+        },
+      });
+      expect(JSON.stringify(session)).not.toContain("share-secret-token");
+      expect(JSON.stringify(session)).not.toContain("provider-response-token-secret");
+      expect(JSON.stringify(session)).not.toContain("sk-session-metadata-secret");
+    } finally {
+      storage.close();
+    }
+  });
+
+  it("prints terminal-safe human share output with the returned URL only in the command result", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeServer = await startFakeOpenCodeShareServer({
+      providerSessionId: "ses_recent_token=provider-secret",
+    });
+    await updateConfigRuntimeBaseUrl(workspace, fakeServer.baseUrl);
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "share", "apx_recent", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Session shared: apx_recent");
+    expect(result.stdout).toContain("Provider session: ses_recent_token=[REDACTED]");
+    expect(result.stdout).toContain(
+      "Share URL: https://share.example.test/session/ses_recent?token=share-secret-token",
+    );
+    expect(result.stdout).toContain("Shared: ");
+    expect(result.stdout).not.toContain("provider-secret");
+    expect(result.stdout).not.toContain("title-secret");
+    expect(result.stdout).not.toContain("sk-session-metadata-secret");
+    expect(result.stdout).not.toContain("provider transcript");
+    expect(result.stdout).not.toContain("provider-response-token-secret");
+    expect(result.stdout).not.toContain("user:password");
+    expect(result.stdout).not.toContain("\u001B[31m");
+    expect(result.stdout).not.toContain("\rStatus: spoofed");
+    expect(fakeServer.shareDirectories).toEqual([workspace.workspacePath]);
+  });
+
   it("requires explicit confirmation before deleting a session", async () => {
     const workspace = await createTestWorkspace();
     seedSessionRegistry(workspace);
@@ -1956,6 +2118,28 @@ describe("agentproxy sessions CLI", () => {
     expect(existsSync(path.dirname(workspace.storagePath))).toBe(false);
   });
 
+  it("does not create storage and reports SESSION_NOT_FOUND when sharing from an absent database", async () => {
+    const workspace = await createTestWorkspace();
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "share", "apx_missing", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "SESSION_NOT_FOUND",
+        providerId: "opencode",
+        operation: "sessions.share",
+      },
+    });
+    expect(existsSync(workspace.storagePath)).toBe(false);
+    expect(existsSync(path.dirname(workspace.storagePath))).toBe(false);
+  });
+
   it("requires delete confirmation before touching absent storage", async () => {
     const workspace = await createTestWorkspace();
 
@@ -2128,6 +2312,43 @@ describe("agentproxy sessions CLI", () => {
     expect(fakeServer.deleteCalls).toEqual([]);
   });
 
+  it("treats missing, tombstoned, wrong-workspace, and wrong-provider sessions as not found for share", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeServer = await startFakeOpenCodeShareServer({
+      providerSessionId: "ses_recent_token=provider-secret",
+    });
+    await updateConfigRuntimeBaseUrl(workspace, fakeServer.baseUrl);
+
+    for (const sessionId of [
+      "apx_missing",
+      "apx_deleted",
+      "apx_other_workspace",
+      "apx_other_provider",
+    ]) {
+      const result = await runCli({
+        workspace,
+        argv: ["sessions", "share", sessionId, "--json", "--config", workspace.configPath],
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe("");
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        ok: false,
+        error: {
+          code: "SESSION_NOT_FOUND",
+          providerId: "opencode",
+          operation: "sessions.share",
+        },
+      });
+      expect(result.stdout).not.toContain("deleted-secret");
+      expect(result.stdout).not.toContain("deleted-metadata-secret");
+      expect(result.stdout).not.toContain("Other workspace");
+      expect(result.stdout).not.toContain("Other provider");
+    }
+    expect(fakeServer.shareCalls).toEqual([]);
+  });
+
   it("treats missing, tombstoned, wrong-workspace, and wrong-provider sessions as not found for export", async () => {
     const workspace = await createTestWorkspace();
     seedSessionRegistry(workspace);
@@ -2205,6 +2426,21 @@ describe("agentproxy sessions CLI", () => {
     expect(result.stderr).not.toContain("provider-secret");
   });
 
+  it("maps share runtime availability errors to a stable runtime exit code", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "share", "apx_recent", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(9);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("RUNTIME_HEALTH_FAILED");
+    expect(result.stderr).not.toContain("provider-secret");
+  });
+
   it("maps export provider binary errors to a stable provider exit code", async () => {
     const workspace = await createTestWorkspace();
     seedSessionRegistry(workspace);
@@ -2262,6 +2498,40 @@ describe("agentproxy sessions CLI", () => {
       },
     });
     expect(result.stdout).not.toContain("source-secret-token");
+  });
+
+  it("does not mark the local session shared when provider share fails", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeServer = await startFakeOpenCodeShareServer({
+      providerSessionId: "ses_recent_token=provider-secret",
+      responseStatus: 500,
+    });
+    await updateConfigRuntimeBaseUrl(workspace, fakeServer.baseUrl);
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "share", "apx_recent", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(4);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_UNAVAILABLE",
+        providerId: "opencode",
+      },
+    });
+    expect(result.stdout).not.toContain("provider-secret");
+    expect(result.stdout).not.toContain("provider-error-secret");
+    expect(fakeServer.shareCalls).toEqual(["POST /session/ses_recent_token=provider-secret/share"]);
+    const storage = openAgentProxyStorage({ databasePath: workspace.storagePath });
+    try {
+      expect(storage.sessions.getById("apx_recent")?.metadata.sessionOperations).toBeUndefined();
+    } finally {
+      storage.close();
+    }
   });
 
   it("maps invalid and disabled provider errors without leaking controls", async () => {
@@ -2491,6 +2761,45 @@ describe("agentproxy sessions CLI", () => {
       },
     });
 
+    const missingShare = await runCli({
+      workspace: enabledWorkspace,
+      argv: [
+        "sessions",
+        "share",
+        "apx_recent",
+        "--provider",
+        "\u001B[31mmissing-token=provider-secret\u001B[0m",
+        "--json",
+        "--config",
+        enabledWorkspace.configPath,
+      ],
+    });
+    expect(missingShare.exitCode).toBe(4);
+    expect(JSON.parse(missingShare.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_NOT_FOUND",
+        providerId: "missing-token=[REDACTED]",
+        operation: "sessions.share",
+      },
+    });
+    expect(missingShare.stdout).not.toContain("\u001B[31m");
+    expect(missingShare.stdout).not.toContain("provider-secret");
+
+    const disabledShare = await runCli({
+      workspace: disabledWorkspace,
+      argv: ["sessions", "share", "apx_recent", "--json", "--config", disabledWorkspace.configPath],
+    });
+    expect(disabledShare.exitCode).toBe(4);
+    expect(JSON.parse(disabledShare.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_UNAVAILABLE",
+        providerId: "opencode",
+        operation: "sessions.share",
+      },
+    });
+
     const missingDelete = await runCli({
       workspace: enabledWorkspace,
       argv: [
@@ -2590,7 +2899,6 @@ describe("agentproxy sessions CLI", () => {
     const workspace = await createTestWorkspace();
 
     for (const argv of [
-      ["sessions", "share", "apx_123", "--config", workspace.configPath],
       ["sessions", "unshare", "apx_123", "--config", workspace.configPath],
       ["config", "get", "--config", workspace.configPath],
       ["config", "set", "providers.opencode.enabled", "true", "--config", workspace.configPath],

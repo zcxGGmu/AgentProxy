@@ -67,3 +67,4 @@
 - Phase 5 CLI 命令从 planned placeholder 提升为真实工作流时，必须同步更新其他命令测试里的 placeholder 边界断言，避免完整测试仍按旧未实现状态失败。
 - `sessions resume` 这类恢复/控制面命令不能复用 `run` 的 transcript streaming human renderer；即使做了 secret redaction，也不能把 assistant delta/provider transcript 当作控制面输出。
 - Provider 派生的 session title、event tool/action/path 等展示字段落入 SQLite 前也必须脱敏并移除终端控制字符；不能只在 CLI 输出层做净化。
+- `sessions share` 返回的 share URL 是当前命令产物，不应落 SQLite；输出前要移除 URL credentials 和终端控制字符，但不要用通用 secret redaction 破坏可用的 provider share URL。
