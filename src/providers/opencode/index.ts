@@ -4,6 +4,7 @@ import type { RuntimeHandle, RuntimeRequest } from "../../core/types.js";
 import type { ProviderSession } from "../../sessions/types.js";
 import { OPENCODE_PROVIDER_ID } from "./constants.js";
 import { listOpenCodeModels } from "./models.js";
+import { openOpenCodeNativeTui } from "./native-tui.js";
 import {
   OPENCODE_PROVIDER_PROBE_METADATA_KEY,
   type OpenCodeProviderOptions,
@@ -154,7 +155,7 @@ export class OpenCodeProvider implements AgentProvider {
   }
 
   async openNativeTui(ctx: NativeTuiRequest): Promise<NativeTuiResult> {
-    throw unsupportedOpenCodeOperation("provider.openNativeTui", ctx.providerId);
+    return openOpenCodeNativeTui(this.#options, ctx);
   }
 
   async passthrough(ctx: PassthroughRequest): Promise<PassthroughResult> {

@@ -298,7 +298,7 @@ describe("OpenCodeProvider health and capability probing", () => {
       },
     });
     expect(capabilities.interaction).toMatchObject({
-      nativeTui: false,
+      nativeTui: true,
       headlessRun: true,
       promptPrefill: false,
       slashCommands: false,
@@ -344,7 +344,7 @@ describe("OpenCodeProvider health and capability probing", () => {
       todo: false,
     });
     expect(capabilities.interaction).toMatchObject({
-      nativeTui: false,
+      nativeTui: true,
       headlessRun: true,
       promptPrefill: false,
       slashCommands: false,

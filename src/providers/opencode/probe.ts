@@ -492,7 +492,7 @@ function buildCapabilities(input: {
       todo: false,
     },
     interaction: {
-      nativeTui: false,
+      nativeTui: binaryAvailable,
       headlessRun:
         runtimeEndpoint("eventStream") &&
         runtimeEndpoint("sessionCreate") &&

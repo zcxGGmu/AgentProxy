@@ -11,6 +11,54 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Phase 5.3 Chat Native TUI Launcher Minimal Entry
+
+Scope: advance only the smallest `agentproxy chat` entry from Phase 5.3 by launching the OpenCode native TUI as the provider-owned interactive surface for the selected workspace. Do not implement a full AgentProxy Ink TUI, session-specific native resume, prompt prefill, `/tui` server API control, `sessions`, `runtime`, `config`, `providers list/inspect`, or new Agent runtime behavior.
+
+User journey:
+
+- As a local CLI user, I can run `agentproxy chat --workspace .` and AgentProxy resolves config, locates the configured OpenCode binary, then hands the terminal to OpenCode native TUI for the selected workspace.
+- As a scripted user, I can observe stable launcher errors and exit codes when provider id, config, disabled provider, or OpenCode binary resolution fails.
+- As a security-conscious user, parent process secrets are not passed to the native TUI child unless they are explicitly allowed through AgentProxy OpenCode passthrough config.
+
+Implementation checklist:
+
+- [x] Add focused tests for `agentproxy chat` native launcher success, configured workspace/binary usage, parent secret env isolation, provider exit-code preservation, unsupported `--session`, invalid provider, and help/planned workflow boundaries.
+- [x] Implement a narrow OpenCode native TUI launcher service/provider method that resolves the configured binary and spawns `opencode <workspace>` with interactive stdio and a minimal allowlisted environment.
+- [x] Wire only `agentproxy chat` to the launcher and move only the workspace-level native launcher from planned to implemented help text.
+- [x] Keep `--session`, full AgentProxy TUI, `/tui` prompt/session control, `sessions`, `runtime`, `config`, and `providers list/inspect` as planned or explicitly unsupported.
+- [x] Update `docs/development-progress-tracker.zh.md` completed/unfinished status and Review notes after verification.
+- [x] Run focused chat tests, full applicable project verification, code review, and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean; `git log -1 --oneline` is `66c2163 文档：同步 Phase 5.3 完成状态与下次启动提示`, so the latest Phase 5 implementation baseline remains `f2424eb 阶段进展：完成 Phase 5.3 Run Prompt Minimal Workflow`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Phase 5.1 already provides shared Commander parsing, global flags, stdout/stderr split, JSON error output, and stable error mapping.
+- Phase 4.7 already provides safe OpenCode binary resolution and provider-native process boundaries; chat should reuse the same safety posture but use interactive stdio for native TUI.
+- `docs/agentproxy-development-plan.md` defines TUI as a control plane and native TUI launcher, not a replacement chat engine.
+
+Acceptance criteria for this iteration:
+
+- [x] `agentproxy chat --workspace <path>` is a real command and no longer returns the generic planned `CAPABILITY_UNSUPPORTED` placeholder.
+- [x] The launcher uses only the `opencode` provider in v1 and maps non-OpenCode provider selection to `PROVIDER_NOT_FOUND`.
+- [x] The launcher executes the configured OpenCode binary with the selected workspace as the native TUI target and preserves the provider process exit code.
+- [x] The native TUI child receives only an allowlisted execution environment plus explicit OpenCode passthrough env, not full parent env secrets.
+- [x] `--session <id>` remains explicitly unsupported for this minimal entry and does not silently pretend to resume a provider session.
+- [x] `chat`, `sessions`, `runtime`, `config`, and `providers list/inspect` do not gain any extra business behavior beyond this native launcher.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
+Risks and constraints:
+
+- Do not parse OpenCode TUI screen output or provider logs.
+- Do not route chat through AgentProxy message APIs; `run [prompt]` remains the headless workflow and OpenCode remains the interactive runtime.
+- Do not pass raw parent env to the child process; TUI terminal env needs should be handled through a small allowlist.
+- Do not implement session-specific native TUI launch until the provider-native contract is proven rather than guessed.
+
+Review notes:
+
+- 2026-05-21: Completed the Phase 5.3 Chat Native TUI Launcher minimal entry. Added `tests/cli-chat.test.ts` for success, runtime exit-code preservation, invalid provider, `chat --json` unsupported, disabled provider, missing binary, `--session` unsupported, redaction, and later-command placeholder boundaries; added `src/cli/chat.ts` plus `src/providers/opencode/native-tui.ts`; wired `agentproxy chat` in `src/cli/index.ts`; updated OpenCode provider capabilities so `interaction.nativeTui` reflects binary availability; and extended the NativeTuiResult contract with `exitCode`. Code review found no blockers and one P2 test-gap finding, which was fixed before final verification. Verification passed: `pnpm exec vitest run tests/cli-chat.test.ts tests/cli-help.test.ts tests/cli-run.test.ts tests/opencode-provider-health.test.ts`, `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`. Residual risk: real OpenCode native TUI smoke calibration remains a later compatibility task, and Phase 5 后续真实业务命令仍未实现.
+
 ## Current Iteration - 2026-05-21 Documentation Sync After Phase 5.3
 
 Scope: update only project tracking documents after `f2424eb 阶段进展：完成 Phase 5.3 Run Prompt Minimal Workflow`. Do not implement Phase 5.3 `chat`, sessions, runtime, config, provider list/inspect, TUI, provider behavior, or runtime behavior.

@@ -15,6 +15,7 @@ import {
 } from "../logging/index.js";
 import { OPENCODE_PROVIDER_ID, OpenCodeProvider } from "../providers/opencode/index.js";
 import type { AgentProvider } from "../providers/types.js";
+import { launchAgentProxyChat } from "./chat.js";
 import {
   formatDoctorHumanReport,
   mapDoctorReportToExitCode,
@@ -33,11 +34,11 @@ export const AGENTPROXY_VERSION = "0.1.0";
 const implementedCoreWorkflows = [
   "agentproxy doctor",
   "agentproxy run [prompt]",
+  "agentproxy chat [--workspace .]",
   "agentproxy provider exec <id> -- <native args>",
 ];
 
 const plannedCoreWorkflows = [
-  "agentproxy chat",
   "agentproxy sessions list|show|resume|abort|delete|export|import|share|unshare",
   "agentproxy providers list|inspect",
   "agentproxy runtime list|stop",
@@ -138,9 +139,9 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
 
   program
     .command("chat")
-    .option("--session <id>", "Open an existing AgentProxy session.")
-    .description("Open the AgentProxy control-plane TUI.")
-    .action(plannedAction("chat", output));
+    .option("--session <id>", "Reserved for later session-aware native TUI launch.")
+    .description("Open the OpenCode native TUI for the selected workspace.")
+    .action(createChatAction(output, options));
 
   const sessions = program.command("sessions").description("Manage indexed provider sessions.");
   sessions
@@ -374,6 +375,63 @@ function createRunAction(
         output.writeResult(`Status: ${report.status}`);
       }
       process.exitCode = mapRunReportToExitCode(report);
+    } catch (error) {
+      handleCliError(error, output, this);
+    }
+  };
+}
+
+function createChatAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command) => Promise<void> {
+  return async function (this: Command) {
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const chatOptions = this.opts<{ session?: string }>();
+      if (globalOptions.provider !== OPENCODE_PROVIDER_ID) {
+        throw createAgentProxyError({
+          code: "PROVIDER_NOT_FOUND",
+          message: `Provider not found: ${globalOptions.provider}`,
+          operation: "chat",
+          providerId: globalOptions.provider,
+          details: {
+            suggestion: "AgentProxy v1 chat currently supports the opencode provider only.",
+          },
+        });
+      }
+      if (chatOptions.session !== undefined) {
+        throw createAgentProxyError({
+          code: "CAPABILITY_UNSUPPORTED",
+          message: "agentproxy chat --session is not implemented yet.",
+          operation: "chat",
+          providerId: globalOptions.provider,
+          details: {
+            suggestion:
+              "Use agentproxy run for headless prompts and await later session-aware chat support.",
+          },
+        });
+      }
+      if (globalOptions.json) {
+        throw createAgentProxyError({
+          code: "CAPABILITY_UNSUPPORTED",
+          message: "agentproxy chat --json is not supported for the native TUI launcher.",
+          operation: "chat",
+          providerId: globalOptions.provider,
+          details: {
+            suggestion: "Run agentproxy chat without --json to hand the terminal to OpenCode.",
+          },
+        });
+      }
+
+      const result = await launchAgentProxyChat({
+        providerId: globalOptions.provider,
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(this),
+      });
+      process.exitCode = result.exitCode;
     } catch (error) {
       handleCliError(error, output, this);
     }

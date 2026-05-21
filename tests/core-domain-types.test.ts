@@ -172,6 +172,7 @@ describe("core domain contracts", () => {
       }),
       openNativeTui: async () => ({
         launched: true,
+        exitCode: 0,
         metadata: {},
       }),
       passthrough: async () => ({

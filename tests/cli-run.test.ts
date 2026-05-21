@@ -914,19 +914,19 @@ describe("agentproxy run CLI", () => {
     }
   });
 
-  it("leaves chat and other Phase 5 commands as planned placeholders", async () => {
+  it("leaves later Phase 5 business commands as planned placeholders", async () => {
     const { workspacePath, homeDir } = await createTestRoot();
 
     const result = await runCli({
       cwd: workspacePath,
       homeDir,
-      argv: ["chat"],
+      argv: ["sessions", "list"],
       stdin: Readable.from([]),
     });
 
     expect(result.exitCode).toBe(6);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("CAPABILITY_UNSUPPORTED");
-    expect(result.stderr).toContain("agentproxy chat is planned");
+    expect(result.stderr).toContain("agentproxy sessions list is planned");
   });
 });

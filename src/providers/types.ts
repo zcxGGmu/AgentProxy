@@ -267,6 +267,7 @@ export interface NativeTuiRequest extends ProviderContext {
 
 export interface NativeTuiResult {
   launched: boolean;
+  exitCode: number;
   metadata: ProviderMetadata;
 }
 

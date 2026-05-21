@@ -90,6 +90,7 @@ function createMockProvider(
       overrides.openNativeTui ??
       (async () => ({
         launched: false,
+        exitCode: 0,
         metadata: {},
       })),
     passthrough:
