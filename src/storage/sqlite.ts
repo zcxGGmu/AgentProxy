@@ -96,12 +96,20 @@ interface SessionEventRow {
 
 export function openAgentProxyStorage(options: OpenAgentProxyStorageOptions): AgentProxyStorage {
   return runStorageOperation("storage.open", () => {
-    ensureDatabaseDirectory(options.databasePath);
+    if (options.readonly !== true && options.fileMustExist !== true) {
+      ensureDatabaseDirectory(options.databasePath);
+    }
 
     const Database = loadSqliteConstructor();
     const databaseOptions: SqliteDatabaseOptions = {};
     if (options.timeoutMs !== undefined) {
       databaseOptions.timeout = options.timeoutMs;
+    }
+    if (options.readonly !== undefined) {
+      databaseOptions.readonly = options.readonly;
+    }
+    if (options.fileMustExist !== undefined) {
+      databaseOptions.fileMustExist = options.fileMustExist;
     }
     const database = new Database(options.databasePath, databaseOptions);
 
@@ -109,7 +117,7 @@ export function openAgentProxyStorage(options: OpenAgentProxyStorageOptions): Ag
       database.pragma("foreign_keys = ON");
 
       const storage = new AgentProxySqliteStorage(options.databasePath, database);
-      if (options.migrate !== false) {
+      if (options.migrate !== false && options.readonly !== true) {
         storage.runMigrations();
       }
 

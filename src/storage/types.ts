@@ -10,6 +10,8 @@ export interface AppliedMigration {
 export interface OpenAgentProxyStorageOptions {
   databasePath: string;
   migrate?: boolean;
+  readonly?: boolean;
+  fileMustExist?: boolean;
   timeoutMs?: number;
 }
 

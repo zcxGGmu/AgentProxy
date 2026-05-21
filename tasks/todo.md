@@ -11,6 +11,58 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Phase 5 Providers List/Inspect CLI Minimal Workflow
+
+Scope: advance only the Phase 5 `providers list` and `providers inspect <id>` CLI task group. This is a read-only provider visibility workflow: resolve AgentProxy config, probe the registered OpenCode provider, summarize provider health/capabilities, and inspect OpenCode model metadata through existing provider-layer APIs. Do not implement `sessions`, `runtime`, `config`, session-aware `chat --session`, Phase 6 AgentProxy TUI, or new Agent runtime behavior.
+
+User journey:
+
+- As a CLI user, I can run `agentproxy providers list --workspace .` and see the registered OpenCode provider, health state, capability mode, and high-level capability summary.
+- As a script user, I can run `agentproxy providers list --json` or `agentproxy providers inspect opencode --json` and receive exactly one redacted JSON object on stdout.
+- As an operator, I can run `agentproxy providers inspect opencode` to see provider health, runtime-base-url source, capability groups, and a sanitized OpenCode model summary when a runtime provider list endpoint is reachable.
+
+Implementation checklist:
+
+- [x] Add focused CLI tests for `providers list` and `providers inspect opencode` human/JSON output, invalid provider, missing/disabled OpenCode provider config, no runtime base URL, model-list failure handling, redaction, and later-command placeholder boundaries.
+- [x] Implement a narrow `src/cli/providers.ts` action/service layer that resolves config, opens SQLite only for runtime registry selection, builds the configured OpenCode provider, probes health/capabilities, and optionally lists models for inspect.
+- [x] Wire only `agentproxy providers list` and `agentproxy providers inspect <id>` from planned placeholders to real actions; keep `sessions`, `runtime`, `config`, session-aware chat, and Phase 6 TUI untouched.
+- [x] Keep JSON output transcript-free and provider-payload-safe by emitting only stable provider, health, capability, runtime-source, and sanitized model fields.
+- [x] Update `docs/development-progress-tracker.zh.md` completed/unfinished status and Review notes after verification.
+- [x] Run focused providers CLI tests, related CLI/provider tests, full applicable project verification, code review, and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean; `git log -1 --oneline` is `8030f2a 文档：同步 Phase 5.3 Chat CLI 边界与下次启动提示`, so the latest Phase 5 implementation baseline remains `4e07797 阶段进展：完成 Phase 5.3 Chat Native TUI Launcher`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Phase 5.1 already provides shared Commander parsing, global flags, stdout/stderr split, JSON error output, and stable exit-code mapping.
+- Phase 4.1 and Phase 4.2 already provide provider-layer health/capability probing and `OpenCodeProvider.listModels()`; this iteration should wrap those APIs rather than reaching into OpenCode internals.
+- Phase 3.2 runtime registry plus `selectOpenCodeRuntimeBaseUrl()` can select a configured or active runtime base URL without adding runtime management commands.
+
+Acceptance criteria for this iteration:
+
+- [x] `agentproxy providers list` is a real command and no longer returns the generic planned `CAPABILITY_UNSUPPORTED` placeholder.
+- [x] `agentproxy providers inspect opencode` is a real command and reports OpenCode provider health, capability groups, provider version, runtime base URL source, and sanitized model summary when available.
+- [x] `providers list --json` and `providers inspect opencode --json` each emit exactly one valid redacted JSON object on stdout, with no human prose mixed in.
+- [x] Invalid provider ids map to `PROVIDER_NOT_FOUND`; disabled OpenCode config maps to `PROVIDER_UNAVAILABLE`.
+- [x] Missing runtime base URL does not start a managed runtime and does not fail the whole read-only command; it reports degraded health and skips model listing with an actionable status.
+- [x] Provider-controlled model metadata in CLI JSON is redacted and constrained to existing `ModelRef` fields; human output is terminal-control-character safe.
+- [x] `sessions`, `runtime`, `config`, `chat --session`, and Phase 6 AgentProxy TUI remain unimplemented or explicitly unsupported.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
+Risks and constraints:
+
+- Do not parse OpenCode TUI output or provider logs.
+- Do not start or stop runtimes from provider visibility commands; runtime lifecycle remains for existing `run`/doctor and future `runtime` CLI work.
+- Do not output raw provider `/provider` payloads, raw headers, auth env values, URL credentials, query strings, or transcript content.
+- Keep capability semantics conservative: health success does not imply unsupported AgentProvider operations are available.
+- If model listing fails, surface it as inspect metadata unless the provider id/config itself is invalid.
+
+Review notes:
+
+- 2026-05-21: Added `tests/cli-providers.test.ts` and first confirmed the planned placeholder red state for `providers list/inspect`. Implemented `src/cli/providers.ts` plus `src/cli/index.ts` wiring so the commands now resolve config, choose a configured or registered OpenCode runtime base URL without starting/stopping runtimes, probe provider health/capabilities, and optionally list sanitized models for inspect.
+- 2026-05-21: Code review found blocking read-only and terminal-safety issues. Fixed providers list/inspect so a missing runtime and absent SQLite DB does not create/migrate storage, added readonly/fileMustExist storage opening for existing registry DB reads, made disabled provider list return a diagnostic disabled state while inspect still fails stably, and sanitized Commander parse/fallback human diagnostics for ANSI/OSC/C0/C1 controls. Recorded both reusable rules in `tasks/lessons.md`.
+- 2026-05-21: Verification passed: `pnpm exec vitest run tests/cli-providers.test.ts`, `pnpm exec vitest run tests/cli-help.test.ts tests/cli-providers.test.ts`, `pnpm exec vitest run tests/cli-providers.test.ts tests/cli-help.test.ts tests/cli-doctor.test.ts tests/provider-registry.test.ts tests/opencode-provider-health.test.ts tests/opencode-provider-models.test.ts tests/storage-sqlite.test.ts`, `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run test` (27 files, 209 tests), `pnpm run build`, and `git diff --check`. Residual risk: real OpenCode `/provider` smoke calibration remains a later compatibility task; `sessions`, `runtime`, `config`, `chat --session`, and Phase 6 AgentProxy TUI remain intentionally unimplemented.
+
 ## Current Iteration - 2026-05-21 Documentation Sync After Phase 5.3 Chat CLI Launcher
 
 Scope: update tracking documents after `4e07797 阶段进展：完成 Phase 5.3 Chat Native TUI Launcher`, clarifying that the completed work is still Phase 5 CLI work: `agentproxy chat` launches the provider-native OpenCode UI and does not mean Phase 6 AgentProxy TUI has started. Do not change source code or implement any `sessions`, `providers`, `runtime`, `config`, or TUI behavior.

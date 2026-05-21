@@ -109,6 +109,33 @@ describe("agentproxy CLI placeholder", () => {
     expect(stderr.chunks.join("")).not.toContain("sk-command-secret");
   });
 
+  it("removes terminal controls from Commander parse diagnostics", async () => {
+    const stdout = createMemorySink();
+    const stderr = createMemorySink();
+    const program = createProgram({
+      output: createOutputWriters({ stdout, stderr }),
+    });
+    exitOverrideDeep(program);
+
+    const error = await program
+      .parseAsync([
+        "node",
+        "agentproxy",
+        "run",
+        "--bad=\u001B]0;token=sk-osc-secret\u0007\n\tsecond-line",
+      ])
+      .catch((caught: unknown) => caught);
+
+    expect(error).toHaveProperty("code", "commander.unknownOption");
+    expect(stdout.chunks.join("")).toBe("");
+    expect(stderr.chunks.join("")).toContain("unknown option '--bad=");
+    expect(stderr.chunks.join("")).not.toContain("\u001B]");
+    expect(stderr.chunks.join("")).not.toContain("\u0007");
+    expect(stderr.chunks.join("")).not.toContain("\t");
+    expect(stderr.chunks.join("")).not.toContain("\n\t");
+    expect(stderr.chunks.join("")).not.toContain("sk-osc-secret");
+  });
+
   it("runs doctor as a real workflow instead of the planned placeholder", async () => {
     const originalExitCode = process.exitCode;
     const root = await mkdtemp(path.join(tmpdir(), "agentproxy-cli-help-doctor-test-"));

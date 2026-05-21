@@ -22,10 +22,17 @@ import {
   runAgentProxyDoctor,
 } from "./doctor.js";
 import {
+  formatProviderInspectHumanReport,
+  formatProvidersListHumanReport,
+  inspectAgentProxyProvider,
+  listAgentProxyProviders,
+} from "./providers.js";
+import {
   formatRunEventForHuman,
   formatRunReportForJson,
   runAgentProxyPrompt,
   sanitizeHumanInline,
+  sanitizeHumanText,
   type AgentProxyRunEventSummary,
 } from "./run.js";
 
@@ -35,12 +42,12 @@ const implementedCoreWorkflows = [
   "agentproxy doctor",
   "agentproxy run [prompt]",
   "agentproxy chat [--workspace .]",
+  "agentproxy providers list|inspect",
   "agentproxy provider exec <id> -- <native args>",
 ];
 
 const plannedCoreWorkflows = [
   "agentproxy sessions list|show|resume|abort|delete|export|import|share|unshare",
-  "agentproxy providers list|inspect",
   "agentproxy runtime list|stop",
   "agentproxy config get|set",
 ];
@@ -104,8 +111,8 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
 
   program.configureOutput({
     writeOut: (chunk) => output.stdout.write(chunk),
-    writeErr: (chunk) => output.writeDiagnostic(chunk),
-    outputError: (chunk, write) => write(chunk),
+    writeErr: (chunk) => output.writeDiagnostic(sanitizeHumanDiagnostic(chunk)),
+    outputError: (chunk, write) => write(sanitizeHumanDiagnostic(chunk)),
   });
 
   program
@@ -197,12 +204,12 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
   providers
     .command("list")
     .description("List providers and capabilities.")
-    .action(plannedAction("providers list", output));
+    .action(createProvidersListAction(output, options));
   providers
     .command("inspect")
     .argument("<id>", "Provider id.")
     .description("Inspect provider health and capabilities.")
-    .action(plannedAction("providers inspect", output));
+    .action(createProvidersInspectAction(output, options));
 
   const provider = program.command("provider").description("Provider passthrough commands.");
   provider
@@ -438,6 +445,59 @@ function createChatAction(
   };
 }
 
+function createProvidersListAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command) => Promise<void> {
+  return async function (this: Command) {
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const report = await listAgentProxyProviders({
+        providerId: globalOptions.provider,
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(this),
+      });
+
+      if (globalOptions.json) {
+        output.writeJson(report);
+      } else {
+        output.writeResult(formatProvidersListHumanReport(report));
+      }
+      process.exitCode = 0;
+    } catch (error) {
+      handleCliError(error, output, this);
+    }
+  };
+}
+
+function createProvidersInspectAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command, providerId: string) => Promise<void> {
+  return async function (this: Command, providerId) {
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const report = await inspectAgentProxyProvider(providerId, {
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(this),
+      });
+
+      if (globalOptions.json) {
+        output.writeJson(report);
+      } else {
+        output.writeResult(formatProviderInspectHumanReport(report));
+      }
+      process.exitCode = 0;
+    } catch (error) {
+      handleCliError(error, output, this);
+    }
+  };
+}
+
 function mapRunReportToExitCode(report: { status: string }): number {
   if (report.status === "completed") {
     return 0;
@@ -601,7 +661,7 @@ function handleCliError(error: unknown, output: AgentProxyOutputWriters, command
     return;
   }
 
-  output.writeDiagnostic(formatCliError(error));
+  output.writeDiagnostic(sanitizeHumanDiagnostic(formatCliError(error)));
 }
 
 function formatCliError(error: unknown): string {
@@ -717,7 +777,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const output = createOutputWriters();
     process.exitCode = mapCliErrorToExitCode(error);
     if (!isCommanderError(error)) {
-      output.writeDiagnostic(formatCliError(error));
+      output.writeDiagnostic(sanitizeHumanDiagnostic(formatCliError(error)));
     }
   });
+}
+
+function sanitizeHumanDiagnostic(value: string): string {
+  return sanitizeHumanInline(sanitizeHumanText(value));
 }
