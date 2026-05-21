@@ -35,6 +35,7 @@ import {
   sanitizeHumanText,
   type AgentProxyRunEventSummary,
 } from "./run.js";
+import { formatRuntimeListHumanReport, listAgentProxyRuntimes } from "./runtime.js";
 
 export const AGENTPROXY_VERSION = "0.1.0";
 
@@ -43,12 +44,13 @@ const implementedCoreWorkflows = [
   "agentproxy run [prompt]",
   "agentproxy chat [--workspace .]",
   "agentproxy providers list|inspect",
+  "agentproxy runtime list",
   "agentproxy provider exec <id> -- <native args>",
 ];
 
 const plannedCoreWorkflows = [
   "agentproxy sessions list|show|resume|abort|delete|export|import|share|unshare",
-  "agentproxy runtime list|stop",
+  "agentproxy runtime stop",
   "agentproxy config get|set",
 ];
 
@@ -224,7 +226,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
   runtime
     .command("list")
     .description("List known runtimes.")
-    .action(plannedAction("runtime list", output));
+    .action(createRuntimeListAction(output, options));
   runtime
     .command("stop")
     .argument("<runtime-id>", "Runtime id.")
@@ -490,6 +492,33 @@ function createProvidersInspectAction(
         output.writeJson(report);
       } else {
         output.writeResult(formatProviderInspectHumanReport(report));
+      }
+      process.exitCode = 0;
+    } catch (error) {
+      handleCliError(error, output, this);
+    }
+  };
+}
+
+function createRuntimeListAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command) => Promise<void> {
+  return async function (this: Command) {
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const report = await listAgentProxyRuntimes({
+        providerId: globalOptions.provider,
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(this),
+      });
+
+      if (globalOptions.json) {
+        output.writeJson(report);
+      } else {
+        output.writeResult(formatRuntimeListHumanReport(report));
       }
       process.exitCode = 0;
     } catch (error) {

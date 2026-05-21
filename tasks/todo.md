@@ -11,6 +11,49 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Phase 5 Runtime List CLI Minimal Workflow
+
+Scope: advance only the Phase 5 `agentproxy runtime list` read-only CLI task group. This workflow reads AgentProxy runtime registry metadata and prints a sanitized runtime inventory for the selected workspace/provider. Do not implement `runtime stop`, `sessions`, `config`, Phase 6 AgentProxy TUI, managed runtime start/attach behavior, or new Agent runtime behavior.
+
+Implementation checklist:
+
+- [x] Add focused CLI tests for `runtime list` human/JSON output, missing registry DB behavior, provider/workspace filtering, disabled/invalid provider behavior, terminal/control-character safety, and later-command placeholder boundaries.
+- [x] Implement a narrow `src/cli/runtime.ts` action/service layer that resolves config and opens SQLite readonly only when the registry DB exists.
+- [x] Wire only `agentproxy runtime list` from planned placeholder to a real action; keep `runtime stop`, `sessions`, `config`, session-aware `chat`, and Phase 6 TUI untouched.
+- [x] Keep JSON output transcript-free and provider-payload-safe by emitting only stable runtime fields and sanitized metadata status/source details.
+- [x] Update `docs/development-progress-tracker.zh.md` completed/unfinished status and Review notes after verification.
+- [x] Run focused runtime CLI tests, related CLI/runtime tests, full applicable project verification, code review, and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean; `git log -1 --oneline` is `1dea00f 文档：同步 Phase 5 Providers 后续开发状态`, so the latest Phase 5 implementation baseline remains `c620a4c 阶段进展：完成 Phase 5 Providers List/Inspect CLI`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Phase 3.2 already provides storage-backed `RuntimeRegistry` list/query behavior and state-machine metadata.
+- Phase 5.1 already provides shared Commander parsing, global flags, stdout/stderr split, JSON error output, and stable exit-code mapping.
+- Phase 5 provider CLI already established the read-only SQLite pattern: do not create or migrate the DB for read-only visibility commands when the DB is absent.
+
+Acceptance criteria for this iteration:
+
+- [x] `agentproxy runtime list` is a real command and no longer returns the generic planned `CAPABILITY_UNSUPPORTED` placeholder.
+- [x] When the AgentProxy SQLite registry DB is absent, `runtime list` succeeds with an empty list and does not create the DB or parent data directory.
+- [x] Existing runtimes are listed for the selected provider/workspace by default, sorted consistently with registry ordering, with optional stable fields for mode/status/base URL/PID/started/stopped timestamps.
+- [x] `runtime list --json` emits exactly one valid redacted JSON object on stdout, with no human prose mixed in.
+- [x] Human output is terminal-control-character safe and does not print raw metadata blobs, URL credentials, query strings, headers, secrets, transcript content, or provider event payloads.
+- [x] Non-OpenCode provider selection maps to `PROVIDER_NOT_FOUND`; disabled OpenCode config maps to `PROVIDER_UNAVAILABLE`.
+- [x] `runtime stop`, `sessions`, `config`, `chat --session`, and Phase 6 AgentProxy TUI remain unimplemented or explicitly unsupported.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
+Risks and constraints:
+
+- Do not start, attach, stop, detach, or health-check runtimes from this command; it is only a registry visibility command.
+- Do not treat stale registry metadata as live runtime truth; show stored status and leave active cleanup/health revalidation to existing runtime services and future runtime commands.
+- Avoid adding migrations or schema fields; reuse existing runtime registry records.
+- Keep AgentProxy as a thin control plane and do not inspect or duplicate OpenCode runtime internals.
+
+Review notes:
+
+- 2026-05-21: Completed the Phase 5 `runtime list` read-only CLI minimal workflow. Added `src/cli/runtime.ts`, wired only `agentproxy runtime list` in `src/cli/index.ts`, added `tests/cli-runtime.test.ts`, and updated stale placeholder tests in provider/chat CLI suites to keep `runtime stop`, `sessions`, and `config` as planned boundaries. The command resolves config, opens existing SQLite registry DBs with `readonly: true`, `migrate: false`, and `fileMustExist: true`, returns an empty list without creating the DB or parent data directory when absent, and emits only sanitized stable runtime fields without raw metadata. Verification passed: `pnpm exec vitest run tests/cli-runtime.test.ts tests/cli-providers.test.ts`, `pnpm exec vitest run tests/cli-runtime.test.ts tests/cli-providers.test.ts tests/cli-help.test.ts tests/runtime-registry.test.ts tests/opencode-managed-runtime.test.ts tests/opencode-attached-runtime.test.ts`, `pnpm exec vitest run tests/cli-runtime.test.ts tests/cli-providers.test.ts tests/cli-chat.test.ts`, `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run test` (28 files, 214 tests), and `pnpm run build`. Code review found one blocking stale test, which was fixed before full verification. Residual risk: real registry data from older schema/corrupt DB still relies on storage-layer `STORAGE_ERROR`; `runtime stop`, `sessions`, `config`, `chat --session`, and Phase 6 AgentProxy TUI remain intentionally unimplemented.
+
 ## Current Iteration - 2026-05-21 Documentation Sync After Phase 5 Providers CLI
 
 Scope: update tracking documents after `c620a4c 阶段进展：完成 Phase 5 Providers List/Inspect CLI`. This is a documentation-only synchronization so the next Codex session can continue from the correct first unfinished Phase 5 CLI MVP task group. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.

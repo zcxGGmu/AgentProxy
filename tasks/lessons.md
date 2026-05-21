@@ -56,3 +56,4 @@
 - Phase 5 仍属于 CLI MVP 阶段；`agentproxy chat` 只能表述和实现为 CLI native OpenCode TUI launcher，不能把它写成或推进成 Phase 6 的 AgentProxy TUI/Ink 控制面。
 - 只读 CLI inspect/list 命令如果只需要 registry 辅助信息，不能默认创建或迁移 SQLite；DB 不存在应降级为无 registry 状态，DB 存在才用 readonly + migrate:false 打开。
 - CLI human diagnostics 不能只做 secret redaction；Commander parse error、fallback catch 和自定义错误输出都必须统一移除 ANSI/OSC/C0/C1 控制字符。
+- Phase 5 CLI 命令从 planned placeholder 提升为真实工作流时，必须同步更新其他命令测试里的 placeholder 边界断言，避免完整测试仍按旧未实现状态失败。
