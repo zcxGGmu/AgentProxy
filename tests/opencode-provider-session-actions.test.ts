@@ -8,6 +8,7 @@ import { OPENCODE_PROVIDER_ID, OpenCodeProvider } from "../src/providers/index.j
 
 const servers: Server[] = [];
 const tempRoots: string[] = [];
+const NATIVE_OPENCODE_CLI_TEST_TIMEOUT_MS = 10_000;
 
 async function startFakeOpenCodeServer(
   handler: (request: IncomingMessage, response: ServerResponse) => void,
@@ -66,6 +67,39 @@ if (args[0] === "import") {
       created: Date.parse("2026-05-20T21:00:00.000Z"),
       updated: Date.parse("2026-05-20T21:00:01.000Z")
     }
+  }))
+  process.exit(0)
+}
+
+console.error("unexpected args " + args.join(" "))
+process.exit(64)
+`,
+    "utf8",
+  );
+  await chmod(binaryPath, 0o755);
+  return binaryPath;
+}
+
+async function createEnvEchoOpenCodeBinary(root: string): Promise<string> {
+  const binaryDirectory = path.join(root, "bin");
+  await mkdir(binaryDirectory, { recursive: true });
+  const binaryPath = path.join(binaryDirectory, "opencode");
+  await writeFile(
+    binaryPath,
+    `#!/usr/bin/env node
+const args = process.argv.slice(2)
+
+if (args[0] === "--version") {
+  console.log("OpenCode 1.16.0")
+  process.exit(0)
+}
+
+if (args[0] === "export") {
+  console.log(JSON.stringify({
+    id: args[1],
+    sanitized: args.includes("--sanitize"),
+    parentSecret: process.env.AGENTPROXY_PARENT_SECRET ?? null,
+    serverPassword: process.env.OPENCODE_SERVER_PASSWORD ?? null
   }))
   process.exit(0)
 }
@@ -248,7 +282,7 @@ describe("OpenCodeProvider session operations", () => {
     const provider = new OpenCodeProvider({
       binary: binaryPath,
       cwd: workspacePath,
-      requestTimeoutMs: 250,
+      requestTimeoutMs: NATIVE_OPENCODE_CLI_TEST_TIMEOUT_MS,
     });
 
     const sanitized = await provider.exportSession({
@@ -310,6 +344,85 @@ describe("OpenCodeProvider session operations", () => {
     });
   });
 
+  it("runs native export with a restricted environment and explicit OpenCode passthrough only", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "agentproxy-opencode-export-env-test-"));
+    tempRoots.push(root);
+    const workspacePath = path.join(root, "workspace");
+    await mkdir(workspacePath, { recursive: true });
+    const binaryPath = await createEnvEchoOpenCodeBinary(workspacePath);
+    const provider = new OpenCodeProvider({
+      binary: binaryPath,
+      cwd: workspacePath,
+      env: {
+        PATH: process.env.PATH ?? "",
+        AGENTPROXY_PARENT_SECRET: "should-not-leak",
+      },
+      passthroughEnv: {
+        OPENCODE_SERVER_PASSWORD: "configured-opencode-secret",
+      },
+      requestTimeoutMs: NATIVE_OPENCODE_CLI_TEST_TIMEOUT_MS,
+    });
+
+    const result = await provider.exportSession({
+      providerId: OPENCODE_PROVIDER_ID,
+      providerSessionId: "ses_export_env",
+      workspacePath,
+      metadata: {},
+    });
+
+    expect(result.data).toMatchObject({
+      id: "ses_export_env",
+      sanitized: true,
+      parentSecret: null,
+      serverPassword: "configured-opencode-secret",
+    });
+  });
+
+  it("maps empty native export output to a stable provider error", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "agentproxy-opencode-empty-export-test-"));
+    tempRoots.push(root);
+    const workspacePath = path.join(root, "workspace");
+    await mkdir(workspacePath, { recursive: true });
+    const binaryDirectory = path.join(root, "bin");
+    await mkdir(binaryDirectory, { recursive: true });
+    const binaryPath = path.join(binaryDirectory, "opencode");
+    await writeFile(
+      binaryPath,
+      `#!/usr/bin/env node
+if (process.argv[2] === "--version") {
+  console.log("OpenCode 1.16.0")
+  process.exit(0)
+}
+if (process.argv[2] === "export") {
+  process.exit(0)
+}
+process.exit(64)
+`,
+      "utf8",
+    );
+    await chmod(binaryPath, 0o755);
+    const provider = new OpenCodeProvider({
+      binary: binaryPath,
+      cwd: workspacePath,
+      requestTimeoutMs: NATIVE_OPENCODE_CLI_TEST_TIMEOUT_MS,
+    });
+
+    await expect(
+      provider.exportSession({
+        providerId: OPENCODE_PROVIDER_ID,
+        providerSessionId: "ses_empty_export",
+        workspacePath,
+        metadata: {},
+      }),
+    ).rejects.toMatchObject({
+      code: "PROVIDER_UNAVAILABLE",
+      operation: "opencode.provider.exportSession",
+      details: {
+        failureReason: "empty_export_response",
+      },
+    });
+  });
+
   it("imports a session through native OpenCode import and maps the returned provider session", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "agentproxy-opencode-import-test-"));
     tempRoots.push(root);
@@ -319,7 +432,7 @@ describe("OpenCodeProvider session operations", () => {
     const provider = new OpenCodeProvider({
       binary: binaryPath,
       cwd: workspacePath,
-      requestTimeoutMs: 250,
+      requestTimeoutMs: NATIVE_OPENCODE_CLI_TEST_TIMEOUT_MS,
     });
 
     const imported = await provider.importSession({

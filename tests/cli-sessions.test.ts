@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -79,6 +79,48 @@ async function createTestWorkspace(input: { enabled?: boolean } = {}): Promise<T
     configPath,
     storagePath,
   };
+}
+
+async function createFakeOpenCodeExportBinary(root: string): Promise<{
+  binaryPath: string;
+  invocationLogPath: string;
+}> {
+  const binaryDirectory = path.join(root, "bin");
+  await mkdir(binaryDirectory, { recursive: true });
+  const binaryPath = path.join(binaryDirectory, "opencode");
+  const invocationLogPath = path.join(root, "opencode-export-invocations.jsonl");
+  await writeFile(
+    binaryPath,
+    `#!/usr/bin/env node
+const fs = require("node:fs")
+const args = process.argv.slice(2)
+fs.appendFileSync(${JSON.stringify(invocationLogPath)}, JSON.stringify(args) + "\\n")
+
+if (args[0] === "--version") {
+  console.log("OpenCode 1.16.0")
+  process.exit(0)
+}
+
+if (args[0] === "export") {
+  const sanitized = args.includes("--sanitize")
+  console.log(JSON.stringify({
+    id: args[1],
+    sanitized,
+    transcript: sanitized ? "[sanitized]" : "raw transcript secret-token",
+    title: sanitized
+      ? "\\u001B[31mexport token=payload-secret\\u001B[0m"
+      : "\\u001B[31mraw token=payload-secret\\u001B[0m"
+  }))
+  process.exit(0)
+}
+
+console.error("unexpected args " + args.join(" "))
+process.exit(64)
+`,
+    "utf8",
+  );
+  await chmod(binaryPath, 0o755);
+  return { binaryPath, invocationLogPath };
 }
 
 async function startFakeOpenCodeResumeServer(
@@ -360,6 +402,36 @@ function updateConfigRuntimeBaseUrl(workspace: TestWorkspace, baseUrl: string): 
     }),
     "utf8",
   );
+}
+
+function updateConfigOpenCodeBinary(workspace: TestWorkspace, binaryPath: string): Promise<void> {
+  return writeFile(
+    workspace.configPath,
+    JSON.stringify({
+      storage: {
+        path: workspace.storagePath,
+      },
+      providers: {
+        opencode: {
+          enabled: true,
+          binary: binaryPath,
+          runtime: {
+            mode: "attached",
+          },
+        },
+      },
+    }),
+    "utf8",
+  );
+}
+
+async function readFakeOpenCodeInvocations(invocationLogPath: string): Promise<string[][]> {
+  const raw = await readFile(invocationLogPath, "utf8");
+  return raw
+    .trim()
+    .split("\n")
+    .filter((line) => line !== "")
+    .map((line) => JSON.parse(line) as string[]);
 }
 
 async function runCli(input: {
@@ -646,6 +718,323 @@ describe("agentproxy sessions CLI", () => {
     expect(result.stdout).not.toContain("sk-session-metadata-secret");
     expect(result.stdout).not.toContain("provider transcript");
     expect(result.stdout).not.toContain("\u001B[31m");
+  });
+
+  it("exports sanitized session data to stdout by default", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeBinary = await createFakeOpenCodeExportBinary(workspace.root);
+    await updateConfigOpenCodeBinary(workspace, fakeBinary.binaryPath);
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "export", "apx_recent", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("planned for a later phase");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      id: "ses_recent_token=[REDACTED]",
+      sanitized: true,
+      transcript: "[sanitized]",
+      title: "export token=[REDACTED]",
+    });
+    expect(result.stdout).not.toContain("provider-secret");
+    expect(result.stdout).not.toContain("payload-secret");
+    expect(result.stdout).not.toContain("\u001B[31m");
+    expect(await readFakeOpenCodeInvocations(fakeBinary.invocationLogPath)).toContainEqual([
+      "export",
+      "ses_recent_token=provider-secret",
+      "--sanitize",
+    ]);
+
+    const storage = openAgentProxyStorage({
+      databasePath: workspace.storagePath,
+      migrate: false,
+      readonly: true,
+      fileMustExist: true,
+    });
+    try {
+      expect(JSON.stringify(storage.sessions.getById("apx_recent"))).not.toContain(
+        "payload-secret",
+      );
+      expect(JSON.stringify(storage.sessions.getById("apx_recent"))).not.toContain(
+        "raw transcript secret-token",
+      );
+    } finally {
+      storage.close();
+    }
+  });
+
+  it("prints one JSON sessions export report with sanitized data", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeBinary = await createFakeOpenCodeExportBinary(workspace.root);
+    await updateConfigOpenCodeBinary(workspace, fakeBinary.binaryPath);
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "export", "apx_recent", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("planned for a later phase");
+    const report = JSON.parse(result.stdout);
+    expect(report).toMatchObject({
+      ok: true,
+      providerId: "opencode",
+      sessionId: "apx_recent",
+      providerSessionId: "ses_recent_token=[REDACTED]",
+      sanitized: true,
+      output: {
+        target: "stdout",
+      },
+      data: {
+        id: "ses_recent_token=[REDACTED]",
+        sanitized: true,
+        transcript: "[sanitized]",
+        title: "export token=[REDACTED]",
+      },
+    });
+    expect(JSON.stringify(report)).not.toContain("provider-secret");
+    expect(JSON.stringify(report)).not.toContain("payload-secret");
+    expect(JSON.stringify(report)).not.toContain("\u001B[31m");
+  });
+
+  it("writes sanitized export data to --output and prints a terminal-safe summary", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeBinary = await createFakeOpenCodeExportBinary(workspace.root);
+    await updateConfigOpenCodeBinary(workspace, fakeBinary.binaryPath);
+    const outputPath = path.join(workspace.root, "session-export.json");
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "sessions",
+        "export",
+        "apx_recent",
+        "--output",
+        outputPath,
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Session exported: apx_recent");
+    expect(result.stdout).toContain("Sanitized: true");
+    expect(result.stdout).toContain(`Output: ${outputPath}`);
+    expect(result.stdout).not.toContain("provider-secret");
+    expect(result.stdout).not.toContain("payload-secret");
+    expect(result.stdout).not.toContain("\u001B[31m");
+    expect(JSON.parse(await readFile(outputPath, "utf8"))).toMatchObject({
+      id: "ses_recent_token=[REDACTED]",
+      sanitized: true,
+      transcript: "[sanitized]",
+      title: "export token=[REDACTED]",
+    });
+    expect((await stat(outputPath)).mode & 0o777).toBe(0o600);
+  });
+
+  it("does not overwrite existing export output files", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeBinary = await createFakeOpenCodeExportBinary(workspace.root);
+    await updateConfigOpenCodeBinary(workspace, fakeBinary.binaryPath);
+    const outputPath = path.join(workspace.root, "existing-export.json");
+    await writeFile(outputPath, "existing content\n", { encoding: "utf8", mode: 0o600 });
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "sessions",
+        "export",
+        "apx_recent",
+        "--output",
+        outputPath,
+        "--json",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(3);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "CONFIG_INVALID",
+        operation: "sessions.export",
+      },
+    });
+    expect(await readFile(outputPath, "utf8")).toBe("existing content\n");
+    await expect(readFile(fakeBinary.invocationLogPath, "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("cleans up reserved export output files when provider export fails", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const emptyBin = path.join(workspace.root, "empty-bin");
+    await mkdir(emptyBin, { recursive: true });
+    const outputPath = path.join(workspace.root, "failed-export.json");
+
+    const result = await runCli({
+      workspace,
+      env: {
+        PATH: emptyBin,
+      },
+      argv: [
+        "sessions",
+        "export",
+        "apx_recent",
+        "--output",
+        outputPath,
+        "--json",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(4);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_UNAVAILABLE",
+        providerId: "opencode",
+        operation: "opencode.provider.exportSession",
+      },
+    });
+    expect(existsSync(outputPath)).toBe(false);
+  });
+
+  it("requires explicit confirmation before raw export contacts the provider", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeBinary = await createFakeOpenCodeExportBinary(workspace.root);
+    await updateConfigOpenCodeBinary(workspace, fakeBinary.binaryPath);
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "sessions",
+        "export",
+        "apx_recent",
+        "--raw",
+        "--json",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(3);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "CONFIG_INVALID",
+        providerId: "opencode",
+        operation: "sessions.export",
+      },
+    });
+    await expect(readFile(fakeBinary.invocationLogPath, "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("exports raw data only with explicit confirmation", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeBinary = await createFakeOpenCodeExportBinary(workspace.root);
+    await updateConfigOpenCodeBinary(workspace, fakeBinary.binaryPath);
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "sessions",
+        "export",
+        "apx_recent",
+        "--raw",
+        "--yes",
+        "--json",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    const report = JSON.parse(result.stdout);
+    expect(report).toMatchObject({
+      ok: true,
+      sessionId: "apx_recent",
+      providerSessionId: "ses_recent_token=[REDACTED]",
+      sanitized: false,
+      data: {
+        id: "ses_recent_token=provider-secret",
+        sanitized: false,
+        transcript: "raw transcript secret-token",
+        title: "\u001B[31mraw token=payload-secret\u001B[0m",
+      },
+    });
+    expect(await readFakeOpenCodeInvocations(fakeBinary.invocationLogPath)).toContainEqual([
+      "export",
+      "ses_recent_token=provider-secret",
+    ]);
+  });
+
+  it("keeps raw --output JSON reports payload-free while writing the raw file", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeBinary = await createFakeOpenCodeExportBinary(workspace.root);
+    await updateConfigOpenCodeBinary(workspace, fakeBinary.binaryPath);
+    const outputPath = path.join(workspace.root, "raw-session-export.json");
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "sessions",
+        "export",
+        "apx_recent",
+        "--raw",
+        "--yes",
+        "--output",
+        outputPath,
+        "--json",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    const report = JSON.parse(result.stdout);
+    expect(report).toMatchObject({
+      ok: true,
+      sessionId: "apx_recent",
+      providerSessionId: "ses_recent_token=[REDACTED]",
+      sanitized: false,
+      output: {
+        target: "file",
+        path: outputPath,
+      },
+    });
+    expect(report).not.toHaveProperty("data");
+    expect(result.stdout).not.toContain("raw transcript secret-token");
+    expect(result.stdout).not.toContain("payload-secret");
+    expect(JSON.parse(await readFile(outputPath, "utf8"))).toMatchObject({
+      id: "ses_recent_token=provider-secret",
+      sanitized: false,
+      transcript: "raw transcript secret-token",
+      title: "\u001B[31mraw token=payload-secret\u001B[0m",
+    });
+    expect((await stat(outputPath)).mode & 0o777).toBe(0o600);
   });
 
   it("resumes an existing session with a prompt and prints a transcript-free JSON report", async () => {
@@ -1298,6 +1687,28 @@ describe("agentproxy sessions CLI", () => {
     expect(existsSync(path.dirname(workspace.storagePath))).toBe(false);
   });
 
+  it("does not create storage and reports SESSION_NOT_FOUND when exporting from an absent database", async () => {
+    const workspace = await createTestWorkspace();
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "export", "apx_missing", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "SESSION_NOT_FOUND",
+        providerId: "opencode",
+        operation: "sessions.export",
+      },
+    });
+    expect(existsSync(workspace.storagePath)).toBe(false);
+    expect(existsSync(path.dirname(workspace.storagePath))).toBe(false);
+  });
+
   it("requires delete confirmation before touching absent storage", async () => {
     const workspace = await createTestWorkspace();
 
@@ -1470,6 +1881,38 @@ describe("agentproxy sessions CLI", () => {
     expect(fakeServer.deleteCalls).toEqual([]);
   });
 
+  it("treats missing, tombstoned, wrong-workspace, and wrong-provider sessions as not found for export", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+
+    for (const sessionId of [
+      "apx_missing",
+      "apx_deleted",
+      "apx_other_workspace",
+      "apx_other_provider",
+    ]) {
+      const result = await runCli({
+        workspace,
+        argv: ["sessions", "export", sessionId, "--json", "--config", workspace.configPath],
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe("");
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        ok: false,
+        error: {
+          code: "SESSION_NOT_FOUND",
+          providerId: "opencode",
+          operation: "sessions.export",
+        },
+      });
+      expect(result.stdout).not.toContain("deleted-secret");
+      expect(result.stdout).not.toContain("deleted-metadata-secret");
+      expect(result.stdout).not.toContain("Other workspace");
+      expect(result.stdout).not.toContain("Other provider");
+    }
+  });
+
   it("maps resume runtime availability errors to a stable runtime exit code", async () => {
     const workspace = await createTestWorkspace();
     seedSessionRegistry(workspace);
@@ -1513,6 +1956,32 @@ describe("agentproxy sessions CLI", () => {
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("RUNTIME_HEALTH_FAILED");
     expect(result.stderr).not.toContain("provider-secret");
+  });
+
+  it("maps export provider binary errors to a stable provider exit code", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const emptyBin = path.join(workspace.root, "empty-bin");
+    await mkdir(emptyBin, { recursive: true });
+
+    const result = await runCli({
+      workspace,
+      env: {
+        PATH: emptyBin,
+      },
+      argv: ["sessions", "export", "apx_recent", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(4);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_UNAVAILABLE",
+        providerId: "opencode",
+      },
+    });
+    expect(result.stdout).not.toContain("provider-secret");
   });
 
   it("maps invalid and disabled provider errors without leaking controls", async () => {
@@ -1741,13 +2210,58 @@ describe("agentproxy sessions CLI", () => {
         operation: "sessions.delete",
       },
     });
+
+    const missingExport = await runCli({
+      workspace: enabledWorkspace,
+      argv: [
+        "sessions",
+        "export",
+        "apx_recent",
+        "--provider",
+        "\u001B[31mmissing-token=provider-secret\u001B[0m",
+        "--json",
+        "--config",
+        enabledWorkspace.configPath,
+      ],
+    });
+    expect(missingExport.exitCode).toBe(4);
+    expect(JSON.parse(missingExport.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_NOT_FOUND",
+        providerId: "missing-token=[REDACTED]",
+        operation: "sessions.export",
+      },
+    });
+    expect(missingExport.stdout).not.toContain("\u001B[31m");
+    expect(missingExport.stdout).not.toContain("provider-secret");
+
+    const disabledExport = await runCli({
+      workspace: disabledWorkspace,
+      argv: [
+        "sessions",
+        "export",
+        "apx_recent",
+        "--json",
+        "--config",
+        disabledWorkspace.configPath,
+      ],
+    });
+    expect(disabledExport.exitCode).toBe(4);
+    expect(JSON.parse(disabledExport.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_UNAVAILABLE",
+        providerId: "opencode",
+        operation: "sessions.export",
+      },
+    });
   });
 
   it("leaves later mutating session commands and config as planned placeholders", async () => {
     const workspace = await createTestWorkspace();
 
     for (const argv of [
-      ["sessions", "export", "apx_123", "--config", workspace.configPath],
       ["sessions", "import", "session.json", "--config", workspace.configPath],
       ["sessions", "share", "apx_123", "--config", workspace.configPath],
       ["sessions", "unshare", "apx_123", "--config", workspace.configPath],

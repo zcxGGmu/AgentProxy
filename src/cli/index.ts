@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { type FileHandle, open, unlink } from "node:fs/promises";
+import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { Command } from "commander";
 import {
@@ -48,10 +50,14 @@ import {
   formatSessionAbortReportForJson,
   formatSessionDeleteHumanReport,
   formatSessionDeleteReportForJson,
+  formatSessionExportHumanReport,
+  formatSessionExportPayload,
+  formatSessionExportReportForJson,
   formatSessionListHumanReport,
   formatSessionShowHumanReport,
   abortAgentProxyCliSession,
   deleteAgentProxyCliSession,
+  exportAgentProxyCliSession,
   listAgentProxySessions,
   resumeAgentProxyCliSession,
   showAgentProxySession,
@@ -71,11 +77,12 @@ const implementedCoreWorkflows = [
   "agentproxy sessions resume <id> [--prompt ...]",
   "agentproxy sessions abort <id>",
   "agentproxy sessions delete <id> --yes",
+  "agentproxy sessions export <id> [--sanitize|--raw --yes]",
   "agentproxy provider exec <id> -- <native args>",
 ];
 
 const plannedCoreWorkflows = [
-  "agentproxy sessions export|import|share|unshare",
+  "agentproxy sessions import|share|unshare",
   "agentproxy config get|set",
 ];
 
@@ -208,9 +215,11 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
     .command("export")
     .argument("<id>", "Session id.")
     .option("--sanitize", "Sanitize exported data.")
+    .option("--raw", "Export raw provider data. Requires --yes.")
+    .option("--yes", "Confirm raw export.")
     .option("--output <path>", "Output file.")
     .description("Export a session.")
-    .action(plannedAction("sessions export", output));
+    .action(createSessionsExportAction(output, options));
   sessions
     .command("import")
     .argument("<source>", "File or URL.")
@@ -759,6 +768,118 @@ function createSessionsDeleteAction(
   };
 }
 
+function createSessionsExportAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command, sessionId: string) => Promise<void> {
+  return async function (this: Command, sessionId) {
+    let outputPath: string | undefined;
+    let outputFile: FileHandle | undefined;
+    let outputFileCommitted = false;
+
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const exportOptions = this.opts<{
+        raw?: boolean;
+        sanitize?: boolean;
+        yes?: boolean;
+        output?: string;
+      }>();
+      outputPath =
+        exportOptions.output === undefined
+          ? undefined
+          : path.resolve(options.cwd ?? process.cwd(), exportOptions.output);
+      outputFile =
+        outputPath === undefined
+          ? undefined
+          : await openSessionExportOutputFile(outputPath, globalOptions.provider);
+
+      const report = await exportAgentProxyCliSession(sessionId, {
+        providerId: globalOptions.provider,
+        ...(exportOptions.raw === true ? { raw: true } : {}),
+        ...(exportOptions.sanitize === true ? { sanitize: true } : {}),
+        ...(exportOptions.yes === true ? { rawConfirmed: true } : {}),
+        ...(outputPath !== undefined ? { outputPath } : {}),
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(this),
+      });
+      const payload = formatSessionExportPayload(report);
+
+      if (outputPath !== undefined && outputFile !== undefined) {
+        try {
+          await outputFile.writeFile(payload.endsWith("\n") ? payload : `${payload}\n`, "utf8");
+          await outputFile.chmod(0o600);
+          await outputFile.close();
+          outputFileCommitted = true;
+          outputFile = undefined;
+        } catch (error) {
+          await cleanupReservedSessionExportOutputFile(outputFile, outputPath, outputFileCommitted);
+          outputFile = undefined;
+          throw error;
+        }
+      }
+
+      if (globalOptions.json) {
+        output.writeJson(formatSessionExportReportForJson(report));
+      } else if (outputPath !== undefined) {
+        output.writeResult(formatSessionExportHumanReport(report));
+      } else {
+        output.writeResult(payload);
+      }
+      process.exitCode = 0;
+    } catch (error) {
+      if (outputPath !== undefined && outputFile !== undefined) {
+        await cleanupReservedSessionExportOutputFile(outputFile, outputPath, outputFileCommitted);
+      }
+      handleCliError(error, output, this);
+    }
+  };
+}
+
+async function openSessionExportOutputFile(
+  outputPath: string,
+  providerId: string,
+): Promise<FileHandle> {
+  try {
+    return await open(outputPath, "wx", 0o600);
+  } catch (error) {
+    if (isFileAlreadyExistsError(error)) {
+      throw createSessionExportOutputExistsError(outputPath, providerId);
+    }
+
+    throw error;
+  }
+}
+
+function createSessionExportOutputExistsError(outputPath: string, providerId: string): Error {
+  return createAgentProxyError({
+    code: "CONFIG_INVALID",
+    message: "Session export output file already exists.",
+    operation: "sessions.export",
+    providerId,
+    details: {
+      outputPath,
+      failureReason: "output_file_exists",
+      suggestion: "Choose a new --output path before retrying session export.",
+    },
+  });
+}
+
+async function cleanupReservedSessionExportOutputFile(
+  outputFile: FileHandle | undefined,
+  outputPath: string,
+  committed: boolean,
+): Promise<void> {
+  if (outputFile !== undefined) {
+    await outputFile.close().catch(() => undefined);
+  }
+  if (!committed) {
+    await unlink(outputPath).catch(() => undefined);
+  }
+}
+
 function mapRunReportToExitCode(report: { status: string }): number {
   if (report.status === "completed") {
     return 0;
@@ -1008,6 +1129,15 @@ function isCommanderError(error: unknown): error is { code: string; exitCode: nu
     typeof maybeCommanderError.code === "string" &&
     maybeCommanderError.code.startsWith("commander.") &&
     typeof maybeCommanderError.exitCode === "number"
+  );
+}
+
+function isFileAlreadyExistsError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "EEXIST"
   );
 }
 

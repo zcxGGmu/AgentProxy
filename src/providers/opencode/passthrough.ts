@@ -90,7 +90,7 @@ function resolveOpenCodePassthroughBinary(
   }
 }
 
-function createOpenCodePassthroughEnv(
+export function createOpenCodePassthroughEnv(
   sourceEnv: NodeJS.ProcessEnv | Record<string, string | undefined> | undefined,
   passthroughEnv: Record<string, string | undefined> | undefined,
 ): NodeJS.ProcessEnv {

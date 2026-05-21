@@ -20,6 +20,7 @@ import type {
 } from "../types.js";
 import { probeOpenCodeBinary } from "./binary.js";
 import { OPENCODE_PROVIDER_ID } from "./constants.js";
+import { createOpenCodePassthroughEnv } from "./passthrough.js";
 import {
   cancelResponseBody,
   type OpenCodeProviderOptions,
@@ -314,11 +315,23 @@ export async function exportOpenCodeSession(
     providerSessionId: context.providerSessionId,
   });
 
+  if (result.stdout.trim() === "") {
+    throw createSessionOperationError({
+      code: "PROVIDER_UNAVAILABLE",
+      operation: OPENCODE_EXPORT_SESSION_OPERATION,
+      message: "OpenCode export output was empty.",
+      failureReason: "empty_export_response",
+      providerSessionId: context.providerSessionId,
+      suggestion: "Retry export or use provider passthrough to inspect native OpenCode output.",
+    });
+  }
+  const data = parseCliJsonOrText(result.stdout);
+
   return {
     providerId: OPENCODE_PROVIDER_ID,
     providerSessionId: context.providerSessionId,
     sanitized: !raw,
-    data: parseCliJsonOrText(result.stdout),
+    data,
     metadata: {
       opencode: {
         export: {
@@ -561,15 +574,12 @@ async function runOpenCodeCli(input: {
   args: readonly string[];
   providerSessionId?: string | undefined;
 }): Promise<{ stdout: string; stderr: string }> {
-  const binaryPath = resolveOpenCodeCliBinary(input.options, input.context, input.operation);
+  const cwd = input.context.workspacePath ?? input.options.cwd;
+  const env = createOpenCodePassthroughEnv(input.options.env, input.options.passthroughEnv);
+  const binaryPath = resolveOpenCodeCliBinary(input.options, input.context, input.operation, env);
   const requestTimeoutMs = validateRequestTimeout(
     input.options.requestTimeoutMs ?? DEFAULT_SESSION_CLI_REQUEST_TIMEOUT_MS,
   );
-  const env = {
-    ...process.env,
-    ...(input.options.env ?? {}),
-  };
-  const cwd = input.context.workspacePath ?? input.options.cwd;
 
   try {
     return await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
@@ -612,21 +622,16 @@ function resolveOpenCodeCliBinary(
   options: OpenCodeProviderOptions,
   context: ProviderContext,
   operation: string,
+  env: NodeJS.ProcessEnv,
 ): string {
   try {
-    const probeOptions: Parameters<typeof probeOpenCodeBinary>[0] = {};
-    if (options.binary !== undefined) {
-      probeOptions.binary = options.binary;
-    }
-    if (options.env !== undefined) {
-      probeOptions.env = options.env;
-    }
     const cwd = context.workspacePath ?? options.cwd;
-    if (cwd !== undefined) {
-      probeOptions.cwd = cwd;
-    }
-
-    return probeOpenCodeBinary(probeOptions).resolvedPath;
+    return probeOpenCodeBinary({
+      ...(options.binary !== undefined ? { binary: options.binary } : {}),
+      env,
+      inheritProcessEnv: false,
+      ...(cwd !== undefined ? { cwd } : {}),
+    }).resolvedPath;
   } catch {
     throw createSessionOperationError({
       code: "PROVIDER_UNAVAILABLE",

@@ -490,7 +490,7 @@ describe("agentproxy runtime CLI", () => {
     const workspace = await createTestWorkspace();
 
     for (const argv of [
-      ["sessions", "export", "apx_123", "--config", workspace.configPath],
+      ["sessions", "import", "session.json", "--config", workspace.configPath],
       ["config", "get", "--config", workspace.configPath],
     ]) {
       const result = await runCli({ workspace, argv });

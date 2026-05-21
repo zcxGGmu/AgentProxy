@@ -47,6 +47,11 @@
 - Message 事件流不能把 provider 的 step-ended 当成 session/message terminal；严格 message stream 只处理显式携带目标 `sessionID` 的 provider 事件，避免无归属 raw payload 被错误归到当前 session。
 - 本地 message lifecycle 在消费者提前 `return()` 或 signal abort 时也必须写回终态，不能让 session 长期卡在 `running`。
 - Session export/import 如果只能走 provider 原生命令，应保持为窄 provider operation，不等同于通用 passthrough；raw export 必须有独立确认，export payload、import source 和 share URL 不落 SQLite。
+- provider 原生命令即使不是 passthrough，也必须使用受限执行环境和显式 OpenCode passthrough env；不能因为是 export/import 就继承完整 parent env。
+- provider 原生命令的 binary 版本探测也必须使用同一受限 env；修复 env 继承问题时不能顺手跳过最低版本校验。
+- raw export 写入文件时必须按敏感 artifact 处理：默认不覆盖既有文件，并使用 `0600` 权限，不能依赖系统默认 umask。
+- raw export 同时使用 `--output` 和 `--json` 时，stdout JSON 只能输出控制面摘要，不能重复输出 raw payload；raw 数据只应进入用户指定的 artifact。
+- 敏感 artifact 的 `--output` 路径要在 provider 调用前用原子创建方式预留，失败则不要触发 provider，provider/写入失败时要关闭句柄并清理本次创建的空文件。
 - destructive CLI 必须先确认再开 writable storage；否则 SQLite migration/打开本身就可能留下副作用，`--yes` 之前不能碰可写 storage。
 - Provider passthrough 的 binary 定位也属于透传执行边界：不能为了 locate 先用完整 parent env 执行 `--version`，否则会绕过 env allowlist；默认也不要加隐式 timeout 或输出上限改写 provider 原始行为。
 - `agentproxy run --json` 默认不能输出 assistant transcript 或 provider 原始事件文本；JSON 只保留事件类型、状态、计数和脱敏摘要，避免脚本日志长期保存对话内容。

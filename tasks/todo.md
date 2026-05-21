@@ -11,6 +11,52 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Phase 5 Sessions Export CLI Minimal Workflow
+
+Scope: advance only the Phase 5 `agentproxy sessions export <id>` CLI task group. This workflow exports an existing visible AgentProxy local session mapping through the existing OpenCode provider-native export operation. Default export stays sanitized; raw export requires explicit confirmation. Do not implement `sessions import`, `sessions share`, `sessions unshare`, `config`, `chat --session`, Phase 6 AgentProxy TUI, generic provider passthrough expansion, or any new Agent runtime behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit before implementation.
+- [x] Add focused CLI tests for `sessions export <id>` sanitized stdout/JSON behavior, `--output` file writing, provider export dispatch, raw export confirmation, absent/missing/tombstoned/wrong-provider/wrong-workspace records, disabled/invalid provider behavior, missing OpenCode binary behavior, terminal/control-character safety, no SQLite export payload persistence, and later-command placeholder boundaries.
+- [x] Extend `src/cli/sessions.ts` with a narrow export action/service that resolves config, requires an existing visible local session mapping, opens SQLite only for mapping lookup, calls existing `exportAgentProxySession()`, and emits/writes sanitized export data without storing payloads.
+- [x] Wire only `agentproxy sessions export <id>` from planned placeholder to a real action; keep `sessions import/share/unshare`, `config`, `chat --session`, and Phase 6 TUI untouched.
+- [x] Keep JSON output valid and redacted, mark `sanitized: true | false`, never store export payload in SQLite, and never emit raw export unless `--raw --yes` is explicitly provided.
+- [x] Update `docs/development-progress-tracker.zh.md` completed/unfinished status and Review notes after verification.
+- [x] Run focused sessions CLI/session action tests, related CLI placeholder boundary tests, full applicable project verification, code review, and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean; `git log -1 --oneline` is `a09c372 文档：同步 Phase 5 Sessions Delete 后续开发状态`, so the latest Phase 5 implementation baseline remains `080e015 阶段进展：完成 Phase 5 Sessions Delete CLI`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Phase 4.6 already provides `OpenCodeProvider.exportSession()` and provider-agnostic `exportAgentProxySession()` with default sanitize behavior, raw export confirmation, and no export payload persistence.
+- Phase 5 `sessions show/list` already provide missing DB no-create behavior and provider/workspace/tombstone visibility filtering patterns.
+- Phase 5 `sessions abort/delete` already provide provider selection, stable error mapping, sanitized JSON/human output, and later-command placeholder boundary patterns to reuse.
+
+Acceptance criteria for this iteration:
+
+- [x] `agentproxy sessions export <id>` is a real command and no longer returns the generic planned `CAPABILITY_UNSUPPORTED` placeholder.
+- [x] The command addresses sessions by AgentProxy local session id and refuses absent DB, missing, tombstoned, wrong-provider, and wrong-workspace records with stable `SESSION_NOT_FOUND` without leaking hidden record content.
+- [x] The command calls the existing provider export operation for the mapped providerSessionId, does not create/resume/delete/share/import a session, does not start a message stream, and does not persist export payload data in SQLite.
+- [x] Default export is sanitized and reports `sanitized: true`; raw export requires explicit `--raw --yes` and reports `sanitized: false`.
+- [x] `sessions export --json` emits exactly one valid redacted JSON object on stdout; without `--json`, stdout contains the exported payload or the command writes it to `--output` and prints only a terminal-safe summary.
+- [x] `--output <path>` writes the export payload to the requested file path without mixing payload and human prose on stdout.
+- [x] Human diagnostics and summaries are terminal-control-character safe and do not print raw metadata blobs, URL credentials, query strings, headers, secrets, import sources, share URLs, or provider-controlled control characters.
+- [x] Non-OpenCode provider selection maps to `PROVIDER_NOT_FOUND`; disabled OpenCode config maps to `PROVIDER_UNAVAILABLE`; missing OpenCode binary maps to stable provider unavailable behavior.
+- [x] `sessions import/share/unshare`, `config`, `chat --session`, and Phase 6 AgentProxy TUI remain unimplemented or explicitly unsupported.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
+Risks and constraints:
+
+- Export payload is the command's user-facing artifact, but it must never be written into SQLite or long-lived AgentProxy metadata.
+- Raw export may contain transcript secrets; require `--raw --yes` before provider invocation and make sanitized export the default.
+- Provider-native export currently uses the OpenCode CLI boundary; keep it a narrow provider operation rather than broadening `provider exec` or building a generic export runtime.
+- Avoid touching Phase 6 TUI or implementing import/share/unshare/config in the same iteration.
+
+Review notes:
+
+- 2026-05-21: Implemented the Phase 5 `sessions export` CLI minimal workflow. Added focused failing tests first, then extended `src/cli/sessions.ts` and `src/cli/index.ts` so `agentproxy sessions export <id>` resolves config, requires a visible local AgentProxy session mapping, opens existing SQLite read-only for mapping lookup, calls existing provider-backed `exportAgentProxySession()`, and writes the export artifact to stdout or `--output`. Default export is sanitized and redacted in CLI artifacts, raw export requires `--raw --yes` before provider invocation, `--output` reserves the target with `wx`/`0600` before provider export and cleans up failed reservations, JSON file-target reports omit payload `data` and are still structurally sanitized, and export payloads are never persisted to SQLite. Provider-native export now uses the same restricted env for binary version probe and native command execution. Updated placeholder boundary tests so `sessions import/share/unshare`, `config`, `chat --session`, and Phase 6 TUI remain untouched. Code review found one blocking raw `--output --json` stdout leakage issue and later warning-level hardening points; fixed them and added regression coverage. Verification passed: `pnpm exec vitest run tests/cli-sessions.test.ts tests/cli-help.test.ts tests/cli-chat.test.ts tests/cli-run.test.ts tests/cli-runtime.test.ts tests/cli-providers.test.ts --testTimeout=10000` (85 tests), `pnpm exec vitest run tests/session-actions.test.ts tests/opencode-provider-session-actions.test.ts --testTimeout=10000`, `pnpm exec vitest run tests/opencode-provider-session-actions.test.ts tests/cli-sessions.test.ts --testTimeout=15000` (48 tests), `pnpm run typecheck`, `pnpm run test` (29 files, 262 tests), `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`. Residual risk: real OpenCode export stdout shape still needs later smoke calibration; `sessions import/share/unshare`, `config`, `chat --session`, Gate 5, and Phase 6 AgentProxy TUI remain unimplemented.
+
 ## Current Iteration - 2026-05-21 Documentation Sync After Phase 5 Sessions Delete CLI
 
 Scope: update only the project tracking documents after `080e015 阶段进展：完成 Phase 5 Sessions Delete CLI` so the next Codex session can resume from the correct remaining Phase 5 CLI MVP task group. This is documentation-only. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.

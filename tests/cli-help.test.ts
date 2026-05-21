@@ -191,8 +191,8 @@ describe("agentproxy CLI placeholder", () => {
         "node",
         "agentproxy",
         "sessions",
-        "export",
-        "apx_123",
+        "import",
+        "session.json",
         "--json",
         "--provider",
         "opencode",
@@ -222,12 +222,12 @@ describe("agentproxy CLI placeholder", () => {
     });
 
     try {
-      await program.parseAsync(["node", "agentproxy", "sessions", "export", "apx_123"]);
+      await program.parseAsync(["node", "agentproxy", "sessions", "import", "session.json"]);
 
       expect(process.exitCode).toBe(6);
       expect(stdout.chunks.join("")).toBe("");
       expect(stderr.chunks.join("")).toContain(
-        "CAPABILITY_UNSUPPORTED: agentproxy sessions export is planned",
+        "CAPABILITY_UNSUPPORTED: agentproxy sessions import is planned",
       );
     } finally {
       process.exitCode = originalExitCode;
