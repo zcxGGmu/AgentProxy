@@ -11,6 +11,46 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-22 Documentation Sync After Phase 5 Sessions Export CLI
+
+Scope: update only the project tracking documents after `479ed89 阶段进展：完成 Phase 5 Sessions Export CLI` so the next Codex session can resume from the correct remaining Phase 5 CLI MVP task group. This is documentation-only. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit.
+- [x] Review `tasks/lessons.md`, `docs/development-progress-tracker.zh.md`, and `docs/agentproxy-development-plan.md`.
+- [x] Update `docs/development-progress-tracker.zh.md` latest status, concrete implementation baseline, completed/unfinished summaries, Review entry, and next-start prompt.
+- [x] Keep Phase 5 marked in progress and Gate 5 not passed.
+- [x] Keep remaining work limited to one small task group from `sessions import/share/unshare` or `config`.
+- [x] Keep Phase 6 AgentProxy TUI explicitly not started.
+- [x] Run documentation-appropriate verification and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean.
+- Latest commit is `479ed89 阶段进展：完成 Phase 5 Sessions Export CLI`.
+- Latest Phase 5 implementation baseline is `479ed89 阶段进展：完成 Phase 5 Sessions Export CLI` unless a later documentation-only commit is present.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+
+Acceptance criteria:
+
+- [x] The tracker clearly states Phase 5 is not complete and Gate 5 has not passed.
+- [x] Completed Phase 5 CLI workflows are listed explicitly through `sessions export`.
+- [x] Remaining Phase 5 CLI MVP workflows are listed explicitly as `sessions import/share/unshare` and `config`.
+- [x] The next-start prompt tells the next Codex session to verify git state and continue from exactly one remaining Phase 5 CLI MVP task group, not Phase 6 TUI.
+- [x] Documentation verification passes with no source/test changes.
+
+Risks and constraints:
+
+- Do not imply Phase 5 or Gate 5 is complete.
+- Do not treat `agentproxy chat` as Phase 6 AgentProxy TUI.
+- Do not start implementing remaining CLI commands in this documentation sync.
+- Keep AgentProxy as a thin OpenCode control plane; v1 remains OpenCode-only.
+
+Review notes:
+
+- 2026-05-22: Documentation sync completed after confirming the latest implementation commit is `479ed89 阶段进展：完成 Phase 5 Sessions Export CLI`. Updated `docs/development-progress-tracker.zh.md` so the latest Phase 5 implementation baseline, completed/unfinished summary, Gate 5 status, Phase 6 not-started boundary, Review entry, and next-start prompt all point to the correct post-export state. Verification passed: `git status --short`, `git log -1 --oneline`, `pnpm run format:check`, and `git diff --check`. Source code and tests were not changed.
+
 ## Current Iteration - 2026-05-21 Phase 5 Sessions Export CLI Minimal Workflow
 
 Scope: advance only the Phase 5 `agentproxy sessions export <id>` CLI task group. This workflow exports an existing visible AgentProxy local session mapping through the existing OpenCode provider-native export operation. Default export stays sanitized; raw export requires explicit confirmation. Do not implement `sessions import`, `sessions share`, `sessions unshare`, `config`, `chat --session`, Phase 6 AgentProxy TUI, generic provider passthrough expansion, or any new Agent runtime behavior.
