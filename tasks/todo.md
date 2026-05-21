@@ -11,6 +11,46 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Documentation Sync After Phase 5.3
+
+Scope: update only project tracking documents after `f2424eb 阶段进展：完成 Phase 5.3 Run Prompt Minimal Workflow`. Do not implement Phase 5.3 `chat`, sessions, runtime, config, provider list/inspect, TUI, provider behavior, or runtime behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit.
+- [x] Update `docs/development-progress-tracker.zh.md` so the latest Phase 5.3 implementation baseline, completed items, unfinished items, and next startup prompt all point to Phase 5.3 Chat / native TUI launcher as next.
+- [x] Record this documentation-only update in tracker Review notes.
+- [x] Run documentation-appropriate verification.
+- [x] Give the user a ready-to-send next-start prompt.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean and `git log -1 --oneline` is `f2424eb 阶段进展：完成 Phase 5.3 Run Prompt Minimal Workflow`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Latest Phase 4 implementation baseline remains `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`.
+- Latest Phase 5 implementation baseline is `f2424eb 阶段进展：完成 Phase 5.3 Run Prompt Minimal Workflow`.
+- `docs/agentproxy-development-plan.md` remains the source plan and does not need architecture changes for this documentation sync.
+
+Acceptance criteria for this iteration:
+
+- [x] `git status --short` and `git log -1 --oneline` are checked and reflected in this documentation pass.
+- [x] The Chinese progress tracker clearly states completed phases through Phase 5.3 `run [prompt]`, unfinished work starting at Phase 5.3 Chat / native TUI launcher, and full TUI still pending.
+- [x] The next-start prompt includes the concrete Phase 5.3 implementation commit and instructs the next Codex session to start at `chat` / native TUI launcher only.
+- [x] The final answer gives the user a ready-to-send prompt.
+
+Risks and constraints:
+
+- Do not treat this documentation sync as a Phase 5.3 Chat implementation start.
+- Do not change source code, tests, provider behavior, runtime behavior, CLI behavior, TUI, or completed implementation.
+- If this documentation update is committed, the next startup prompt must distinguish the documentation commit from the latest Phase 5.3 implementation baseline.
+
+Review notes:
+
+- 2026-05-21: Confirmed initial `git status --short` was clean and `git log -1 --oneline` was `f2424eb 阶段进展：完成 Phase 5.3 Run Prompt Minimal Workflow`.
+- Updated `docs/development-progress-tracker.zh.md` latest status, baseline fields, completed/unfinished summaries, Review entry, and next-start prompt to use Phase 5.3 `run [prompt]` as complete and Phase 5.3 Chat / native TUI launcher as the first unfinished task.
+- Verification passed: `git diff --check` and `pnpm run format:check`.
+- This is documentation-only; no source code, tests, provider behavior, runtime behavior, CLI behavior, Phase 5.3 Chat, `sessions`, `runtime`, `config`, provider list/inspect, or TUI work is changed.
+
 ## Current Iteration - 2026-05-21 Phase 5.3 Run Prompt Minimal Workflow
 
 Scope: advance only the minimal `agentproxy run [prompt]` workflow from Phase 5.3. Implement a script-friendly one-shot run path that creates an AgentProxy-indexed OpenCode session, sends a text prompt through the existing provider/runtime/session services, renders the live event stream, and returns stable session identifiers. Do not implement `chat` TUI, `sessions`, `runtime`, `config`, `providers list/inspect`, full resume UX, permission approval, provider passthrough changes, or any new Agent runtime behavior.
