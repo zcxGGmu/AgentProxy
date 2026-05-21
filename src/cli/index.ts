@@ -20,16 +20,23 @@ import {
   mapDoctorReportToExitCode,
   runAgentProxyDoctor,
 } from "./doctor.js";
+import {
+  formatRunEventForHuman,
+  formatRunReportForJson,
+  runAgentProxyPrompt,
+  sanitizeHumanInline,
+  type AgentProxyRunEventSummary,
+} from "./run.js";
 
 export const AGENTPROXY_VERSION = "0.1.0";
 
 const implementedCoreWorkflows = [
   "agentproxy doctor",
+  "agentproxy run [prompt]",
   "agentproxy provider exec <id> -- <native args>",
 ];
 
 const plannedCoreWorkflows = [
-  "agentproxy run [prompt]",
   "agentproxy chat",
   "agentproxy sessions list|show|resume|abort|delete|export|import|share|unshare",
   "agentproxy providers list|inspect",
@@ -87,6 +94,7 @@ export interface CreateProgramOptions {
   cwd?: string;
   homeDir?: string;
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
+  stdin?: AsyncIterable<string | Buffer | Uint8Array>;
 }
 
 export function createProgram(options: CreateProgramOptions = {}): Command {
@@ -126,7 +134,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
     .argument("[prompt]", "Prompt to send to the provider runtime.")
     .option("--model <model>", "Provider model selection.")
     .description("Run a headless OpenCode task through AgentProxy.")
-    .action(plannedAction("run", output));
+    .action(createRunAction(output, options));
 
   program
     .command("chat")
@@ -297,6 +305,89 @@ function createDoctorAction(
       handleCliError(error, output, this);
     }
   };
+}
+
+function createRunAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command, prompt?: string) => Promise<void> {
+  return async function (this: Command, prompt) {
+    let openTextLine = false;
+    const writeHumanLine = (message: string): void => {
+      if (openTextLine) {
+        output.stdout.write("\n");
+        openTextLine = false;
+      }
+      output.writeResult(message);
+    };
+    const writeHumanEvent = (event: AgentProxyRunEventSummary, humanOutput?: string): void => {
+      const formatted = formatRunEventForHuman(event, humanOutput);
+      if (formatted === undefined || formatted === "") {
+        return;
+      }
+      if (event.type === "message.delta") {
+        output.stdout.write(formatted);
+        openTextLine = !formatted.endsWith("\n");
+        return;
+      }
+
+      writeHumanLine(formatted);
+    };
+
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const runOptions = this.opts<{ model?: string }>();
+      const report = await runAgentProxyPrompt({
+        providerId: globalOptions.provider,
+        ...(prompt !== undefined ? { prompt } : {}),
+        ...(runOptions.model !== undefined ? { model: runOptions.model } : {}),
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        ...(options.stdin !== undefined ? { stdin: options.stdin } : {}),
+        cli: createCliConfigOverrides(this),
+        ...(globalOptions.json
+          ? {}
+          : {
+              onSessionStarted: (session) => {
+                writeHumanLine(`Session: ${sanitizeHumanInline(session.sessionId)}`);
+                writeHumanLine(
+                  `Provider session: ${sanitizeHumanInline(session.providerSessionId)}`,
+                );
+                writeHumanLine(
+                  `Runtime: ${sanitizeHumanInline(
+                    session.runtime.runtimeId ?? "configured",
+                  )} (${sanitizeHumanInline(session.runtime.mode)})`,
+                );
+              },
+              onEvent: writeHumanEvent,
+            }),
+      });
+
+      if (globalOptions.json) {
+        output.writeJson(formatRunReportForJson(report));
+      } else {
+        if (openTextLine) {
+          output.stdout.write("\n");
+          openTextLine = false;
+        }
+        output.writeResult(`Status: ${report.status}`);
+      }
+      process.exitCode = mapRunReportToExitCode(report);
+    } catch (error) {
+      handleCliError(error, output, this);
+    }
+  };
+}
+
+function mapRunReportToExitCode(report: { status: string }): number {
+  if (report.status === "completed") {
+    return 0;
+  }
+  if (report.status === "failed") {
+    return 1;
+  }
+  return 9;
 }
 
 function createProviderExecAction(

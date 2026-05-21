@@ -64,3 +64,5 @@ export type {
   RuntimeRegistryMetadata,
   RuntimeRegistryOptions,
 } from "./registry.js";
+export { selectOpenCodeRuntimeBaseUrl } from "./selection.js";
+export type { OpenCodeRuntimeBaseUrlSelection } from "./selection.js";

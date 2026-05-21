@@ -52,6 +52,7 @@ export {
   resolveOpenCodeBinary,
 } from "./binary.js";
 export {
+  normalizeRuntimeBaseUrl,
   OPENCODE_PROVIDER_PROBE_METADATA_KEY,
   OPENCODE_SDK_MODULE_NAME,
 } from "./probe.js";

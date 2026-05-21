@@ -28,6 +28,7 @@ export interface OpenCodeManagedRuntimeManagerOptions {
   registry?: RuntimeRegistry;
   binary?: string;
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
+  inheritParentEnv?: boolean;
   cwd?: string;
   now?: () => Date;
   healthTimeoutMs?: number;
@@ -130,7 +131,7 @@ export class OpenCodeManagedRuntimeManager {
     this.now = options.now ?? (() => new Date());
     this.registry = buildRuntimeRegistry(options, this.now);
     this.binary = options.binary;
-    this.env = createEffectiveEnvironment(options.env);
+    this.env = createEffectiveEnvironment(options.env, options.inheritParentEnv ?? true);
     this.cwd = options.cwd;
     this.healthTimeoutMs = options.healthTimeoutMs ?? 10_000;
     this.healthPollIntervalMs = options.healthPollIntervalMs ?? 100;
@@ -804,9 +805,10 @@ function normalizeHealthError(error: unknown, baseUrl: string): Error {
 
 function createEffectiveEnvironment(
   env: NodeJS.ProcessEnv | Record<string, string | undefined> | undefined,
+  inheritParentEnv: boolean,
 ): Record<string, string | undefined> {
   return {
-    ...process.env,
+    ...(inheritParentEnv ? process.env : {}),
     ...(env ?? {}),
   };
 }

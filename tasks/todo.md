@@ -11,6 +11,106 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-21 Phase 5.3 Run Prompt Minimal Workflow
+
+Scope: advance only the minimal `agentproxy run [prompt]` workflow from Phase 5.3. Implement a script-friendly one-shot run path that creates an AgentProxy-indexed OpenCode session, sends a text prompt through the existing provider/runtime/session services, renders the live event stream, and returns stable session identifiers. Do not implement `chat` TUI, `sessions`, `runtime`, `config`, `providers list/inspect`, full resume UX, permission approval, provider passthrough changes, or any new Agent runtime behavior.
+
+User journey:
+
+- As a CLI user, I can run `agentproxy run "hello"` against a configured/registered OpenCode runtime and get a stable AgentProxy session id plus streamed assistant output.
+- As a script user, I can run `agentproxy run "hello" --json` and receive exactly one valid redacted JSON object on stdout with session ids, status, and event summaries.
+- As a local user, I can pipe a prompt over stdin when `[prompt]` is omitted without entering a TUI or storing the raw prompt in SQLite.
+
+Implementation checklist:
+
+- [x] Add focused CLI tests for `run [prompt]`, stdin prompt, `--model`, provider/workspace/config overrides, JSON output, missing prompt, missing runtime, event streaming, redaction, and planned `chat`/other command boundaries.
+- [x] Add a narrow `src/cli/run.ts` service/action layer or equivalent small CLI module that resolves config, opens/closes SQLite, selects an active/configured OpenCode runtime base URL, creates a configured provider, starts a local session mapping, sends the message stream, and formats human/JSON output.
+- [x] Replace only the `agentproxy run` placeholder with the real action and move only `run [prompt]` from planned to implemented help text.
+- [x] Keep `chat`, `sessions`, `runtime`, `config`, `providers list/inspect`, and full TUI as planned placeholders.
+- [x] Update `docs/development-progress-tracker.zh.md` Phase 5.3 checklist and Review notes after verification.
+- [x] Run focused run CLI tests, full project verification, code review, and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial `git log -1 --oneline` is `c707f2c 阶段进展：完成 Phase 5.2 Doctor CLI 工作流`.
+- Initial `git status --short` showed existing documentation-sync edits in `docs/development-progress-tracker.zh.md` and `tasks/todo.md`; preserve and build on those edits instead of overwriting them.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`; latest Phase 4 implementation baseline remains `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`.
+- Phase 5.1 already provides shared Commander parsing, global flags, JSON/human error output, stdout/stderr split, and stable exit-code mapping.
+- Phase 5.2 already provides config/storage/provider/runtime diagnostic patterns and active runtime selection logic that can be reused narrowly.
+- Phase 4.4 and 4.5 already provide `startAgentProxySession()` and `sendAgentProxyMessage()`; `run` should compose these instead of reimplementing provider session/message behavior.
+
+Acceptance criteria for this iteration:
+
+- [x] `agentproxy run "prompt"` is a real workflow and no longer returns the `CAPABILITY_UNSUPPORTED` planned placeholder.
+- [x] `run` creates a provider session, persists a local AgentProxy session mapping before sending the prompt, sends the text prompt through OpenCode server APIs, and stores only sanitized event projections.
+- [x] `run` selects runtime base URL from explicit OpenCode config first, then active runtime registry records for the workspace; missing runtime fails with a stable, actionable error.
+- [x] Human mode writes session id/status and assistant deltas to stdout, keeps AgentProxy diagnostics/errors on stderr, and does not dump raw provider payloads.
+- [x] `run --json` writes exactly one valid redacted JSON object to stdout with `ok`, `sessionId`, `providerSessionId`, `status`, `events`, and `runtime` summary fields.
+- [x] Empty prompt from argument/stdin fails as `CONFIG_INVALID` with exit code `3`; invalid provider fails as `PROVIDER_NOT_FOUND` with exit code `4`.
+- [x] `--model`, `--workspace`, `--provider`, `--config`, and stdin prompt behavior are covered by focused tests.
+- [x] `chat`, `sessions`, `runtime`, `config`, and `providers list/inspect` remain unimplemented placeholders.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
+Risks and constraints:
+
+- Do not start a full TUI or implement a chat engine; `run` is a headless one-shot CLI workflow.
+- Do not default to parsing provider stdout or TUI output; prefer existing OpenCode server APIs and event stream.
+- Do not persist raw prompts, raw assistant transcript text, raw tool output, URL query secrets, or provider-controlled raw payloads in SQLite or JSON summaries.
+- Managed runtime lifecycle should remain conservative: this task may use an already configured/registered runtime base URL; broader runtime CLI management stays for later Phase 5 work.
+- Permission events must be surfaced, never auto-approved.
+- If the implementation feels like it is duplicating doctor/runtime internals, pause and extract only a narrow reusable helper instead of widening Phase 5.3.
+
+Review notes:
+
+- 2026-05-21: Added focused TDD coverage in `tests/cli-run.test.ts`. Initial red run failed with `CAPABILITY_UNSUPPORTED` placeholder exit code `6`, proving `agentproxy run` was not implemented yet.
+- Implemented `src/cli/run.ts`, wired `agentproxy run [prompt]` in `src/cli/index.ts`, extracted shared OpenCode runtime base URL selection to `src/runtimes/selection.ts`, and kept `chat`, `sessions`, `runtime`, `config`, and `providers list/inspect` as planned placeholders.
+- Focused verification passed so far: `pnpm exec vitest run tests/cli-run.test.ts`, `pnpm exec vitest run tests/cli-run.test.ts tests/cli-help.test.ts tests/cli-doctor.test.ts tests/cli-provider-exec.test.ts tests/opencode-runtime-diagnostics.test.ts`, `pnpm run typecheck`, `pnpm run lint`, and `pnpm run format:check`.
+- Security review found and the implementation fixed transcript leakage in JSON output, terminal-control-character exposure in human output, full parent env propagation for managed run, and unbounded prompt/event accumulation. Follow-up review found no blockers.
+- Code review findings were fixed before final verification: validate `--model` before session creation, report the actual selected runtime mode for registry runtimes, and preserve the original prompt text for dispatch while still rejecting empty trimmed input.
+- Final code review found two high-risk terminal-state issues; fixed non-completed `run` reports returning exit 0, fixed timeout abort being treated as completed, added regression coverage, and recorded the reusable rule in `tasks/lessons.md`.
+- Final verification passed: `pnpm exec vitest run tests/cli-run.test.ts` (12 tests), `pnpm exec vitest run tests/cli-run.test.ts tests/cli-help.test.ts tests/cli-doctor.test.ts tests/cli-provider-exec.test.ts tests/opencode-runtime-diagnostics.test.ts`, `pnpm run test` (25 files, 194 tests), `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+- Residual boundary: real OpenCode end-to-end smoke remains a later compatibility task; `chat`, `sessions`, `runtime`, `config`, and `providers list/inspect` remain intentionally unimplemented.
+
+## Current Iteration - 2026-05-21 Documentation Sync After Phase 5.2
+
+Scope: update only project tracking documents after `c707f2c 阶段进展：完成 Phase 5.2 Doctor CLI 工作流`. Do not implement Phase 5.3 `run`, `chat`, sessions, runtime, config, provider list/inspect, TUI, provider behavior, or runtime behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit.
+- [x] Update `docs/development-progress-tracker.zh.md` so the latest Phase 5.2 implementation baseline, completed items, unfinished items, and next startup prompt all point to Phase 5.3 `run [prompt]` as next.
+- [x] Record this documentation-only update in tracker Review notes.
+- [x] Run documentation-appropriate verification.
+- [x] Give the user a ready-to-send next-start prompt.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean and `git log -1 --oneline` is `c707f2c 阶段进展：完成 Phase 5.2 Doctor CLI 工作流`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Latest Phase 4 implementation baseline remains `afdd3e0 阶段进展：完成 Phase 4.7 Provider Passthrough`.
+- Latest Phase 5 implementation baseline is `c707f2c 阶段进展：完成 Phase 5.2 Doctor CLI 工作流`.
+- `docs/agentproxy-development-plan.md` remains the source plan and does not need architecture changes for this documentation sync.
+
+Acceptance criteria for this iteration:
+
+- [x] `git status --short` and `git log -1 --oneline` are checked and reflected in this documentation pass.
+- [x] The Chinese progress tracker clearly states completed phases through Phase 5.2, unfinished work starting at Phase 5.3 `run [prompt]`, and TUI still pending.
+- [x] The next-start prompt includes the concrete Phase 5.2 implementation commit and instructs the next Codex session to start at Phase 5.3 `run [prompt]` only.
+- [x] The final answer gives the user a ready-to-send prompt.
+
+Risks and constraints:
+
+- Do not treat this documentation sync as a Phase 5.3 start.
+- Do not change source code, tests, provider behavior, runtime behavior, CLI behavior, TUI, or completed implementation.
+- If this documentation update is committed later, the next startup prompt must distinguish the documentation commit from the latest Phase 5.2 implementation baseline.
+
+Review notes:
+
+- 2026-05-21: Confirmed initial `git status --short` was clean and `git log -1 --oneline` was `c707f2c 阶段进展：完成 Phase 5.2 Doctor CLI 工作流`.
+- Updated `docs/development-progress-tracker.zh.md` latest status, baseline fields, completed/unfinished summaries, Review entry, and next-start prompt to use Phase 5.2 as complete and Phase 5.3 `run [prompt]` as the first unfinished task.
+- Verification passed: `git diff --check` and `pnpm run format:check`.
+- This is documentation-only; no source code, tests, provider behavior, runtime behavior, CLI behavior, Phase 5.3, or TUI work is changed.
+
 ## Current Iteration - 2026-05-21 Phase 5.2 Doctor CLI Workflow
 
 Scope: advance only Phase 5.2 `agentproxy doctor`. Implement a script-friendly diagnostic workflow that wraps existing config, storage, provider, and OpenCode runtime diagnostic primitives. Do not implement `run`, `sessions`, `runtime`, `config`, providers list/inspect commands, native TUI, or new Agent runtime behavior.

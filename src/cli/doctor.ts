@@ -23,14 +23,12 @@ import {
   OPENCODE_RUNTIME_DIAGNOSTIC_CHECK_IDS,
   OpenCodeRuntimeDiagnostics,
   RuntimeRegistry,
+  selectOpenCodeRuntimeBaseUrl,
+  type OpenCodeRuntimeBaseUrlSelection,
   type OpenCodeRuntimeDiagnosticCheck,
   type OpenCodeRuntimeDiagnosticReport,
 } from "../runtimes/index.js";
-import {
-  openAgentProxyStorage,
-  type AgentProxyStorage,
-  type StoredRuntimeRecord,
-} from "../storage/index.js";
+import { openAgentProxyStorage, type AgentProxyStorage } from "../storage/index.js";
 
 export type AgentProxyDoctorCheckStatus = "passed" | "failed" | "skipped" | "warning";
 
@@ -91,23 +89,9 @@ interface StorageCheckResult {
   check: AgentProxyDoctorCheck;
 }
 
-interface RuntimeBaseUrlSelection {
-  baseUrl?: string;
-  source: "config" | "registry" | "none";
-  runtimeId?: string;
-}
-
 const MINIMUM_NODE_VERSION = ">=22.0.0";
 const DEFAULT_DOCTOR_REQUEST_TIMEOUT_MS = 1_000;
 const DOCTOR_STORAGE_PROBE_PROVIDER_ID_PREFIX = "__agentproxy_doctor__";
-const ACTIVE_RUNTIME_STATUS_PRIORITY = [
-  "healthy",
-  "attached",
-  "degraded",
-  "reconnecting",
-  "discovered",
-  "starting",
-] as const;
 
 const RUNTIME_CHECK_LABELS: Record<string, string> = {
   [OPENCODE_RUNTIME_DIAGNOSTIC_CHECK_IDS.binary]: "OpenCode binary",
@@ -343,7 +327,7 @@ function checkOpenCodeConfig(
     });
   }
 
-  const runtimeBaseUrl = selectRuntimeBaseUrl(config, registry);
+  const runtimeBaseUrl = selectOpenCodeRuntimeBaseUrl(config, registry);
   if (opencode.runtime.mode === "attached" && runtimeBaseUrl.baseUrl === undefined) {
     return warningCheck({
       id: "opencode.config",
@@ -399,7 +383,7 @@ async function runProviderDiagnosticChecks(input: {
   env: NodeJS.ProcessEnv | Record<string, string | undefined> | undefined;
 }): Promise<AgentProxyDoctorCheck[]> {
   const opencode = input.config.providers.opencode;
-  const runtimeBaseUrl = selectRuntimeBaseUrl(input.config, input.registry);
+  const runtimeBaseUrl = selectOpenCodeRuntimeBaseUrl(input.config, input.registry);
 
   if (!opencode.enabled) {
     return [
@@ -640,7 +624,7 @@ function mapRuntimeDiagnosticCheck(check: OpenCodeRuntimeDiagnosticCheck): Agent
 
 function mapProviderHealthCheck(
   health: ProviderHealth,
-  runtimeBaseUrl: RuntimeBaseUrlSelection,
+  runtimeBaseUrl: OpenCodeRuntimeBaseUrlSelection,
 ): AgentProxyDoctorCheck {
   if (health.status === "healthy") {
     return passedCheck({
@@ -679,7 +663,7 @@ function mapEndpointCapabilityCheck(input: {
   failureMessage: string;
   endpointId: "providerList" | "mcp";
   capabilities: ProviderCapabilities;
-  runtimeBaseUrl: RuntimeBaseUrlSelection;
+  runtimeBaseUrl: OpenCodeRuntimeBaseUrlSelection;
 }): AgentProxyDoctorCheck {
   const endpoint = readOpenCodeEndpointProbe(input.capabilities, input.endpointId);
   if (endpoint?.supported === true) {
@@ -728,64 +712,6 @@ function readOpenCodeEndpointProbe(
   }
   const endpoint = endpoints[endpointId];
   return isRecord(endpoint) ? endpoint : undefined;
-}
-
-function selectRuntimeBaseUrl(
-  config: AgentProxyConfig,
-  registry: RuntimeRegistry | undefined,
-): RuntimeBaseUrlSelection {
-  const configBaseUrl = config.providers.opencode.runtime.baseUrl;
-  if (configBaseUrl !== undefined) {
-    return {
-      baseUrl: configBaseUrl,
-      source: "config",
-    };
-  }
-
-  const runtime = selectActiveRuntime(registry, config.workspacePath);
-  if (runtime?.baseUrl !== undefined) {
-    return {
-      baseUrl: runtime.baseUrl,
-      source: "registry",
-      runtimeId: runtime.id,
-    };
-  }
-
-  return {
-    source: "none",
-  };
-}
-
-function selectActiveRuntime(
-  registry: RuntimeRegistry | undefined,
-  workspacePath: string,
-): StoredRuntimeRecord | undefined {
-  if (registry === undefined) {
-    return undefined;
-  }
-
-  return registry
-    .list({
-      providerId: OPENCODE_PROVIDER_ID,
-      workspacePath,
-    })
-    .filter((runtime) => runtime.baseUrl !== undefined && isActiveRuntimeStatus(runtime.status))
-    .sort((left, right) => activeRuntimePriority(left) - activeRuntimePriority(right))[0];
-}
-
-function activeRuntimePriority(runtime: StoredRuntimeRecord): number {
-  const index = ACTIVE_RUNTIME_STATUS_PRIORITY.indexOf(
-    runtime.status as (typeof ACTIVE_RUNTIME_STATUS_PRIORITY)[number],
-  );
-  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
-}
-
-function isActiveRuntimeStatus(
-  status: StoredRuntimeRecord["status"],
-): status is (typeof ACTIVE_RUNTIME_STATUS_PRIORITY)[number] {
-  return ACTIVE_RUNTIME_STATUS_PRIORITY.includes(
-    status as (typeof ACTIVE_RUNTIME_STATUS_PRIORITY)[number],
-  );
 }
 
 async function runDoctorCheck(
@@ -1108,7 +1034,7 @@ function execFileText(
       args,
       {
         ...(env !== undefined ? { env: { ...process.env, ...env } } : {}),
-        timeout: 1_000,
+        timeout: 3_000,
         maxBuffer: 128 * 1024,
       },
       (error, stdout) => {
