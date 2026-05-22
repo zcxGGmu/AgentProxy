@@ -126,7 +126,12 @@ async function runCli(input: {
 }
 
 async function startFakeOpenCodeRunServer(
-  input: { providerSessionId?: string; delta?: string; terminal?: "idle" | "error" | "none" } = {},
+  input: {
+    providerSessionId?: string;
+    delta?: string;
+    terminal?: "idle" | "error" | "none";
+    createDelayMs?: number;
+  } = {},
 ): Promise<{
   baseUrl: string;
   createBodies: unknown[];
@@ -151,18 +156,20 @@ async function startFakeOpenCodeRunServer(
     if (request.method === "POST" && url.pathname === "/session") {
       void readRequestJson(request).then((body) => {
         createBodies.push(body);
-        response.writeHead(200, { "content-type": "application/json" });
-        response.end(
-          JSON.stringify({
-            id: providerSessionId,
-            directory: url.searchParams.get("directory") ?? undefined,
-            title: "CLI run session",
-            time: {
-              created: Date.parse("2026-05-21T10:00:00.000Z"),
-              updated: Date.parse("2026-05-21T10:00:01.000Z"),
-            },
-          }),
-        );
+        setTimeout(() => {
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(
+            JSON.stringify({
+              id: providerSessionId,
+              directory: url.searchParams.get("directory") ?? undefined,
+              title: "CLI run session",
+              time: {
+                created: Date.parse("2026-05-21T10:00:00.000Z"),
+                updated: Date.parse("2026-05-21T10:00:01.000Z"),
+              },
+            }),
+          );
+        }, input.createDelayMs ?? 0);
       });
       return;
     }
@@ -464,6 +471,63 @@ afterEach(async () => {
 });
 
 describe("agentproxy run CLI", () => {
+  it("waits for slow initial OpenCode session creation during run", async () => {
+    const { workspacePath, homeDir, configPath, storagePath } = await createTestRoot();
+    const fakeServer = await startFakeOpenCodeRunServer({
+      providerSessionId: "ses_cli_slow_create",
+      createDelayMs: 1_200,
+    });
+    await writeConfig({
+      configPath,
+      workspacePath,
+      storagePath,
+      runtime: {
+        mode: "attached",
+        baseUrl: fakeServer.baseUrl,
+      },
+    });
+
+    const report = await runAgentProxyPrompt({
+      providerId: "opencode",
+      prompt: "slow create prompt",
+      cwd: workspacePath,
+      homeDir,
+      cli: {
+        configPath,
+      },
+      timeoutMs: 5_000,
+    });
+
+    expect(report).toMatchObject({
+      ok: true,
+      providerId: "opencode",
+      providerSessionId: "ses_cli_slow_create",
+      status: "completed",
+    });
+    expect(fakeServer.createBodies).toEqual([{}]);
+    expect(fakeServer.messageBodies).toEqual([
+      {
+        parts: [
+          {
+            type: "text",
+            text: "slow create prompt",
+          },
+        ],
+      },
+    ]);
+
+    const storage = openAgentProxyStorage({ databasePath: storagePath });
+    try {
+      expect(
+        storage.sessions.getByProviderSessionId("opencode", "ses_cli_slow_create"),
+      ).toMatchObject({
+        status: "completed",
+      });
+    } finally {
+      storage.close();
+    }
+  });
+
   it("runs a prompt against a configured attached OpenCode runtime in human mode", async () => {
     const { workspacePath, homeDir, configPath, storagePath } = await createTestRoot();
     const fakeServer = await startFakeOpenCodeRunServer({

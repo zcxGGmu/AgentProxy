@@ -31,7 +31,8 @@ import {
 } from "./probe.js";
 
 const DEFAULT_SESSION_LIST_REQUEST_TIMEOUT_MS = 1_000;
-const DEFAULT_SESSION_MUTATION_REQUEST_TIMEOUT_MS = 1_000;
+const DEFAULT_SESSION_MUTATION_REQUEST_TIMEOUT_MS = 10_000;
+const DEFAULT_EVENT_STREAM_PREFLIGHT_MS = 100;
 const OPENCODE_SESSION_LIST_PATH = "/session";
 const OPENCODE_SESSION_STATUS_PATH = "/session/status";
 const OPENCODE_LIST_SESSIONS_OPERATION = "opencode.provider.listSessions";
@@ -422,21 +423,64 @@ async function* sendOpenCodeMessageEvents(
   );
   const baseUrl = resolveSessionMutationBaseUrl(options, context, OPENCODE_SEND_MESSAGE_OPERATION);
   const fetchImplementation = options.fetchImplementation ?? fetch;
-  const eventResponse = await connectOpenCodeMessageEventStream({
+  const eventStreamController = new AbortController();
+  const messageController = new AbortController();
+  const eventResponsePromise = connectOpenCodeMessageEventStream({
     baseUrl,
     workspacePath: context.workspacePath,
     requestTimeoutMs,
     fetchImplementation,
-    signal: context.signal,
+    signal:
+      context.signal === undefined
+        ? eventStreamController.signal
+        : AbortSignal.any([context.signal, eventStreamController.signal]),
   });
+  let eventResponse: EventStreamResponse | undefined;
+  const messageSignal =
+    context.signal === undefined
+      ? messageController.signal
+      : AbortSignal.any([context.signal, messageController.signal]);
 
   try {
-    await postOpenCodeMessage({
+    const preflight = await waitForEventStreamPreflight(eventResponsePromise);
+    if (preflight.status === "rejected") {
+      throw preflight.error;
+    }
+    if (preflight.status === "fulfilled") {
+      eventResponse = preflight.response;
+    }
+
+    const postPromise = postOpenCodeMessage({
       baseUrl,
-      context,
+      context: {
+        ...context,
+        signal: messageSignal,
+      },
       requestTimeoutMs,
       fetchImplementation,
     });
+
+    if (eventResponse === undefined) {
+      const postOrEvent = await waitForPostOrEventStream({
+        postPromise,
+        eventResponsePromise,
+      });
+      if (postOrEvent.status === "event_rejected") {
+        messageController.abort();
+        await postPromise.catch(() => undefined);
+        throw postOrEvent.error;
+      }
+      if (postOrEvent.status === "event_fulfilled") {
+        eventResponse = postOrEvent.response;
+        await postPromise;
+      } else if (postOrEvent.status === "post_rejected") {
+        throw postOrEvent.error;
+      } else {
+        eventResponse = await eventResponsePromise;
+      }
+    } else {
+      await postPromise;
+    }
 
     yield {
       type: "session.status_changed",
@@ -507,8 +551,105 @@ async function* sendOpenCodeMessageEvents(
       },
     };
   } finally {
-    await cancelResponseBody(eventResponse);
+    messageController.abort();
+    eventStreamController.abort();
+    if (eventResponse !== undefined) {
+      await cancelResponseBody(eventResponse);
+    } else {
+      await eventResponsePromise.then(cancelResponseBody, () => undefined);
+    }
   }
+}
+
+type EventStreamPreflightResult =
+  | {
+      status: "fulfilled";
+      response: EventStreamResponse;
+    }
+  | {
+      status: "rejected";
+      error: unknown;
+    }
+  | {
+      status: "pending";
+    };
+
+async function waitForEventStreamPreflight(
+  eventResponsePromise: Promise<EventStreamResponse>,
+): Promise<EventStreamPreflightResult> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      eventResponsePromise.then(
+        (response): EventStreamPreflightResult => ({
+          status: "fulfilled",
+          response,
+        }),
+        (error): EventStreamPreflightResult => ({
+          status: "rejected",
+          error,
+        }),
+      ),
+      new Promise<EventStreamPreflightResult>((resolve) => {
+        timeout = setTimeout(
+          () =>
+            resolve({
+              status: "pending",
+            }),
+          DEFAULT_EVENT_STREAM_PREFLIGHT_MS,
+        );
+        timeout.unref();
+      }),
+    ]);
+  } finally {
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+type PostOrEventStreamResult =
+  | {
+      status: "post_fulfilled";
+    }
+  | {
+      status: "post_rejected";
+      error: unknown;
+    }
+  | {
+      status: "event_fulfilled";
+      response: EventStreamResponse;
+    }
+  | {
+      status: "event_rejected";
+      error: unknown;
+    };
+
+async function waitForPostOrEventStream(input: {
+  postPromise: Promise<void>;
+  eventResponsePromise: Promise<EventStreamResponse>;
+}): Promise<PostOrEventStreamResult> {
+  return Promise.race([
+    input.postPromise.then(
+      (): PostOrEventStreamResult => ({
+        status: "post_fulfilled",
+      }),
+      (error): PostOrEventStreamResult => ({
+        status: "post_rejected",
+        error,
+      }),
+    ),
+    input.eventResponsePromise.then(
+      (response): PostOrEventStreamResult => ({
+        status: "event_fulfilled",
+        response,
+      }),
+      (error): PostOrEventStreamResult => ({
+        status: "event_rejected",
+        error,
+      }),
+    ),
+  ]);
 }
 
 async function trySendOpenCodePromptAsync(

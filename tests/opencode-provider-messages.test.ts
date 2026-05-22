@@ -51,6 +51,48 @@ async function collectEvents(stream: AsyncIterable<AgentEvent>): Promise<AgentEv
   return events;
 }
 
+interface Deferred<TValue> {
+  promise: Promise<TValue>;
+  resolve: (value: TValue) => void;
+  reject: (error: unknown) => void;
+}
+
+function createDeferred<TValue>(): Deferred<TValue> {
+  let resolve!: (value: TValue) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<TValue>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return {
+    promise,
+    resolve,
+    reject,
+  };
+}
+
+async function waitForValue<TValue>(
+  promise: Promise<TValue>,
+  timeoutMs: number,
+  timeoutMessage: string,
+): Promise<TValue> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<TValue>((_resolve, reject) => {
+        timeout = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+        timeout.unref();
+      }),
+    ]);
+  } finally {
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
 afterEach(async () => {
   for (const response of openSseResponses.splice(0)) {
     response.end();
@@ -77,6 +119,211 @@ afterEach(async () => {
 });
 
 describe("OpenCodeProvider message sending", () => {
+  it("posts the message when OpenCode delays event stream headers until an event exists", async () => {
+    const eventRequestObserved = createDeferred<ServerResponse>();
+    let messageBody: unknown;
+    const { baseUrl } = await startFakeOpenCodeServer((request, response) => {
+      const url = new URL(request.url ?? "/", "http://127.0.0.1");
+
+      if (request.method === "GET" && url.pathname === "/event") {
+        openSseResponses.push(response);
+        eventRequestObserved.resolve(response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/session/ses_delayed_event/message") {
+        void (async () => {
+          const body = await readRequestJson(request);
+          messageBody = body;
+          const eventResponse = await waitForValue(
+            eventRequestObserved.promise,
+            500,
+            "event request was not observed before message POST handling.",
+          );
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ info: { id: "msg_delayed" }, parts: [] }));
+
+          eventResponse.writeHead(200, {
+            "content-type": "text/event-stream",
+            "cache-control": "no-cache",
+          });
+          eventResponse.write(": connected\n\n");
+          writeSse(eventResponse, {
+            id: "evt_delayed_delta",
+            type: "message.part.delta",
+            properties: {
+              sessionID: "ses_delayed_event",
+              messageID: "msg_delayed",
+              partID: "prt_delayed",
+              field: "text",
+              delta: "delayed headers",
+            },
+          });
+          writeSse(eventResponse, {
+            id: "evt_delayed_idle",
+            type: "session.idle",
+            properties: {
+              sessionID: "ses_delayed_event",
+            },
+          });
+        })().catch((error: unknown) => {
+          if (!response.headersSent) {
+            response.writeHead(500, { "content-type": "application/json" });
+            response.end(
+              JSON.stringify({
+                error: error instanceof Error ? error.message : "test failure",
+              }),
+            );
+          }
+        });
+        return;
+      }
+
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: "not found" }));
+    });
+    const provider = new OpenCodeProvider({
+      baseUrl,
+      requestTimeoutMs: 1_000,
+    });
+
+    const events = await collectEvents(
+      provider.sendMessage({
+        providerId: OPENCODE_PROVIDER_ID,
+        providerSessionId: "ses_delayed_event",
+        prompt: "trigger delayed event stream",
+        metadata: {},
+      }),
+    );
+
+    expect(messageBody).toEqual({
+      parts: [
+        {
+          type: "text",
+          text: "trigger delayed event stream",
+        },
+      ],
+    });
+    expect(events.map((event) => event.type)).toEqual([
+      "session.status_changed",
+      "message.delta",
+      "session.status_changed",
+      "session.completed",
+    ]);
+    expect(events.find((event) => event.type === "message.delta")).toMatchObject({
+      role: "assistant",
+      delta: "delayed headers",
+      messageId: "msg_delayed",
+    });
+  });
+
+  it("prioritizes delayed event stream failure over a hanging message post", async () => {
+    let messageCalls = 0;
+    const { baseUrl } = await startFakeOpenCodeServer((request, response) => {
+      const url = new URL(request.url ?? "/", "http://127.0.0.1");
+
+      if (request.method === "GET" && url.pathname === "/event") {
+        setTimeout(() => {
+          response.writeHead(500, { "content-type": "application/json" });
+          response.end(JSON.stringify({ error: "event failed secret-token" }));
+        }, 150);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/session/ses_event_failed/message") {
+        messageCalls += 1;
+        request.resume();
+        return;
+      }
+
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: "not found" }));
+    });
+    const provider = new OpenCodeProvider({
+      baseUrl,
+      requestTimeoutMs: 2_000,
+    });
+    const startedAt = Date.now();
+
+    await expect(
+      collectEvents(
+        provider.sendMessage({
+          providerId: OPENCODE_PROVIDER_ID,
+          providerSessionId: "ses_event_failed",
+          prompt: "trigger event failure",
+          metadata: {},
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: "PROVIDER_UNAVAILABLE",
+      operation: "opencode.provider.sendMessage",
+      details: {
+        failureReason: "unhealthy_response",
+        status: 500,
+      },
+    });
+
+    expect(Date.now() - startedAt).toBeLessThan(1_500);
+    expect(messageCalls).toBe(1);
+  });
+
+  it("surfaces delayed event stream failure after a successful message post", async () => {
+    let messageBody: unknown;
+    const { baseUrl } = await startFakeOpenCodeServer((request, response) => {
+      const url = new URL(request.url ?? "/", "http://127.0.0.1");
+
+      if (request.method === "GET" && url.pathname === "/event") {
+        setTimeout(() => {
+          response.writeHead(500, { "content-type": "application/json" });
+          response.end(JSON.stringify({ error: "event failed secret-token" }));
+        }, 150);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/session/ses_event_failed_fast/message") {
+        void readRequestJson(request).then((body) => {
+          messageBody = body;
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ info: { id: "msg_event_failed" }, parts: [] }));
+        });
+        return;
+      }
+
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: "not found" }));
+    });
+    const provider = new OpenCodeProvider({
+      baseUrl,
+      requestTimeoutMs: 2_000,
+    });
+
+    await expect(
+      collectEvents(
+        provider.sendMessage({
+          providerId: OPENCODE_PROVIDER_ID,
+          providerSessionId: "ses_event_failed_fast",
+          prompt: "trigger delayed event failure",
+          metadata: {},
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: "PROVIDER_UNAVAILABLE",
+      operation: "opencode.provider.sendMessage",
+      details: {
+        failureReason: "unhealthy_response",
+        status: 500,
+      },
+    });
+    expect(messageBody).toEqual({
+      parts: [
+        {
+          type: "text",
+          text: "trigger delayed event failure",
+        },
+      ],
+    });
+  });
+
   it("sends a prompt and maps OpenCode message events without auto-approving permissions", async () => {
     const workspacePath = "/tmp/agentproxy-message-workspace";
     let eventResponse: ServerResponse | undefined;

@@ -11,6 +11,48 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-22 Real CLI Run Smoke Compatibility Fix
+
+Scope: fix only the real `agentproxy run` smoke path exposed by an actual local OpenCode 1.14.37 run. Keep AgentProxy as a thin OpenCode control plane, do not enter Phase 6 TUI, do not rewrite OpenCode runtime behavior, and do not change provider credentials. The target behavior is that AgentProxy reaches the real provider execution path instead of failing prematurely on OpenCode server timing.
+
+Implementation checklist:
+
+- [x] Reproduce the real CLI run failure with `node dist/index.js run ... --json`.
+- [x] Compare with native `opencode run --format json ...` and `agentproxy provider exec opencode -- run ...` to separate AgentProxy timing issues from local provider authentication failures.
+- [x] Add focused regression tests for slow real-world `POST /session` creation and SSE response headers that flush only after a message/event is produced.
+- [x] Implement the minimal OpenCode provider/session changes needed for real `agentproxy run` compatibility.
+- [x] Rebuild and rerun the real CLI smoke.
+- [x] Run focused tests plus applicable project verification.
+- [x] Update `docs/development-progress-tracker.zh.md` Review/status for the post-Gate-5 real CLI smoke fix.
+- [x] Update `tasks/lessons.md` if the fix yields a reusable rule.
+- [ ] Create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Latest commit is `b165f29 阶段进展：完成 Gate 5 汇总验证`; working tree was clean before this iteration.
+- Local OpenCode binary is available at `/Users/zq/.opencode/bin/opencode`, version `1.14.37`.
+- Native `opencode run --format json ...` reaches the provider but fails because local provider credentials are rejected (`401`/`403` class provider errors).
+- `agentproxy run ... --json` currently fails earlier with `PROVIDER_UNAVAILABLE` at `opencode.provider.startSession`.
+- Direct OpenCode server probing shows first `POST /session` may take about 2.3s, exceeding AgentProxy's current 1s session mutation timeout.
+- Direct OpenCode server probing shows `/event` may not return SSE headers until a subsequent event is produced, so `sendMessage` must not deadlock by awaiting the event-stream response before posting the message.
+
+Acceptance criteria:
+
+- [x] `agentproxy run` no longer fails at session creation solely because real OpenCode takes more than 1s to create a session.
+- [x] `agentproxy run` can establish/read the OpenCode event stream when the SSE response is flushed by the message event itself.
+- [x] In the current local environment, the real run reaches provider execution and surfaces a failed OpenCode/provider session result rather than an AgentProxy startup/request timing failure.
+- [x] No Phase 6 TUI work is started, and `agentproxy chat` remains only the Phase 5 native OpenCode launcher.
+
+Risks and constraints:
+
+- Do not mask real provider authentication failures; the current local DeepSeek/Anthropic credentials may still prevent a successful model answer.
+- Do not broaden the fix into OpenCode credential management, model selection UX, Phase 6 TUI, or runtime rewrite work.
+- Keep output redacted and transcript-safe according to existing Phase 5 CLI rules.
+
+Review notes:
+
+- 2026-05-22: User requested a real CLI run rather than command examples. Real `agentproxy run` failed with `PROVIDER_UNAVAILABLE` during `opencode.provider.startSession`; native OpenCode and AgentProxy passthrough both reached real model providers but failed due local provider authentication/authorization. Direct server probes isolated two AgentProxy compatibility gaps: session creation timeout was too short for real OpenCode 1.14.37, and the send-message path awaited SSE connection completion before posting the message even though OpenCode may flush SSE headers only when the next event is generated. Fixed by raising the default session mutation timeout to 10s and coordinating SSE connection with message POST using a short preflight window, a POST-vs-event-failure race, and cleanup. Added regressions in `tests/opencode-provider-sessions.test.ts`, `tests/opencode-provider-messages.test.ts`, and `tests/cli-run.test.ts`, including delayed SSE headers and delayed SSE failure with hanging/successful message POST. Verification passed: `pnpm exec vitest run tests/opencode-provider-sessions.test.ts --testTimeout=30000` (10 tests), `pnpm exec vitest run tests/opencode-provider-messages.test.ts --testTimeout=30000` (7 tests), `pnpm exec vitest run tests/cli-run.test.ts --testTimeout=30000` (13 tests), `pnpm exec vitest run tests/opencode-provider-messages.test.ts tests/opencode-provider-sessions.test.ts tests/cli-run.test.ts tests/cli-sessions.test.ts --testTimeout=30000` (4 files, 89 tests), real `node dist/index.js run "只读任务：请用一句话回答：AgentProxy 是什么？不要修改任何文件。" --json` reached OpenCode provider execution and returned an AgentProxy JSON report with `status:"failed"` instead of timing/startup failure, `pnpm run test` (30 files, 307 tests), `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`. Residual risk: the local real provider still cannot produce a successful assistant answer until OpenCode provider credentials/model access are fixed outside AgentProxy; Phase 6 TUI remains not started.
+
 ## Current Iteration - 2026-05-22 Gate 5 Summary Validation
 
 Scope: complete only Gate 5 summary validation for the already implemented Phase 5 CLI MVP command surface. This is a validation and tracking iteration, not a new feature iteration. Validate `doctor`, `run`, `chat` native OpenCode launcher, `providers list/inspect`, `runtime list/stop`, `sessions list/show/resume/abort/delete/export/import/share/unshare`, `config get/set`, and the existing provider passthrough boundary. Do not enter Phase 6 AgentProxy TUI, do not treat `agentproxy chat` as Phase 6 TUI, and do not rewrite or extend OpenCode agent runtime behavior.

@@ -322,6 +322,50 @@ describe("OpenCodeProvider session listing", () => {
 });
 
 describe("OpenCodeProvider session creation and resume", () => {
+  it("allows real-world OpenCode session creation to take longer than one second", async () => {
+    const workspacePath = "/tmp/agentproxy-slow-create-workspace";
+    const { baseUrl } = await startFakeOpenCodeServer((request, response) => {
+      const url = new URL(request.url ?? "/", "http://127.0.0.1");
+
+      if (request.method === "POST" && url.pathname === "/session") {
+        expect(url.searchParams.get("directory")).toBe(workspacePath);
+        request.resume();
+        setTimeout(() => {
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(
+            JSON.stringify({
+              id: "ses_slow_create",
+              directory: workspacePath,
+              title: "Slow but valid session",
+              version: "1.16.0",
+              time: {
+                created: Date.parse("2026-05-22T06:00:00.000Z"),
+                updated: Date.parse("2026-05-22T06:00:02.000Z"),
+              },
+            }),
+          );
+        }, 1_200);
+        return;
+      }
+
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: "not found" }));
+    });
+    const provider = new OpenCodeProvider({ baseUrl });
+
+    await expect(
+      provider.startSession({
+        providerId: OPENCODE_PROVIDER_ID,
+        workspacePath,
+        metadata: {},
+      }),
+    ).resolves.toMatchObject({
+      providerId: OPENCODE_PROVIDER_ID,
+      providerSessionId: "ses_slow_create",
+      workspacePath,
+    });
+  });
+
   it("creates an OpenCode session and sends an optional async prompt without persisting prompt text", async () => {
     const workspacePath = "/tmp/agentproxy-create-workspace";
     let promptBody: unknown;

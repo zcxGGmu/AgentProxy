@@ -73,3 +73,6 @@
 - `config set` 这类会重写 JSON 文件的命令不能只校验本次 leaf value；写入前还必须校验目标文件中将被重新序列化的既有字段，拒绝 non-empty passthroughEnv、带 credentials/query/hash 的 runtime URL、终端控制符和 secret-shaped persisted strings，避免无关配置修改把旧 secret 重新落盘或带入 diff。
 - `doctor` 这类诊断命令不能把初始探测失败和真实“不存在/不支持”混为一类；例如 Git repository probe 超时、不可执行或权限错误应输出独立 warning/failureReason，而不是误报为非 Git 仓库。
 - Gate 汇总验证会暴露全量并发下的测试预算问题；fake runtime/server/process 测试要验证目标行为的稳定状态，不要依赖 10ms 级竞态或过短子进程 health timeout。
+- 真实 CLI smoke 失败时要先和 provider 原生命令、AgentProxy passthrough 对比，区分 AgentProxy transport/timing bug 与本地 provider 认证或模型错误。
+- OpenCode `POST /session` 在真实环境首次创建可能超过 1s；session mutation 默认 timeout 要使用真实运行预算，不能复用短探针预算。
+- OpenCode `/event` SSE 可能直到首个事件产生才返回 headers；发送消息时应先发起 SSE 请求，但不能无限等待 headers 后才 POST message，否则会在真实 OpenCode 上死锁。
