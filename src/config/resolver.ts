@@ -106,6 +106,13 @@ export async function resolveAgentProxyConfig(
   };
 }
 
+export function validateAgentProxyConfigInput(
+  value: unknown,
+  context: { path: string; source: AgentProxyConfigSourceKind },
+): AgentProxyConfigInput {
+  return validateConfigInput(value, context);
+}
+
 async function loadConfigFile(
   filePath: string,
   sourceKind: AgentProxyConfigSourceKind,

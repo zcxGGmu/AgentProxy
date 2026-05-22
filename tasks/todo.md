@@ -11,6 +11,48 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-22 Phase 5 Config Set CLI MVP
+
+Scope: advance only the Phase 5 `agentproxy config set <key> <value>` CLI task group. This MVP writes AgentProxy's own JSON config file and must not mutate OpenCode native config, SQLite, runtime lifecycle, or Phase 6 TUI behavior. Keep the scope narrow: support only the existing AgentProxy config schema leaf keys that are safe to persist, and treat `--config` as the explicit target file while the default target remains the project `.agentproxy/config.json`.
+
+Implementation checklist:
+
+- [x] Confirm dependency surface from existing config resolver and `config get` behavior.
+- [x] Add focused CLI tests for `config set` JSON/human output, explicit target file handling, project-default writes, supported leaf key parsing, invalid key/value rejection, no SQLite/runtime side effects, terminal-safe output, and placeholder boundary regressions in sibling CLI tests.
+- [x] Implement a narrow `config set` writer that patches only supported leaf keys in an AgentProxy JSON config file, writes atomically, and revalidates via the existing resolver.
+- [x] Wire only `agentproxy config set <key> <value>` from planned placeholder to a real action; keep `chat --session`, Gate 5, and Phase 6 TUI untouched.
+- [x] Update `docs/development-progress-tracker.zh.md` completed/unfinished status and Review notes after verification.
+- [x] Run focused validation, related placeholder regression tests, full applicable project verification, and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- `tasks/lessons.md` has been reviewed for current config and CLI invariants.
+- `git status --short` is clean and `git log -1 --oneline` currently shows the latest documentation sync, not a new implementation baseline.
+- Phase 2 config resolver already provides schema validation, path normalization, and the current read/merge order for builtin, global, project, explicit, env, and CLI layers.
+- Phase 5 `config get` already proves safe JSON/human config rendering, key validation, and no SQLite/runtime side effects.
+
+Acceptance criteria:
+
+- [x] `agentproxy config set <key> <value>` becomes a real command with stable success/error behavior.
+- [x] The command writes only AgentProxy JSON config files and never touches SQLite, runtime lifecycle, or OpenCode native config.
+- [x] Explicit `--config` targets the explicit file; otherwise the project `.agentproxy/config.json` is used.
+- [x] Supported leaf keys are parsed and validated; unsupported or ambiguous keys fail with stable `CONFIG_INVALID`.
+- [x] Writes are atomic, terminal-safe, and do not leak secret-shaped values or control characters in human/JSON output.
+- [x] Related placeholder boundary tests are updated so the next unimplemented command remains clearly identified.
+- [x] Verification passes and the iteration ends with a detailed Chinese commit.
+
+Risks and constraints:
+
+- Do not persist env or CLI overrides back into config files; this would freeze ephemeral state into source-of-truth files.
+- Do not implement global config writes in this MVP unless the user explicitly adds that requirement later.
+- Do not write passthrough env values in this iteration; they are secret-shaped and should remain read-only for now.
+- Do not allow `defaultProvider` to drift away from the OpenCode-only v1 boundary.
+- Treat `providers.opencode.runtime.baseUrl` as credentials-sensitive input and reject credential-bearing URLs rather than silently persisting them.
+
+Review notes:
+
+- 2026-05-22: Implemented the Phase 5 `config set <key> <value>` CLI MVP. Added focused failing tests first, then extended `src/cli/config.ts` and `src/cli/index.ts` so `agentproxy config set` writes AgentProxy JSON config only, targets explicit `--config` when provided and project `.agentproxy/config.json` otherwise, supports safe scalar leaf keys, writes through temp-file + rename with `0600`, validates with the existing config schema, and leaves SQLite/runtime/OpenCode native config untouched. Code and security review found two sensitive rewrite gaps: success output could echo free-form strings, and unrelated writes could reserialize existing sensitive fields. Both were fixed by key-aware output redaction, no raw JSON parse cause, write-before safety checks for `$schema`/`defaultProvider`/workspace/storage/binary/runtime/passthrough fields, and regression tests for existing secrets, unsafe URLs, terminal controls, malformed JSON, and sibling preservation. Verification passed: `pnpm exec vitest run tests/cli-config.test.ts tests/cli-help.test.ts --testTimeout=30000` (2 files, 32 tests), `pnpm exec vitest run tests/cli-config.test.ts tests/cli-help.test.ts tests/cli-providers.test.ts tests/cli-runtime.test.ts tests/cli-chat.test.ts tests/cli-run.test.ts tests/cli-sessions.test.ts --testTimeout=30000` (7 files, 125 tests), `pnpm exec vitest run tests/config-resolver.test.ts tests/cli-config.test.ts --testTimeout=30000` (2 files, 29 tests), `pnpm run test` (30 files, 300 tests), `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`. Residual risk: Gate 5 still needs a separate summary validation pass before Phase 6 TUI can start; config writes are atomic by rename but do not add crash-durability fsync in this MVP.
+
 ## Current Iteration - 2026-05-22 Documentation Sync After Phase 5 Config Get CLI
 
 Scope: update only the project tracking documents after `e1f8407 阶段进展：完成 Phase 5 Config Get CLI` so the next Codex session can resume from the correct remaining Phase 5 CLI MVP task group. This is documentation-only. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.
@@ -2777,7 +2819,7 @@ Acceptance criteria:
 - [x] Implement `runtime list`.
 - [x] Implement `runtime stop`.
 - [x] Implement `config get`.
-- [ ] Implement `config set`.
+- [x] Implement `config set`.
 
 Acceptance criteria:
 

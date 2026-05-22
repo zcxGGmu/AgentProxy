@@ -14,7 +14,12 @@ import { createOutputWriters, type AgentProxyOutputWriters } from "../logging/in
 import { OPENCODE_PROVIDER_ID, OpenCodeProvider } from "../providers/opencode/index.js";
 import type { AgentProvider } from "../providers/types.js";
 import { launchAgentProxyChat } from "./chat.js";
-import { formatConfigGetHumanReport, getAgentProxyConfig } from "./config.js";
+import {
+  formatConfigGetHumanReport,
+  formatConfigSetHumanReport,
+  getAgentProxyConfig,
+  setAgentProxyConfig,
+} from "./config.js";
 import {
   formatDoctorHumanReport,
   mapDoctorReportToExitCode,
@@ -88,11 +93,11 @@ const implementedCoreWorkflows = [
   "agentproxy sessions import <source>",
   "agentproxy sessions share <id>",
   "agentproxy sessions unshare <id>",
-  "agentproxy config get [key]",
+  "agentproxy config get|set",
   "agentproxy provider exec <id> -- <native args>",
 ];
 
-const plannedCoreWorkflows = ["agentproxy config set <key> <value>"];
+const plannedCoreWorkflows = ["agentproxy chat --session <id>"];
 
 const globalOptionDefinitions = [
   {
@@ -116,27 +121,6 @@ interface CliGlobalOptions {
   verbose: boolean;
   debug: boolean;
   config?: string;
-}
-
-function plannedAction(
-  commandName: string,
-  output: AgentProxyOutputWriters,
-): (this: Command) => void {
-  return function (this: Command) {
-    handleCliError(
-      createAgentProxyError({
-        code: "CAPABILITY_UNSUPPORTED",
-        message: `agentproxy ${commandName} is planned for a later phase and is not implemented yet.`,
-        operation: commandName,
-        details: {
-          suggestion:
-            "Use provider passthrough for provider-native commands that are not abstracted yet.",
-        },
-      }),
-      output,
-      this,
-    );
-  };
 }
 
 export interface CreateProgramOptions {
@@ -288,7 +272,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
     .argument("<key>", "Config key.")
     .argument("<value>", "Config value.")
     .description("Set an AgentProxy config value.")
-    .action(plannedAction("config set", output));
+    .action(createConfigSetAction(output, options));
 
   addGlobalOptionsDeep(program, { includeDefaults: false });
 
@@ -615,6 +599,33 @@ function createConfigGetAction(
         output.writeJson(report);
       } else {
         output.writeResult(formatConfigGetHumanReport(report));
+      }
+      process.exitCode = 0;
+    } catch (error) {
+      handleCliError(error, output, this);
+    }
+  };
+}
+
+function createConfigSetAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command, key: string, value: string) => Promise<void> {
+  return async function (this: Command, key, value) {
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const report = await setAgentProxyConfig({
+        key,
+        value,
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        cli: createCliConfigOverrides(this),
+      });
+
+      if (globalOptions.json) {
+        output.writeJson(report);
+      } else {
+        output.writeResult(formatConfigSetHumanReport(report));
       }
       process.exitCode = 0;
     } catch (error) {

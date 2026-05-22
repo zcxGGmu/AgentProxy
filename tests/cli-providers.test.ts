@@ -500,24 +500,23 @@ describe("agentproxy providers CLI", () => {
     });
   });
 
-  it("leaves config set as a planned placeholder", async () => {
+  it("keeps session-specific chat launch explicitly unsupported", async () => {
     const workspace = await createTestWorkspace({});
 
     const result = await runCli({
       workspace,
-      argv: [
-        "config",
-        "set",
-        "providers.opencode.enabled",
-        "true",
-        "--config",
-        workspace.configPath,
-      ],
+      argv: ["chat", "--session", "apx_session_token=sk-session-secret", "--json"],
     });
 
     expect(result.exitCode).toBe(6);
-    expect(result.stdout).toBe("");
-    expect(result.stderr).toContain("CAPABILITY_UNSUPPORTED");
-    expect(result.stderr).toContain("agentproxy config set is planned");
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("sk-session-secret");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "CAPABILITY_UNSUPPORTED",
+        operation: "chat",
+      },
+    });
   });
 });

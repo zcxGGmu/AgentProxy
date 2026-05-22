@@ -70,3 +70,4 @@
 - `sessions share` 返回的 share URL 是当前命令产物，不应落 SQLite；输出前要移除 URL credentials 和终端控制字符，但不要用通用 secret redaction 破坏可用的 provider share URL。
 - `sessions unshare` 这类撤销分享命令不需要返回 providerSessionId 或历史 share URL；成功输出应只保留本地控制面摘要，share-state 写回前要复核 providerId/providerSessionId，避免并发 remap 后污染新映射。
 - `config get` 这类只读诊断命令也必须按敏感面处理：不要打开 SQLite 或触发 provider/runtime，passthrough env 值默认全部隐藏，runtime URL 输出前剥离 credentials/query/hash，`config set` 需要单独设计写入 source-of-truth 和原子写策略。
+- `config set` 这类会重写 JSON 文件的命令不能只校验本次 leaf value；写入前还必须校验目标文件中将被重新序列化的既有字段，拒绝 non-empty passthroughEnv、带 credentials/query/hash 的 runtime URL、终端控制符和 secret-shaped persisted strings，避免无关配置修改把旧 secret 重新落盘或带入 diff。

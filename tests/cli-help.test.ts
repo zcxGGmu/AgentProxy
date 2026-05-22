@@ -233,7 +233,7 @@ describe("agentproxy CLI placeholder", () => {
     }
   });
 
-  it("keeps planned command diagnostics on stderr in human mode", async () => {
+  it("keeps session-specific chat diagnostics on stderr in human mode", async () => {
     const originalExitCode = process.exitCode;
     const stdout = createMemorySink();
     const stderr = createMemorySink();
@@ -245,17 +245,16 @@ describe("agentproxy CLI placeholder", () => {
       await program.parseAsync([
         "node",
         "agentproxy",
-        "config",
-        "set",
-        "providers.opencode.enabled",
-        "true",
+        "chat",
+        "--session",
+        "apx_session_token=sk-session-secret",
       ]);
 
       expect(process.exitCode).toBe(6);
       expect(stdout.chunks.join("")).toBe("");
-      expect(stderr.chunks.join("")).toContain(
-        "CAPABILITY_UNSUPPORTED: agentproxy config set is planned",
-      );
+      expect(stderr.chunks.join("")).toContain("CAPABILITY_UNSUPPORTED");
+      expect(stderr.chunks.join("")).toContain("agentproxy chat --session is not implemented yet");
+      expect(stderr.chunks.join("")).not.toContain("sk-session-secret");
     } finally {
       process.exitCode = originalExitCode;
     }

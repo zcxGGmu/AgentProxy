@@ -1,8 +1,9 @@
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { setAgentProxyConfig } from "../src/cli/config.js";
 import { createProgram } from "../src/cli/index.js";
 import { createOutputWriters } from "../src/logging/index.js";
 
@@ -56,6 +57,16 @@ async function createTestWorkspace(): Promise<TestWorkspace> {
   };
 }
 
+async function createConfigSetWorkspace(): Promise<TestWorkspace> {
+  const workspace = await createTestWorkspace();
+  await writeConfigSetSafe({
+    configPath: workspace.configPath,
+    workspacePath: workspace.workspacePath,
+    storagePath: workspace.storagePath,
+  });
+  return workspace;
+}
+
 async function writeConfig(input: {
   configPath: string;
   workspacePath: string;
@@ -84,6 +95,45 @@ async function writeConfig(input: {
               OPENCODE_SERVER_PASSWORD: "server-password-secret",
               OPENCODE_CONFIG_CONTENT: '{"token":"config-content-secret"}',
             },
+          },
+        },
+        logging: {
+          level: "debug",
+          redact: true,
+        },
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+}
+
+async function writeConfigSetSafe(input: {
+  configPath: string;
+  workspacePath: string;
+  storagePath: string;
+}): Promise<void> {
+  await writeFile(
+    input.configPath,
+    `${JSON.stringify(
+      {
+        defaultProvider: "opencode",
+        workspacePath: input.workspacePath,
+        storage: {
+          path: input.storagePath,
+        },
+        providers: {
+          opencode: {
+            enabled: true,
+            binary: "./bin/opencode",
+            runtime: {
+              mode: "attached",
+              hostname: "127.0.0.1",
+              port: 4917,
+              baseUrl: "http://127.0.0.1:4917/opencode",
+            },
+            passthroughEnv: {},
           },
         },
         logging: {
@@ -352,8 +402,8 @@ describe("agentproxy config CLI", () => {
     expect(existsSync(path.dirname(workspace.storagePath))).toBe(false);
   });
 
-  it("leaves config set as a planned placeholder", async () => {
-    const workspace = await createTestWorkspace();
+  it("sets an explicit config leaf key with redacted JSON output", async () => {
+    const workspace = await createConfigSetWorkspace();
 
     const result = await runCli({
       workspace,
@@ -361,15 +411,412 @@ describe("agentproxy config CLI", () => {
         "config",
         "set",
         "providers.opencode.enabled",
-        "true",
+        "false",
+        "--json",
+        "--config",
+        workspace.configPath,
+        "--workspace",
+        "./cli-workspace",
+      ],
+      env: {
+        AGENTPROXY_WORKSPACE: "~/env-workspace",
+      },
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(existsSync(workspace.storagePath)).toBe(false);
+    expect(existsSync(path.dirname(workspace.storagePath))).toBe(false);
+
+    const report = JSON.parse(result.stdout);
+    expect(report).toMatchObject({
+      ok: true,
+      key: "providers.opencode.enabled",
+      value: false,
+      target: {
+        kind: "explicit",
+        path: workspace.configPath,
+        created: false,
+      },
+    });
+
+    const written = JSON.parse(await readFile(workspace.configPath, "utf8"));
+    expect(written.providers.opencode.enabled).toBe(false);
+    expect(written.workspacePath).toBe(workspace.workspacePath);
+    expect(JSON.stringify(written)).not.toContain("env-workspace");
+  });
+
+  it("creates a missing explicit config file when --config targets a new file", async () => {
+    const workspace = await createTestWorkspace();
+    const explicitConfigPath = path.join(workspace.root, "nested", "agentproxy.json");
+
+    const result = await runCli({
+      workspace,
+      argv: ["config", "set", "logging.redact", "false", "--json", "--config", explicitConfigPath],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: true,
+      key: "logging.redact",
+      value: false,
+      target: {
+        kind: "explicit",
+        path: explicitConfigPath,
+        created: true,
+      },
+    });
+
+    const written = JSON.parse(await readFile(explicitConfigPath, "utf8"));
+    expect(written).toMatchObject({
+      $schema: "https://agentproxy.local/config.schema.json",
+      logging: {
+        redact: false,
+      },
+    });
+  });
+
+  it("creates the project config file when no explicit config path is provided", async () => {
+    const workspace = await createTestWorkspace();
+    const projectConfigPath = path.join(workspace.workspacePath, ".agentproxy", "config.json");
+
+    const result = await runCli({
+      workspace,
+      argv: ["config", "set", "logging.level", "warn", "--json"],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(existsSync(projectConfigPath)).toBe(true);
+    expect(existsSync(workspace.storagePath)).toBe(false);
+    expect(existsSync(path.dirname(workspace.storagePath))).toBe(false);
+
+    const report = JSON.parse(result.stdout);
+    expect(report).toMatchObject({
+      ok: true,
+      key: "logging.level",
+      value: "warn",
+      target: {
+        kind: "project",
+        path: projectConfigPath,
+        created: true,
+      },
+    });
+
+    const written = JSON.parse(await readFile(projectConfigPath, "utf8"));
+    expect(written).toMatchObject({
+      $schema: "https://agentproxy.local/config.schema.json",
+      logging: {
+        level: "warn",
+      },
+    });
+  });
+
+  it("parses scalar values and prints terminal-safe human output", async () => {
+    const workspace = await createConfigSetWorkspace();
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "config",
+        "set",
+        "providers.opencode.runtime.port",
+        "65535",
         "--config",
         workspace.configPath,
       ],
     });
 
-    expect(result.exitCode).toBe(6);
-    expect(result.stdout).toBe("");
-    expect(result.stderr).toContain("CAPABILITY_UNSUPPORTED");
-    expect(result.stderr).toContain("agentproxy config set is planned");
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Set providers.opencode.runtime.port");
+    expect(result.stdout).toContain("Value: 65535");
+    expect(result.stdout).not.toContain("\u001B]");
+    expect(result.stdout).not.toContain("\u0007");
+
+    const written = JSON.parse(await readFile(workspace.configPath, "utf8"));
+    expect(written.providers.opencode.runtime.port).toBe(65535);
+    expect(written.providers.opencode.runtime.mode).toBe("attached");
+    expect(written.providers.opencode.runtime.hostname).toBe("127.0.0.1");
+    expect(written.providers.opencode.runtime.baseUrl).toBe("http://127.0.0.1:4917/opencode");
+  });
+
+  it("normalizes supported runtime base URLs before writing", async () => {
+    const workspace = await createConfigSetWorkspace();
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "config",
+        "set",
+        "providers.opencode.runtime.baseUrl",
+        "http://127.0.0.1:4096/opencode/",
+        "--json",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: true,
+      key: "providers.opencode.runtime.baseUrl",
+      value: "http://127.0.0.1:4096/opencode",
+    });
+
+    const written = JSON.parse(await readFile(workspace.configPath, "utf8"));
+    expect(written.providers.opencode.runtime.baseUrl).toBe("http://127.0.0.1:4096/opencode");
+  });
+
+  it("redacts free-form string set values from success output", async () => {
+    const workspace = await createConfigSetWorkspace();
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "config",
+        "set",
+        "providers.opencode.binary",
+        "./bin/other-opencode",
+        "--json",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: true,
+      key: "providers.opencode.binary",
+      value: "[REDACTED]",
+    });
+
+    const written = JSON.parse(await readFile(workspace.configPath, "utf8"));
+    expect(written.providers.opencode.binary).toBe("./bin/other-opencode");
+  });
+
+  it("rejects secret-shaped string values without rewriting the file", async () => {
+    const workspace = await createConfigSetWorkspace();
+    const secretBinary = "\u001B]0;token=sk-set-secret000000000000\u0007./bin/opencode";
+    const before = await readFile(workspace.configPath, "utf8");
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "config",
+        "set",
+        "providers.opencode.binary",
+        secretBinary,
+        "--json",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(3);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("sk-set-secret");
+    expect(result.stdout).not.toContain("\u001B]");
+    expect(result.stdout).not.toContain("\u0007");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "CONFIG_INVALID",
+        operation: "config.set",
+      },
+    });
+    expect(await readFile(workspace.configPath, "utf8")).toBe(before);
+  });
+
+  it("rejects files with existing sensitive config fields before rewriting", async () => {
+    const workspace = await createTestWorkspace();
+    const before = await readFile(workspace.configPath, "utf8");
+
+    const result = await runCli({
+      workspace,
+      argv: ["config", "set", "logging.level", "warn", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(3);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("server-password-secret");
+    expect(result.stdout).not.toContain("user:pass");
+    expect(result.stdout).not.toContain("base-secret");
+    expect(result.stdout).not.toContain("sk-binary-secret");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "CONFIG_INVALID",
+        operation: "config.set",
+      },
+    });
+    expect(await readFile(workspace.configPath, "utf8")).toBe(before);
+  });
+
+  it("rejects existing unsafe top-level strings before rewriting", async () => {
+    const workspace = await createConfigSetWorkspace();
+    await writeFile(
+      workspace.configPath,
+      `${JSON.stringify(
+        {
+          $schema: "https://agentproxy.local/config.schema.json",
+          defaultProvider: "token=existing-secret",
+          logging: {
+            redact: true,
+          },
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+    const before = await readFile(workspace.configPath, "utf8");
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "config",
+        "set",
+        "logging.redact",
+        "false",
+        "--json",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(3);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("existing-secret");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "CONFIG_INVALID",
+        operation: "config.set",
+      },
+    });
+    expect(await readFile(workspace.configPath, "utf8")).toBe(before);
+  });
+
+  it("rejects unsupported or secret-bearing config set keys without rewriting the file", async () => {
+    const workspace = await createTestWorkspace();
+    const before = await readFile(workspace.configPath, "utf8");
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "config",
+        "set",
+        "providers.opencode.passthroughEnv.OPENCODE_SERVER_PASSWORD",
+        "server-password-secret",
+        "--json",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(3);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("server-password-secret");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "CONFIG_INVALID",
+        operation: "config.set",
+      },
+    });
+    expect(await readFile(workspace.configPath, "utf8")).toBe(before);
+  });
+
+  it("rejects credential-bearing runtime base URLs without rewriting the file", async () => {
+    const workspace = await createTestWorkspace();
+    const before = await readFile(workspace.configPath, "utf8");
+
+    const result = await runCli({
+      workspace,
+      argv: [
+        "config",
+        "set",
+        "providers.opencode.runtime.baseUrl",
+        "http://user:secret@127.0.0.1:4096/opencode?token=base-secret#frag",
+        "--json",
+        "--config",
+        workspace.configPath,
+      ],
+    });
+
+    expect(result.exitCode).toBe(3);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("user:secret");
+    expect(result.stdout).not.toContain("base-secret");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "CONFIG_INVALID",
+        operation: "config.set",
+      },
+    });
+    expect(await readFile(workspace.configPath, "utf8")).toBe(before);
+  });
+
+  it("rejects invalid existing target config before writing", async () => {
+    const workspace = await createTestWorkspace();
+    await writeFile(
+      workspace.configPath,
+      `${JSON.stringify({
+        unknown: "token=existing-secret",
+      })}\n`,
+      "utf8",
+    );
+
+    const result = await runCli({
+      workspace,
+      argv: ["config", "set", "logging.level", "error", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(3);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("existing-secret");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "CONFIG_INVALID",
+        operation: "config.validate",
+      },
+    });
+
+    const written = JSON.parse(await readFile(workspace.configPath, "utf8"));
+    expect(written).toEqual({
+      unknown: "token=existing-secret",
+    });
+  });
+
+  it("does not attach raw JSON parse errors as config set causes", async () => {
+    const workspace = await createTestWorkspace();
+    await writeFile(
+      workspace.configPath,
+      '{"logging":{"level":"info"},"secret":"token=invalid-json-secret",',
+      "utf8",
+    );
+
+    const error = await setAgentProxyConfig({
+      key: "logging.level",
+      value: "warn",
+      cwd: workspace.workspacePath,
+      homeDir: workspace.homeDir,
+      cli: {
+        configPath: workspace.configPath,
+      },
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toHaveProperty("code", "CONFIG_INVALID");
+    expect(error).toHaveProperty("operation", "config.validate");
+    expect((error as Error & { cause?: unknown }).cause).toBeUndefined();
+    expect(error instanceof Error ? error.message : String(error)).not.toContain(
+      "invalid-json-secret",
+    );
   });
 });

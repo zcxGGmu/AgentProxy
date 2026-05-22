@@ -27,4 +27,4 @@ export type {
 } from "./types.js";
 export { OPENCODE_PASSTHROUGH_ENV_NAMES } from "./types.js";
 export type { ResolveAgentProxyConfigOptions } from "./resolver.js";
-export { resolveAgentProxyConfig } from "./resolver.js";
+export { resolveAgentProxyConfig, validateAgentProxyConfigInput } from "./resolver.js";
