@@ -74,5 +74,7 @@
 - `doctor` 这类诊断命令不能把初始探测失败和真实“不存在/不支持”混为一类；例如 Git repository probe 超时、不可执行或权限错误应输出独立 warning/failureReason，而不是误报为非 Git 仓库。
 - Gate 汇总验证会暴露全量并发下的测试预算问题；fake runtime/server/process 测试要验证目标行为的稳定状态，不要依赖 10ms 级竞态或过短子进程 health timeout。
 - 真实 CLI smoke 失败时要先和 provider 原生命令、AgentProxy passthrough 对比，区分 AgentProxy transport/timing bug 与本地 provider 认证或模型错误。
+- 当前本机 OpenCode 可跑通的模型在 TUI 的 `OpenCode Go` provider 分组下；真实 smoke 不要默认使用 Claude/DeepSeek 分组模型，必须先查清 OpenCode 暴露的实际 `provider/model` id 再传给 `agentproxy run --model`。
 - OpenCode `POST /session` 在真实环境首次创建可能超过 1s；session mutation 默认 timeout 要使用真实运行预算，不能复用短探针预算。
 - OpenCode `/event` SSE 可能直到首个事件产生才返回 headers；发送消息时应先发起 SSE 请求，但不能无限等待 headers 后才 POST message，否则会在真实 OpenCode 上死锁。
+- OpenCode `/session/:id/message` 在真实模型执行中可能保持 HTTP response pending，同时 `/event` 已经给出 delta 和 `session.idle`；AgentProxy message stream 应以 SSE terminal event 判定完成，只把 message POST 快速失败或明确 rejection 当作错误。

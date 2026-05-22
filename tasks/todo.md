@@ -11,6 +11,42 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-22 Real OpenCode Go Model Smoke
+
+Scope: continue the real CLI run demonstration using the user's correction that only models under the OpenCode TUI `OpenCode Go` provider group work locally. Keep the scope limited to real smoke compatibility for `agentproxy run`: do not start Phase 6 TUI, do not change provider credentials, and do not rewrite runtime behavior.
+
+Implementation checklist:
+
+- [x] Record the user correction in `tasks/lessons.md`.
+- [x] Discover the exact OpenCode `provider/model` id for an `OpenCode Go` model, preferably the highlighted `GLM-5.1`.
+- [x] Add the minimal regression and compatibility fix for real OpenCode message HTTP responses that stay pending while SSE events complete.
+- [x] Run focused tests, typecheck, lint, format check, build, and whitespace validation.
+- [x] Run a real `agentproxy run --model <OpenCode-Go-model-id>` smoke.
+- [x] Record the result and residual risk.
+- [x] Create one detailed Chinese commit.
+
+Dependencies confirmed:
+
+- Latest commit before this iteration: `9d554d8 修复：校准真实 OpenCode run 时序兼容性`.
+- Working tree was clean before recording the user correction.
+- User-provided screenshot shows `OpenCode Go` model group and selected `GLM-5.1`.
+
+Acceptance criteria:
+
+- [x] The smoke uses an `OpenCode Go` model id, not the default Claude/DeepSeek model route.
+- [x] If it succeeds, report the actual session/model path used.
+- [x] If it fails, distinguish model id discovery/config issues from AgentProxy transport/timing issues.
+
+Risks and constraints:
+
+- OpenCode model display names may not equal CLI `provider/model` ids; verify through OpenCode's local model listing or server API before running.
+- Do not leak provider credentials or raw transcripts.
+
+Review notes:
+
+- 2026-05-22: User corrected that only models under `OpenCode Go` in the OpenCode model selector can run locally; previous real smoke used the default provider route and therefore hit provider auth/authorization failures.
+- 2026-05-22: Confirmed the exact highlighted model id via `opencode models | rg -i "opencode go|opencode-go|glm"`: `opencode-go/glm-5.1`. The first AgentProxy attempt with this model still failed because OpenCode's `/session/:id/message` HTTP response can remain pending while `/event` emits assistant deltas and `session.idle`; treating the long-running message response as fatal caused `PROVIDER_UNAVAILABLE`. Added a focused regression for a delayed SSE completion with a hanging message HTTP response, changed `sendMessage` to stream SSE without waiting for the message HTTP response to finish, gave message POST a real run budget, closed the nested SSE async iterator on completion, and made POST timeout fatal only before a session-matching SSE event proves the message is running. Code review first found iterator cleanup and pending POST timeout issues; after fixes, re-review reported no findings. Verification passed: `pnpm exec vitest run tests/opencode-provider-messages.test.ts --testTimeout=30000` (1 file, 8 tests), `pnpm exec vitest run tests/opencode-provider-messages.test.ts tests/opencode-provider-sessions.test.ts tests/cli-run.test.ts --testTimeout=30000` (3 files, 31 tests), `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, `pnpm run test` (30 files, 308 tests), and `git diff --check`. Real smoke passed with `node dist/index.js run --model opencode-go/glm-5.1 "只读任务：请用一句话回答：AgentProxy 是什么？不要修改任何文件。"`: final rerun created AgentProxy session `apx_2d773fb5-c0c5-4ea2-bdcd-1593a5e99b5f`, provider session `ses_1b17beb35ffeK5NgySELHttMtb`, managed runtime `runtime_opencode_c1691f36-2d72-40ce-bea5-db149c16ae4d`, final status `completed`. Residual risk: this proves the local OpenCode Go model path; other provider groups may still fail due provider credentials or model access outside AgentProxy.
+
 ## Current Iteration - 2026-05-22 Real CLI Run Smoke Compatibility Fix
 
 Scope: fix only the real `agentproxy run` smoke path exposed by an actual local OpenCode 1.14.37 run. Keep AgentProxy as a thin OpenCode control plane, do not enter Phase 6 TUI, do not rewrite OpenCode runtime behavior, and do not change provider credentials. The target behavior is that AgentProxy reaches the real provider execution path instead of failing prematurely on OpenCode server timing.
@@ -25,7 +61,7 @@ Implementation checklist:
 - [x] Run focused tests plus applicable project verification.
 - [x] Update `docs/development-progress-tracker.zh.md` Review/status for the post-Gate-5 real CLI smoke fix.
 - [x] Update `tasks/lessons.md` if the fix yields a reusable rule.
-- [ ] Create one detailed Chinese commit.
+- [x] Create one detailed Chinese commit.
 
 Dependencies confirmed before implementation:
 

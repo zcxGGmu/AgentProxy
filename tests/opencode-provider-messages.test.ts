@@ -324,6 +324,109 @@ describe("OpenCodeProvider message sending", () => {
     });
   });
 
+  it("streams delayed events without waiting for the message HTTP response to finish", async () => {
+    let eventResponse: ServerResponse | undefined;
+    let messageBody: unknown;
+    const eventStreamClosed = createDeferred<void>();
+    const hangingMessageResponses: ServerResponse[] = [];
+    const { baseUrl } = await startFakeOpenCodeServer((request, response) => {
+      const url = new URL(request.url ?? "/", "http://127.0.0.1");
+
+      if (request.method === "GET" && url.pathname === "/event") {
+        response.on("close", () => eventStreamClosed.resolve());
+        response.writeHead(200, {
+          "content-type": "text/event-stream",
+          "cache-control": "no-cache",
+        });
+        response.write(": connected\n\n");
+        eventResponse = response;
+        openSseResponses.push(response);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/session/ses_pending_post/message") {
+        hangingMessageResponses.push(response);
+        void readRequestJson(request).then((body) => {
+          messageBody = body;
+          if (eventResponse === undefined) {
+            response.writeHead(500, { "content-type": "application/json" });
+            response.end(JSON.stringify({ error: "event stream was not connected" }));
+            return;
+          }
+          writeSse(eventResponse, {
+            id: "evt_pending_post_delta",
+            type: "message.part.delta",
+            properties: {
+              sessionID: "ses_pending_post",
+              messageID: "msg_pending_post",
+              partID: "prt_pending_post",
+              field: "text",
+              delta: "completed through sse",
+            },
+          });
+          setTimeout(() => {
+            if (eventResponse === undefined || eventResponse.destroyed) {
+              return;
+            }
+            writeSse(eventResponse, {
+              id: "evt_pending_post_idle",
+              type: "session.idle",
+              properties: {
+                sessionID: "ses_pending_post",
+              },
+            });
+          }, 300).unref();
+        });
+        return;
+      }
+
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: "not found" }));
+    });
+    const provider = new OpenCodeProvider({
+      baseUrl,
+      requestTimeoutMs: 200,
+    });
+
+    const events = await collectEvents(
+      provider.sendMessage({
+        providerId: OPENCODE_PROVIDER_ID,
+        providerSessionId: "ses_pending_post",
+        prompt: "complete over sse",
+        metadata: {},
+      }),
+    );
+
+    expect(messageBody).toEqual({
+      parts: [
+        {
+          type: "text",
+          text: "complete over sse",
+        },
+      ],
+    });
+    expect(events.map((event) => event.type)).toEqual([
+      "session.status_changed",
+      "message.delta",
+      "session.status_changed",
+      "session.completed",
+    ]);
+    expect(events.find((event) => event.type === "message.delta")).toMatchObject({
+      role: "assistant",
+      delta: "completed through sse",
+      messageId: "msg_pending_post",
+    });
+    await waitForValue(
+      eventStreamClosed.promise,
+      1_000,
+      "Expected the SSE stream to be closed after completion",
+    );
+
+    for (const response of hangingMessageResponses) {
+      response.destroy();
+    }
+  });
+
   it("sends a prompt and maps OpenCode message events without auto-approving permissions", async () => {
     const workspacePath = "/tmp/agentproxy-message-workspace";
     let eventResponse: ServerResponse | undefined;
