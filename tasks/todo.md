@@ -11,6 +11,53 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-22 Phase 5 Sessions Unshare CLI Minimal Workflow
+
+Scope: advance only the Phase 5 `agentproxy sessions unshare <id>` CLI task group. This workflow removes provider sharing from an existing visible AgentProxy local session mapping through the existing OpenCode provider session unshare API, updates only local share state metadata, and emits a transcript-free control-plane summary. Do not implement `config`, `chat --session`, Gate 5, Phase 6 AgentProxy TUI, generic provider passthrough expansion, or any new Agent runtime behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit before implementation.
+- [x] Review `tasks/lessons.md`, `docs/development-progress-tracker.zh.md`, `docs/agentproxy-development-plan.md`, and current `tasks/todo.md`.
+- [x] Add focused CLI tests for `sessions unshare <id>` JSON/human output, provider unshare dispatch, local share metadata update to `shared=false`, absent/missing/tombstoned/wrong-provider/wrong-workspace records, disabled/invalid provider behavior, runtime unavailable behavior, provider failure behavior, terminal/control-character safety, no share URL persistence/output, and later-command placeholder boundaries.
+- [x] Extend `src/cli/sessions.ts` with a narrow unshare action/service that resolves config, requires an existing visible local session mapping, opens SQLite read-write only after readonly visible mapping validation, reuses the OpenCode runtime/provider helper, calls existing `unshareAgentProxySession()`, and emits stable sanitized output.
+- [x] Wire only `agentproxy sessions unshare <id>` from planned placeholder to a real action; keep `config`, `chat --session`, Gate 5, and Phase 6 TUI untouched.
+- [x] Keep JSON/human output transcript-free and provider-payload-safe; do not print or persist share URLs, raw provider payloads, transcripts, metadata blobs, headers, or provider-controlled control characters.
+- [x] Update `docs/development-progress-tracker.zh.md` completed/unfinished status and Review notes after verification.
+- [x] Run focused sessions CLI/session action tests, related CLI placeholder boundary tests, full applicable project verification, code review, and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean; `git log -1 --oneline` is `e5bda79 文档：同步 Phase 5 Sessions Share 后最新状态`, so the latest Phase 5 implementation baseline remains `1c115a8 阶段进展：完成 Phase 5 Sessions Share CLI`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Phase 4.6 already provides `OpenCodeProvider.unshareSession()` and provider-agnostic `unshareAgentProxySession()` with local share metadata updates.
+- Phase 5 `sessions share` already provides runtime selection, provider creation, visible local session mapping checks, sanitized JSON/human action output, and share URL non-persistence patterns to mirror.
+- Phase 5 `sessions show/list` already provide missing DB no-create behavior and provider/workspace/tombstone visibility filtering patterns.
+
+Acceptance criteria for this iteration:
+
+- [x] `agentproxy sessions unshare <id>` is a real command and no longer returns the generic planned `CAPABILITY_UNSUPPORTED` placeholder.
+- [x] The command addresses sessions by AgentProxy local session id and refuses absent DB, missing, tombstoned, wrong-provider, and wrong-workspace records with stable `SESSION_NOT_FOUND` without leaking hidden record content.
+- [x] The command calls the provider unshare operation for the existing providerSessionId, updates only local `sessionOperations.share.shared=false` metadata through the existing session operation service, and does not create, resume, delete, share, export, import, or send messages to a session.
+- [x] `sessions unshare --json` emits exactly one valid redacted JSON object on stdout, with no human prose mixed in and no transcript/raw provider payload.
+- [x] Human output is terminal-control-character safe and does not print raw metadata blobs, transcripts, provider event payloads, URL credentials, query-string secrets, share URLs, headers, export payloads, import sources, or provider-controlled control characters.
+- [x] Provider failure does not mark the local session unshared; local share metadata changes only after provider unshare succeeds.
+- [x] Runtime selection behavior matches existing mutating session commands: configured base URL and registry runtime are reused; attached mode without runtime URL maps to stable runtime error; managed one-shot behavior remains provider-owned and best-effort cleaned up.
+- [x] Non-OpenCode provider selection maps to `PROVIDER_NOT_FOUND`; disabled OpenCode config maps to `PROVIDER_UNAVAILABLE`.
+- [x] `config`, `chat --session`, Gate 5, and Phase 6 AgentProxy TUI remain unimplemented or explicitly unsupported.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
+Risks and constraints:
+
+- Unshare should be a narrow provider-backed control-plane operation; do not invent generic sharing semantics or store provider share artifacts.
+- Share URLs can grant access, so unshare output must not echo historical or provider-derived share URLs and must not make them durable.
+- The operation is mutating but not destructive; do not require `--yes`, and do not open writable SQLite before validating the visible local mapping.
+- Avoid touching Phase 6 TUI or implementing config in the same iteration.
+
+Review notes:
+
+- 2026-05-22: Implemented the Phase 5 `sessions unshare` CLI minimal workflow. Added focused failing tests first, then extended `src/cli/sessions.ts` and `src/cli/index.ts` so `agentproxy sessions unshare <id>` resolves config, first validates the visible local AgentProxy session mapping through readonly existing SQLite, then opens writable storage for the provider unshare mutation, reuses the OpenCode runtime/provider helper, calls existing provider-backed `unshareAgentProxySession()`, and emits stable transcript-free JSON/human summaries. The command does not print or persist share URLs, omits providerSessionId from unshare success output, writes only `sessionOperations.share.shared=false` plus timestamp to SQLite, leaves provider failure without local unshared metadata, and keeps `config`, `chat --session`, Gate 5, and Phase 6 TUI untouched. Security review flagged providerSessionId output and a concurrent remap share-state write risk; both were fixed and follow-up code/security reviews reported no findings. Verification passed: `pnpm exec vitest run tests/cli-sessions.test.ts --testTimeout=15000` (1 file, 59 tests), `pnpm exec vitest run tests/session-actions.test.ts --testTimeout=15000` (1 file, 7 tests), `pnpm exec vitest run tests/cli-sessions.test.ts tests/cli-help.test.ts tests/cli-chat.test.ts tests/cli-run.test.ts tests/cli-runtime.test.ts tests/cli-providers.test.ts --testTimeout=15000` (6 files, 105 tests), `pnpm exec vitest run tests/session-actions.test.ts tests/opencode-provider-session-actions.test.ts --testTimeout=15000` (2 files, 13 tests), `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run test` (29 files, 280 tests), and `pnpm run build`. Residual risk: real OpenCode unshare endpoint response shape still needs later smoke calibration; `config`, `chat --session`, Gate 5, and Phase 6 AgentProxy TUI remain unimplemented.
+
 ## Current Iteration - 2026-05-22 Documentation Sync After Phase 5 Sessions Share CLI
 
 Scope: update only the project tracking documents after `1c115a8 阶段进展：完成 Phase 5 Sessions Share CLI` so the next Codex session can resume from the correct remaining Phase 5 CLI MVP task group. This is documentation-only. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.

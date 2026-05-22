@@ -68,3 +68,4 @@
 - `sessions resume` 这类恢复/控制面命令不能复用 `run` 的 transcript streaming human renderer；即使做了 secret redaction，也不能把 assistant delta/provider transcript 当作控制面输出。
 - Provider 派生的 session title、event tool/action/path 等展示字段落入 SQLite 前也必须脱敏并移除终端控制字符；不能只在 CLI 输出层做净化。
 - `sessions share` 返回的 share URL 是当前命令产物，不应落 SQLite；输出前要移除 URL credentials 和终端控制字符，但不要用通用 secret redaction 破坏可用的 provider share URL。
+- `sessions unshare` 这类撤销分享命令不需要返回 providerSessionId 或历史 share URL；成功输出应只保留本地控制面摘要，share-state 写回前要复核 providerId/providerSessionId，避免并发 remap 后污染新映射。

@@ -486,19 +486,17 @@ describe("agentproxy runtime CLI", () => {
     });
   });
 
-  it("leaves later session commands and config as planned placeholders", async () => {
+  it("leaves config commands as planned placeholders", async () => {
     const workspace = await createTestWorkspace();
 
-    for (const argv of [
-      ["sessions", "unshare", "apx_123", "--config", workspace.configPath],
-      ["config", "get", "--config", workspace.configPath],
-    ]) {
-      const result = await runCli({ workspace, argv });
+    const result = await runCli({
+      workspace,
+      argv: ["config", "get", "--config", workspace.configPath],
+    });
 
-      expect(result.exitCode).toBe(6);
-      expect(result.stdout).toBe("");
-      expect(result.stderr).toContain("CAPABILITY_UNSUPPORTED");
-      expect(result.stderr).toContain("planned for a later phase");
-    }
+    expect(result.exitCode).toBe(6);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("CAPABILITY_UNSUPPORTED");
+    expect(result.stderr).toContain("planned for a later phase");
   });
 });

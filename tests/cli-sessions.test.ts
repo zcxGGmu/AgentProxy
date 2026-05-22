@@ -393,11 +393,15 @@ async function startFakeOpenCodeShareServer(
   baseUrl: string;
   shareDirectories: string[];
   shareCalls: string[];
+  unshareDirectories: string[];
+  unshareCalls: string[];
 }> {
   const providerSessionId = input.providerSessionId ?? "ses_share";
   const responseStatus = input.responseStatus ?? 200;
   const shareDirectories: string[] = [];
   const shareCalls: string[] = [];
+  const unshareDirectories: string[] = [];
+  const unshareCalls: string[] = [];
   const shareUrl =
     input.shareUrl ??
     "\u001B[31mhttps://user:password@share.example.test/session/ses_recent?token=share-secret-token\u001B[0m\rStatus: spoofed";
@@ -424,6 +428,23 @@ async function startFakeOpenCodeShareServer(
       return;
     }
 
+    if (request.method === "DELETE" && decodedPathname === `/session/${providerSessionId}/share`) {
+      unshareCalls.push(`${request.method} ${decodedPathname}`);
+      unshareDirectories.push(url.searchParams.get("directory") ?? "");
+      response.writeHead(responseStatus === 200 ? 204 : responseStatus, {
+        "content-type": "application/json",
+      });
+      response.end(
+        responseStatus === 200
+          ? ""
+          : JSON.stringify({
+              error:
+                "unshare failed token=provider-error-secret url=https://share.example.test/session/ses_recent?token=provider-share-secret",
+            }),
+      );
+      return;
+    }
+
     response.writeHead(404, { "content-type": "application/json" });
     response.end(JSON.stringify({ error: "not found token=server-secret" }));
   });
@@ -445,6 +466,8 @@ async function startFakeOpenCodeShareServer(
     baseUrl: `http://127.0.0.1:${address.port}`,
     shareDirectories,
     shareCalls,
+    unshareDirectories,
+    unshareCalls,
   };
 }
 
@@ -1902,6 +1925,104 @@ describe("agentproxy sessions CLI", () => {
     expect(fakeServer.shareDirectories).toEqual([workspace.workspacePath]);
   });
 
+  it("unshares an existing session and prints a transcript-free JSON report without share URLs", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeServer = await startFakeOpenCodeShareServer({
+      providerSessionId: "ses_recent_token=provider-secret",
+    });
+    await updateConfigRuntimeBaseUrl(workspace, fakeServer.baseUrl);
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "unshare", "apx_recent", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).not.toContain("planned for a later phase");
+    const report = JSON.parse(result.stdout);
+    expect(report).toMatchObject({
+      ok: true,
+      providerId: "opencode",
+      sessionId: "apx_recent",
+      action: {
+        type: "unshare",
+      },
+      runtime: {
+        source: "config",
+        mode: "attached",
+        startedByCommand: false,
+      },
+    });
+    expect(typeof report.action.unsharedAt).toBe("string");
+    expect(typeof report.generatedAt).toBe("string");
+    expect(report).not.toHaveProperty("providerSessionId");
+    expect(result.stdout).not.toContain("share-secret-token");
+    expect(JSON.stringify(report)).not.toContain("provider-secret");
+    expect(JSON.stringify(report)).not.toContain("title-secret");
+    expect(JSON.stringify(report)).not.toContain("sk-session-metadata-secret");
+    expect(JSON.stringify(report)).not.toContain("provider transcript");
+    expect(JSON.stringify(report)).not.toContain("provider-response-token-secret");
+    expect(JSON.stringify(report)).not.toContain("share.example.test");
+    expect(JSON.stringify(report)).not.toContain("\u001B[31m");
+    expect(fakeServer.unshareCalls).toEqual([
+      "DELETE /session/ses_recent_token=provider-secret/share",
+    ]);
+    expect(fakeServer.unshareDirectories).toEqual([workspace.workspacePath]);
+
+    const storage = openAgentProxyStorage({ databasePath: workspace.storagePath });
+    try {
+      const session = storage.sessions.getById("apx_recent");
+      expect(session).toMatchObject({
+        id: "apx_recent",
+        providerSessionId: "ses_recent_token=provider-secret",
+        metadata: {
+          sessionOperations: {
+            share: {
+              shared: false,
+              updatedAt: report.action.unsharedAt,
+            },
+          },
+        },
+      });
+      expect(JSON.stringify(session)).not.toContain("share-secret-token");
+      expect(JSON.stringify(session)).not.toContain("provider-response-token-secret");
+      expect(JSON.stringify(session)).not.toContain("share.example.test");
+    } finally {
+      storage.close();
+    }
+  });
+
+  it("prints terminal-safe human unshare output without share URLs", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeServer = await startFakeOpenCodeShareServer({
+      providerSessionId: "ses_recent_token=provider-secret",
+    });
+    await updateConfigRuntimeBaseUrl(workspace, fakeServer.baseUrl);
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "unshare", "apx_recent", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Session unshared: apx_recent");
+    expect(result.stdout).toContain("Unshared: ");
+    expect(result.stdout).not.toContain("Provider session:");
+    expect(result.stdout).not.toContain("Share URL:");
+    expect(result.stdout).not.toContain("provider-secret");
+    expect(result.stdout).not.toContain("title-secret");
+    expect(result.stdout).not.toContain("sk-session-metadata-secret");
+    expect(result.stdout).not.toContain("provider transcript");
+    expect(result.stdout).not.toContain("provider-response-token-secret");
+    expect(result.stdout).not.toContain("share.example.test");
+    expect(result.stdout).not.toContain("\u001B[31m");
+    expect(fakeServer.unshareDirectories).toEqual([workspace.workspacePath]);
+  });
+
   it("requires explicit confirmation before deleting a session", async () => {
     const workspace = await createTestWorkspace();
     seedSessionRegistry(workspace);
@@ -2140,6 +2261,28 @@ describe("agentproxy sessions CLI", () => {
     expect(existsSync(path.dirname(workspace.storagePath))).toBe(false);
   });
 
+  it("does not create storage and reports SESSION_NOT_FOUND when unsharing from an absent database", async () => {
+    const workspace = await createTestWorkspace();
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "unshare", "apx_missing", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "SESSION_NOT_FOUND",
+        providerId: "opencode",
+        operation: "sessions.unshare",
+      },
+    });
+    expect(existsSync(workspace.storagePath)).toBe(false);
+    expect(existsSync(path.dirname(workspace.storagePath))).toBe(false);
+  });
+
   it("requires delete confirmation before touching absent storage", async () => {
     const workspace = await createTestWorkspace();
 
@@ -2349,6 +2492,43 @@ describe("agentproxy sessions CLI", () => {
     expect(fakeServer.shareCalls).toEqual([]);
   });
 
+  it("treats missing, tombstoned, wrong-workspace, and wrong-provider sessions as not found for unshare", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const fakeServer = await startFakeOpenCodeShareServer({
+      providerSessionId: "ses_recent_token=provider-secret",
+    });
+    await updateConfigRuntimeBaseUrl(workspace, fakeServer.baseUrl);
+
+    for (const sessionId of [
+      "apx_missing",
+      "apx_deleted",
+      "apx_other_workspace",
+      "apx_other_provider",
+    ]) {
+      const result = await runCli({
+        workspace,
+        argv: ["sessions", "unshare", sessionId, "--json", "--config", workspace.configPath],
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe("");
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        ok: false,
+        error: {
+          code: "SESSION_NOT_FOUND",
+          providerId: "opencode",
+          operation: "sessions.unshare",
+        },
+      });
+      expect(result.stdout).not.toContain("deleted-secret");
+      expect(result.stdout).not.toContain("deleted-metadata-secret");
+      expect(result.stdout).not.toContain("Other workspace");
+      expect(result.stdout).not.toContain("Other provider");
+    }
+    expect(fakeServer.unshareCalls).toEqual([]);
+  });
+
   it("treats missing, tombstoned, wrong-workspace, and wrong-provider sessions as not found for export", async () => {
     const workspace = await createTestWorkspace();
     seedSessionRegistry(workspace);
@@ -2433,6 +2613,21 @@ describe("agentproxy sessions CLI", () => {
     const result = await runCli({
       workspace,
       argv: ["sessions", "share", "apx_recent", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(9);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("RUNTIME_HEALTH_FAILED");
+    expect(result.stderr).not.toContain("provider-secret");
+  });
+
+  it("maps unshare runtime availability errors to a stable runtime exit code", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "unshare", "apx_recent", "--config", workspace.configPath],
     });
 
     expect(result.exitCode).toBe(9);
@@ -2531,6 +2726,75 @@ describe("agentproxy sessions CLI", () => {
       expect(storage.sessions.getById("apx_recent")?.metadata.sessionOperations).toBeUndefined();
     } finally {
       storage.close();
+    }
+  });
+
+  it("does not mark the local session unshared when provider unshare fails", async () => {
+    const workspace = await createTestWorkspace();
+    seedSessionRegistry(workspace);
+    const storage = openAgentProxyStorage({ databasePath: workspace.storagePath });
+    try {
+      const session = storage.sessions.getById("apx_recent");
+      if (session === undefined) {
+        throw new Error("Expected seeded session.");
+      }
+      storage.sessions.upsert({
+        ...session,
+        metadata: {
+          ...session.metadata,
+          sessionOperations: {
+            share: {
+              shared: true,
+              updatedAt: "2026-05-22T00:00:00.000Z",
+            },
+          },
+        },
+      });
+    } finally {
+      storage.close();
+    }
+
+    const fakeServer = await startFakeOpenCodeShareServer({
+      providerSessionId: "ses_recent_token=provider-secret",
+      responseStatus: 500,
+    });
+    await updateConfigRuntimeBaseUrl(workspace, fakeServer.baseUrl);
+
+    const result = await runCli({
+      workspace,
+      argv: ["sessions", "unshare", "apx_recent", "--json", "--config", workspace.configPath],
+    });
+
+    expect(result.exitCode).toBe(4);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_UNAVAILABLE",
+        providerId: "opencode",
+      },
+    });
+    expect(result.stdout).not.toContain("provider-secret");
+    expect(result.stdout).not.toContain("provider-error-secret");
+    expect(result.stdout).not.toContain("provider-share-secret");
+    expect(result.stdout).not.toContain("share.example.test");
+    expect(fakeServer.unshareCalls).toEqual([
+      "DELETE /session/ses_recent_token=provider-secret/share",
+    ]);
+    const reopened = openAgentProxyStorage({ databasePath: workspace.storagePath });
+    try {
+      expect(reopened.sessions.getById("apx_recent")).toMatchObject({
+        metadata: {
+          sessionOperations: {
+            share: {
+              shared: true,
+              updatedAt: "2026-05-22T00:00:00.000Z",
+            },
+          },
+        },
+      });
+    } finally {
+      reopened.close();
     }
   });
 
@@ -2800,6 +3064,52 @@ describe("agentproxy sessions CLI", () => {
       },
     });
 
+    const missingUnshare = await runCli({
+      workspace: enabledWorkspace,
+      argv: [
+        "sessions",
+        "unshare",
+        "apx_recent",
+        "--provider",
+        "\u001B[31mmissing-token=provider-secret\u001B[0m",
+        "--json",
+        "--config",
+        enabledWorkspace.configPath,
+      ],
+    });
+    expect(missingUnshare.exitCode).toBe(4);
+    expect(JSON.parse(missingUnshare.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_NOT_FOUND",
+        providerId: "missing-token=[REDACTED]",
+        operation: "sessions.unshare",
+      },
+    });
+    expect(missingUnshare.stdout).not.toContain("\u001B[31m");
+    expect(missingUnshare.stdout).not.toContain("provider-secret");
+
+    const disabledUnshare = await runCli({
+      workspace: disabledWorkspace,
+      argv: [
+        "sessions",
+        "unshare",
+        "apx_recent",
+        "--json",
+        "--config",
+        disabledWorkspace.configPath,
+      ],
+    });
+    expect(disabledUnshare.exitCode).toBe(4);
+    expect(JSON.parse(disabledUnshare.stdout)).toMatchObject({
+      ok: false,
+      error: {
+        code: "PROVIDER_UNAVAILABLE",
+        providerId: "opencode",
+        operation: "sessions.unshare",
+      },
+    });
+
     const missingDelete = await runCli({
       workspace: enabledWorkspace,
       argv: [
@@ -2895,11 +3205,10 @@ describe("agentproxy sessions CLI", () => {
     });
   });
 
-  it("leaves later mutating session commands and config as planned placeholders", async () => {
+  it("leaves config commands as planned placeholders", async () => {
     const workspace = await createTestWorkspace();
 
     for (const argv of [
-      ["sessions", "unshare", "apx_123", "--config", workspace.configPath],
       ["config", "get", "--config", workspace.configPath],
       ["config", "set", "providers.opencode.enabled", "true", "--config", workspace.configPath],
     ]) {

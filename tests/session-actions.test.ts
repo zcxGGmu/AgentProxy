@@ -326,6 +326,64 @@ describe("session operation service", () => {
       },
     });
   });
+
+  it("does not update share state when the local mapping changes during unshare", async () => {
+    const { storage, workspacePath } = await createStorage();
+    storage.sessions.upsert({
+      ...createStoredSession({ workspacePath }),
+      metadata: {
+        sessionOperations: {
+          share: {
+            shared: true,
+            updatedAt: "2026-05-20T21:15:00.000Z",
+          },
+        },
+      },
+    });
+    const provider = operationProvider({
+      unshareSession: async () => {
+        const current = storage.sessions.getById("apx_actions");
+        if (current === undefined) {
+          throw new Error("Expected stored session.");
+        }
+        storage.sessions.upsert({
+          ...current,
+          providerSessionId: "ses_remapped",
+          metadata: {
+            sessionOperations: {
+              share: {
+                shared: true,
+                updatedAt: "2026-05-20T21:15:00.000Z",
+              },
+            },
+          },
+        });
+      },
+    });
+
+    await expect(
+      unshareAgentProxySession({
+        provider,
+        storage,
+        context: actionContext(workspacePath),
+        now: () => new Date("2026-05-20T21:16:00.000Z"),
+      }),
+    ).rejects.toMatchObject({
+      code: "SESSION_NOT_FOUND",
+      operation: "sessions.unshare",
+    });
+    expect(storage.sessions.getById("apx_actions")).toMatchObject({
+      providerSessionId: "ses_remapped",
+      metadata: {
+        sessionOperations: {
+          share: {
+            shared: true,
+            updatedAt: "2026-05-20T21:15:00.000Z",
+          },
+        },
+      },
+    });
+  });
 });
 
 function actionContext(workspacePath: string): SessionActionRequest {

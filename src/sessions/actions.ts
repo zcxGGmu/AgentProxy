@@ -205,7 +205,7 @@ export async function shareAgentProxySession(
   const updatedAt = (input.now ?? (() => new Date()))().toISOString();
   const result = await input.provider.shareSession(enrichActionContext(input.context, session));
 
-  updateShareState(input.storage, session.id, true, updatedAt);
+  updateShareState(input.storage, session, true, updatedAt, "sessions.share");
 
   return result;
 }
@@ -226,7 +226,7 @@ export async function unshareAgentProxySession(
   const updatedAt = (input.now ?? (() => new Date()))().toISOString();
   await input.provider.unshareSession(enrichActionContext(input.context, session));
 
-  updateShareState(input.storage, session.id, false, updatedAt);
+  updateShareState(input.storage, session, false, updatedAt, "sessions.unshare");
 }
 
 function resolveActiveSession(
@@ -276,13 +276,30 @@ function enrichActionContext(
 
 function updateShareState(
   storage: AgentProxyStorage,
-  sessionId: string,
+  expectedSession: StoredSessionRecord,
   shared: boolean,
   updatedAt: string,
+  operation: string,
 ): void {
-  const current = storage.sessions.getById(sessionId);
+  const current = storage.sessions.getById(expectedSession.id);
   if (current === undefined || current.deletedAt !== undefined) {
     return;
+  }
+  if (
+    current.providerId !== expectedSession.providerId ||
+    current.providerSessionId !== expectedSession.providerSessionId
+  ) {
+    throw createAgentProxyError({
+      code: "SESSION_NOT_FOUND",
+      message: "Cannot update share state because the AgentProxy session mapping changed.",
+      providerId: expectedSession.providerId,
+      operation,
+      details: {
+        providerSessionId: expectedSession.providerSessionId,
+        sessionId: expectedSession.id,
+        suggestion: "Sync sessions and retry with the current AgentProxy session mapping.",
+      },
+    });
   }
 
   storage.sessions.upsert({

@@ -12,6 +12,7 @@ import {
   resumeAgentProxySession,
   sendAgentProxyMessage,
   shareAgentProxySession,
+  unshareAgentProxySession,
 } from "../sessions/index.js";
 import {
   openAgentProxyStorage,
@@ -60,6 +61,10 @@ export interface RunAgentProxySessionDeleteOptions extends RunAgentProxySessionL
 }
 
 export interface RunAgentProxySessionShareOptions extends RunAgentProxySessionListOptions {
+  now?: () => Date;
+}
+
+export interface RunAgentProxySessionUnshareOptions extends RunAgentProxySessionListOptions {
   now?: () => Date;
 }
 
@@ -193,6 +198,18 @@ export interface AgentProxySessionShareReport {
   generatedAt: string;
 }
 
+export interface AgentProxySessionUnshareReport {
+  ok: true;
+  providerId: string;
+  sessionId: string;
+  runtime: AgentProxySessionResumeRuntimeSummary;
+  action: {
+    type: "unshare";
+    unsharedAt: string;
+  };
+  generatedAt: string;
+}
+
 export interface AgentProxySessionExportReport {
   ok: true;
   providerId: string;
@@ -224,6 +241,7 @@ const SESSIONS_RESUME_OPERATION = "sessions.resume";
 const SESSIONS_ABORT_OPERATION = "sessions.abort";
 const SESSIONS_DELETE_OPERATION = "sessions.delete";
 const SESSIONS_SHARE_OPERATION = "sessions.share";
+const SESSIONS_UNSHARE_OPERATION = "sessions.unshare";
 const SESSIONS_EXPORT_OPERATION = "sessions.export";
 const SESSIONS_IMPORT_OPERATION = "sessions.import";
 const DEFAULT_RESUME_TIMEOUT_MS = 10 * 60 * 1000;
@@ -880,6 +898,124 @@ export async function shareAgentProxyCliSession(
   return redactSessionShareReport(report);
 }
 
+export async function unshareAgentProxyCliSession(
+  sessionId: string,
+  options: RunAgentProxySessionUnshareOptions = {},
+): Promise<AgentProxySessionUnshareReport> {
+  const providerId = options.providerId ?? OPENCODE_PROVIDER_ID;
+  assertSessionsProviderSupported(providerId, SESSIONS_UNSHARE_OPERATION);
+
+  const resolvedConfig = await resolveAgentProxyConfig({
+    ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+    ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+    ...(options.env !== undefined ? { env: options.env } : {}),
+    ...(options.cli !== undefined ? { cli: options.cli } : {}),
+  });
+  const config = resolvedConfig.config;
+  assertOpenCodeSessionsProviderEnabled(
+    config.providers.opencode.enabled,
+    SESSIONS_UNSHARE_OPERATION,
+  );
+
+  let storage: AgentProxyStorage | undefined;
+  let cleanup: (() => Promise<void>) | undefined;
+  let cleanupError: unknown;
+  let report: AgentProxySessionUnshareReport | undefined;
+  const now = options.now ?? (() => new Date());
+
+  try {
+    const visibleSession = readVisibleSessionFromExistingStorage({
+      databasePath: config.storage.path,
+      sessionId,
+      providerId,
+      workspacePath: config.workspacePath,
+      operation: SESSIONS_UNSHARE_OPERATION,
+    });
+
+    storage = openAgentProxyStorage({
+      databasePath: config.storage.path,
+    });
+    const existing = storage.sessions.getById(visibleSession.id);
+    if (
+      !isVisibleSession(existing, providerId, config.workspacePath) ||
+      existing.providerSessionId !== visibleSession.providerSessionId
+    ) {
+      throw createSessionNotFoundError(sessionId, providerId, SESSIONS_UNSHARE_OPERATION);
+    }
+    const registry = new RuntimeRegistry({
+      storage,
+      ...(options.now !== undefined ? { now: options.now } : {}),
+    });
+    const ensuredRuntime = await ensureOpenCodeCommandRuntime({
+      config,
+      storage,
+      registry,
+      env: options.env,
+      operation: SESSIONS_UNSHARE_OPERATION,
+    });
+    cleanup = ensuredRuntime.cleanup;
+    const runtime = summarizeResumeRuntime(ensuredRuntime.runtime);
+    const provider = createOpenCodeCommandProvider({
+      config,
+      baseUrl: runtime.baseUrl,
+      env: options.env,
+      operation: SESSIONS_UNSHARE_OPERATION,
+    });
+    await unshareAgentProxySession({
+      provider,
+      storage,
+      context: {
+        providerId,
+        providerSessionId: visibleSession.providerSessionId,
+        sessionId: visibleSession.id,
+        workspacePath: config.workspacePath,
+        ...(runtime.runtimeId !== undefined ? { runtimeId: runtime.runtimeId } : {}),
+        metadata: {
+          runtimeBaseUrl: runtime.baseUrl,
+          runtimeBaseUrlSource: runtime.source,
+        },
+      },
+      now,
+    });
+    const unsharedSession = storage.sessions.getById(visibleSession.id) ?? existing;
+    const unsharedAt = readShareOperationTimestamp(unsharedSession) ?? unsharedSession.updatedAt;
+
+    report = {
+      ok: true,
+      providerId,
+      sessionId: visibleSession.id,
+      runtime,
+      action: {
+        type: "unshare",
+        unsharedAt,
+      },
+      generatedAt: now().toISOString(),
+    };
+  } finally {
+    try {
+      await cleanup?.();
+    } catch (error) {
+      cleanupError = error;
+    } finally {
+      storage?.close();
+    }
+  }
+
+  if (cleanupError !== undefined) {
+    throw cleanupError;
+  }
+  if (report === undefined) {
+    throw createAgentProxyError({
+      code: "PROVIDER_UNAVAILABLE",
+      message: "agentproxy sessions unshare finished without a report.",
+      operation: SESSIONS_UNSHARE_OPERATION,
+      providerId,
+    });
+  }
+
+  return redactSessionUnshareReport(report);
+}
+
 function readVisibleSessionFromExistingStorage(input: {
   databasePath: string;
   sessionId: string;
@@ -1184,6 +1320,20 @@ export function formatSessionShareReportForJson(report: AgentProxySessionShareRe
   return redactSessionShareReport(report);
 }
 
+export function formatSessionUnshareHumanReport(report: AgentProxySessionUnshareReport): string {
+  return [
+    `Session unshared: ${sanitizeHumanInline(report.sessionId)}`,
+    `Runtime: ${sanitizeHumanInline(report.runtime.runtimeId ?? "configured")} (${sanitizeHumanInline(
+      report.runtime.mode,
+    )})`,
+    `Unshared: ${sanitizeHumanInline(report.action.unsharedAt)}`,
+  ].join("\n");
+}
+
+export function formatSessionUnshareReportForJson(report: AgentProxySessionUnshareReport): unknown {
+  return redactSessionUnshareReport(report);
+}
+
 export function formatSessionExportHumanReport(report: AgentProxySessionExportReport): string {
   return [
     `Session exported: ${sanitizeHumanInline(report.sessionId)}`,
@@ -1339,6 +1489,22 @@ function redactSessionShareReport(
       type: "share",
       url: sanitizeShareUrlForOutput(report.action.url),
       sharedAt: sanitizeMachineString(report.action.sharedAt),
+    },
+    generatedAt: sanitizeMachineString(report.generatedAt),
+  };
+}
+
+function redactSessionUnshareReport(
+  report: AgentProxySessionUnshareReport,
+): AgentProxySessionUnshareReport {
+  return {
+    ok: true,
+    providerId: sanitizeMachineString(report.providerId),
+    sessionId: sanitizeMachineString(report.sessionId),
+    runtime: sanitizeStructuredOutput(report.runtime),
+    action: {
+      type: "unshare",
+      unsharedAt: sanitizeMachineString(report.action.unsharedAt),
     },
     generatedAt: sanitizeMachineString(report.generatedAt),
   };

@@ -190,9 +190,8 @@ describe("agentproxy CLI placeholder", () => {
       await program.parseAsync([
         "node",
         "agentproxy",
-        "sessions",
-        "unshare",
-        "apx_123",
+        "config",
+        "get",
         "--json",
         "--provider",
         "opencode",
@@ -222,12 +221,12 @@ describe("agentproxy CLI placeholder", () => {
     });
 
     try {
-      await program.parseAsync(["node", "agentproxy", "sessions", "unshare", "apx_123"]);
+      await program.parseAsync(["node", "agentproxy", "config", "get"]);
 
       expect(process.exitCode).toBe(6);
       expect(stdout.chunks.join("")).toBe("");
       expect(stderr.chunks.join("")).toContain(
-        "CAPABILITY_UNSUPPORTED: agentproxy sessions unshare is planned",
+        "CAPABILITY_UNSUPPORTED: agentproxy config get is planned",
       );
     } finally {
       process.exitCode = originalExitCode;

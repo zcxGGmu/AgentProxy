@@ -500,17 +500,17 @@ describe("agentproxy providers CLI", () => {
     });
   });
 
-  it("leaves later Phase 5 business commands as planned placeholders", async () => {
+  it("leaves config commands as planned placeholders", async () => {
     const workspace = await createTestWorkspace({});
 
     const result = await runCli({
       workspace,
-      argv: ["sessions", "unshare", "apx_123", "--config", workspace.configPath],
+      argv: ["config", "get", "--config", workspace.configPath],
     });
 
     expect(result.exitCode).toBe(6);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("CAPABILITY_UNSUPPORTED");
-    expect(result.stderr).toContain("agentproxy sessions unshare is planned");
+    expect(result.stderr).toContain("agentproxy config get is planned");
   });
 });
