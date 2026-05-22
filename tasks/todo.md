@@ -11,6 +11,45 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-22 Documentation Sync After Phase 5 Config Set CLI
+
+Scope: update only the project tracking documents after `b2cb5d6 阶段进展：完成 Phase 5 Config Set CLI` so the next Codex session can resume from the correct first unfinished item. This is documentation-only. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit.
+- [x] Review `tasks/lessons.md`, `docs/development-progress-tracker.zh.md`, `docs/agentproxy-development-plan.md`, and current `tasks/todo.md`.
+- [x] Update `docs/development-progress-tracker.zh.md` latest status, concrete Phase 5 implementation baseline, completed/unfinished summaries, Review entry, and next-start prompt.
+- [x] Keep Phase 5 CLI MVP command surface marked as implemented but keep Gate 5 not passed until a separate summary validation completes.
+- [x] Keep Phase 6 AgentProxy TUI explicitly not started.
+- [x] Run documentation-appropriate verification and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean.
+- Latest commit is `b2cb5d6 阶段进展：完成 Phase 5 Config Set CLI`.
+- Latest Phase 5 implementation baseline is `b2cb5d6 阶段进展：完成 Phase 5 Config Set CLI` unless a later documentation-only commit is present.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+
+Acceptance criteria:
+
+- [x] The tracker clearly states Phase 5 CLI MVP command surface is implemented and verified, but Gate 5 has not passed.
+- [x] Completed Phase 5 CLI workflows are listed explicitly through `config set <key> <value>`.
+- [x] Remaining work is listed explicitly as Gate 5, Phase 6 AgentProxy TUI, and Phase 7-9.
+- [x] The next-start prompt tells the next Codex session to verify git state and continue from Gate 5 summary validation, not Phase 6 TUI.
+- [x] Documentation verification passes with no source/test behavior changes.
+
+Risks and constraints:
+
+- Do not imply Gate 5 is complete before the summary validation pass is run and recorded.
+- Do not treat `agentproxy chat` as Phase 6 AgentProxy TUI.
+- Do not start implementing Gate 5 or Phase 6 in this documentation sync.
+- Keep AgentProxy as a thin OpenCode control plane; v1 remains OpenCode-only.
+
+Review notes:
+
+- 2026-05-22: Documentation sync completed after confirming the latest implementation commit is `b2cb5d6 阶段进展：完成 Phase 5 Config Set CLI`. Updated `docs/development-progress-tracker.zh.md` so the latest Phase 5 implementation baseline, current startup baseline, completed/unfinished summary, Gate 5 status, Phase 6 not-started boundary, Phase 5 checklist wording, Review entry, and next-start prompt all point to the correct post-config-set state. Verification passed: `git status --short`, `git log -1 --oneline`, `pnpm run format:check`, and `git diff --check`. Source code and tests were not changed.
+
 ## Current Iteration - 2026-05-22 Phase 5 Config Set CLI MVP
 
 Scope: advance only the Phase 5 `agentproxy config set <key> <value>` CLI task group. This MVP writes AgentProxy's own JSON config file and must not mutate OpenCode native config, SQLite, runtime lifecycle, or Phase 6 TUI behavior. Keep the scope narrow: support only the existing AgentProxy config schema leaf keys that are safe to persist, and treat `--config` as the explicit target file while the default target remains the project `.agentproxy/config.json`.
