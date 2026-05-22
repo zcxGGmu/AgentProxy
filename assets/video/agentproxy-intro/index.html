@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>AgentProxy Intro</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #ffffff;
+        color: #0d0d0d;
+        font-family: sans-serif;
+      }
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #ffffff;
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #ffffff;
+      }
+
+      #scene-1 {
+        z-index: 1;
+      }
+
+      #scene-2,
+      #scene-3,
+      #scene-4,
+      #scene-5 {
+        z-index: 2;
+        transform: translateX(1920px);
+      }
+
+      .scene-content {
+        position: relative;
+        z-index: 5;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        padding: 88px 116px;
+        gap: 34px;
+      }
+
+      .scene-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 48px;
+      }
+
+      .eyebrow {
+        color: #0b6f58;
+        font-family: monospace;
+        font-size: 23px;
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        max-width: 1180px;
+        font-size: 126px;
+        line-height: 0.93;
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        max-width: 1140px;
+        font-size: 76px;
+        line-height: 1.02;
+        font-weight: 760;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        max-width: 1010px;
+        color: #5f5f70;
+        font-size: 36px;
+        line-height: 1.24;
+        font-weight: 400;
+      }
+
+      .small-note {
+        color: #5f5f70;
+        font-size: 25px;
+        line-height: 1.3;
+        font-weight: 400;
+      }
+
+      .mono {
+        font-family: monospace;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .rail {
+        width: 10px;
+        min-height: 160px;
+        border-radius: 999px;
+        background: #10a37f;
+        transform-origin: top;
+      }
+
+      .tag-row,
+      .stat-row,
+      .module-row,
+      .flow-row,
+      .safety-row,
+      .final-row {
+        display: flex;
+        align-items: stretch;
+        gap: 26px;
+      }
+
+      .tag {
+        display: flex;
+        align-items: center;
+        min-height: 64px;
+        padding: 0 28px;
+        border: 1.5px solid #e5e5e5;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #0d0d0d;
+        font-family: monospace;
+        font-size: 25px;
+        font-weight: 500;
+      }
+
+      .tag strong {
+        margin-right: 12px;
+        color: #0b6f58;
+        font-weight: 700;
+      }
+
+      .boundary-stack {
+        position: relative;
+        display: grid;
+        grid-template-rows: 150px 246px 176px;
+        gap: 22px;
+        width: 100%;
+        min-height: 616px;
+      }
+
+      .boundary {
+        position: relative;
+        border: 2px dashed #e5e5e5;
+        border-radius: 8px;
+        background: #ffffff;
+        overflow: hidden;
+      }
+
+      .boundary-label {
+        position: absolute;
+        top: 20px;
+        left: 24px;
+        color: #5f5f70;
+        font-family: monospace;
+        font-size: 22px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .module-row {
+        position: absolute;
+        right: 34px;
+        bottom: 24px;
+        left: 34px;
+        align-items: center;
+      }
+
+      .module-card,
+      .flow-card,
+      .safety-card,
+      .final-card,
+      .status-card {
+        position: relative;
+        min-height: 104px;
+        padding: 26px 28px 22px 36px;
+        border: 1.5px solid #e5e5e5;
+        border-radius: 8px;
+        background: #ffffff;
+        overflow: hidden;
+      }
+
+      .module-card::before,
+      .flow-card::before,
+      .safety-card::before,
+      .final-card::before,
+      .status-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 7px;
+        background: #10a37f;
+        transform-origin: top;
+      }
+
+      .module-card {
+        flex: 1;
+      }
+
+      .card-title {
+        color: #0d0d0d;
+        font-size: 31px;
+        line-height: 1.04;
+        font-weight: 700;
+      }
+
+      .card-copy {
+        margin-top: 12px;
+        color: #5f5f70;
+        font-size: 24px;
+        line-height: 1.23;
+        font-weight: 400;
+      }
+
+      .connector {
+        flex: 0 0 64px;
+        align-self: center;
+      }
+
+      .connector svg {
+        display: block;
+        width: 64px;
+        height: 24px;
+        overflow: visible;
+      }
+
+      .line-path {
+        fill: none;
+        stroke: #10a37f;
+        stroke-width: 4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .dashed-path {
+        fill: none;
+        stroke: #10a37f;
+        stroke-width: 4;
+        stroke-dasharray: 10 8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .run-panel {
+        position: relative;
+        display: grid;
+        grid-template-columns: 410px 1fr;
+        gap: 40px;
+        align-items: stretch;
+        flex: 1;
+        min-height: 620px;
+      }
+
+      .terminal {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 34px;
+        border: 1.5px solid #e5e5e5;
+        border-radius: 8px;
+        background: #0d0d0d;
+        color: #ffffff;
+      }
+
+      .terminal-line {
+        color: #f7faf8;
+        font-family: monospace;
+        font-size: 28px;
+        line-height: 1.38;
+      }
+
+      .terminal-line .green {
+        color: #55d9b3;
+      }
+
+      .terminal-caption {
+        color: #c8d8d3;
+        font-size: 24px;
+        line-height: 1.3;
+      }
+
+      .flow-map {
+        position: relative;
+        padding: 34px;
+        border: 2px dashed #e5e5e5;
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .flow-row {
+        position: relative;
+        z-index: 3;
+        align-items: center;
+        height: 100%;
+      }
+
+      .flow-card {
+        flex: 1;
+        min-height: 144px;
+      }
+
+      .flow-label {
+        position: absolute;
+        z-index: 4;
+        display: inline-flex;
+        align-items: center;
+        min-height: 42px;
+        padding: 0 16px;
+        border: 1px solid #e5e5e5;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #0b6f58;
+        font-family: monospace;
+        font-size: 22px;
+        font-weight: 600;
+      }
+
+      #http-label {
+        top: 172px;
+        left: 452px;
+      }
+
+      #sse-label {
+        right: 272px;
+        bottom: 164px;
+      }
+
+      .map-svg {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .safety-grid {
+        display: grid;
+        grid-template-columns: 1.05fr 1fr;
+        gap: 40px;
+        flex: 1;
+        min-height: 620px;
+      }
+
+      .storage-visual {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px dashed #e5e5e5;
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .cylinder {
+        position: relative;
+        width: 416px;
+        height: 286px;
+        border: 2px solid #e5e5e5;
+        border-top: 0;
+        border-radius: 0 0 50% 50% / 0 0 16% 16%;
+        background: #ffffff;
+      }
+
+      .cylinder::before,
+      .cylinder::after {
+        content: "";
+        position: absolute;
+        left: -2px;
+        width: 416px;
+        height: 84px;
+        border: 2px solid #e5e5e5;
+        border-radius: 50%;
+        background: #ffffff;
+      }
+
+      .cylinder::before {
+        top: -42px;
+      }
+
+      .cylinder::after {
+        bottom: -42px;
+        background: transparent;
+      }
+
+      .cylinder-rail {
+        position: absolute;
+        top: -22px;
+        bottom: 8px;
+        left: -2px;
+        width: 8px;
+        border-radius: 999px;
+        background: #10a37f;
+      }
+
+      .cylinder-text {
+        position: absolute;
+        inset: 68px 36px 42px;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+      }
+
+      .safety-list {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .safety-card {
+        min-height: 138px;
+      }
+
+      .status-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+      }
+
+      .status-card {
+        min-height: 128px;
+        padding-top: 22px;
+        padding-bottom: 18px;
+      }
+
+      .status-label {
+        color: #0b6f58;
+        font-family: monospace;
+        font-size: 23px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .status-text {
+        margin-top: 14px;
+        color: #0d0d0d;
+        font-size: 30px;
+        line-height: 1.12;
+        font-weight: 700;
+      }
+
+      .final-diagram {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 38px;
+        align-items: center;
+        flex: 1;
+        min-height: 300px;
+      }
+
+      .final-card {
+        min-height: 166px;
+        padding: 30px 36px 28px 46px;
+      }
+
+      .final-card .card-title {
+        font-size: 42px;
+      }
+
+      .final-card .card-copy {
+        font-size: 27px;
+      }
+
+      .final-line {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        z-index: 1;
+        width: 168px;
+        height: 4px;
+        transform: translate(-50%, -50%);
+        border-radius: 999px;
+        background: #10a37f;
+        transform-origin: center;
+      }
+
+      .closing {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 48px;
+      }
+
+      .closing-title {
+        max-width: 1030px;
+        font-size: 56px;
+        line-height: 1.02;
+        font-weight: 800;
+      }
+
+      .closing-note {
+        max-width: 470px;
+        color: #5f5f70;
+        font-size: 26px;
+        line-height: 1.24;
+      }
+
+      #scene-5 .scene-content {
+        padding-top: 78px;
+        padding-bottom: 70px;
+        gap: 22px;
+      }
+
+      #scene-5 h2 {
+        max-width: 1160px;
+        font-size: 64px;
+      }
+
+      #scene-5 .small-note {
+        max-width: 520px;
+        font-size: 26px;
+      }
+
+      .bg-rule {
+        position: absolute;
+        z-index: 0;
+        background: #e5e5e5;
+      }
+
+      .rule-h {
+        height: 1px;
+        right: 116px;
+        left: 116px;
+      }
+
+      .rule-v {
+        top: 88px;
+        bottom: 88px;
+        width: 1px;
+      }
+
+      #rule-1 {
+        top: 836px;
+      }
+
+      #rule-2 {
+        left: 1420px;
+      }
+
+      .transition-wipe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 100;
+        width: 1920px;
+        height: 1080px;
+        background: #ffffff;
+        transform: translateX(-100%);
+        will-change: transform;
+      }
+
+      .transition-wipe::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 10px;
+        background: #10a37f;
+      }
+
+      .transition-wipe::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 48px;
+        width: 1px;
+        background: #e5e5e5;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="agentproxy-intro"
+      data-width="1920"
+      data-height="1080"
+      data-start="0"
+      data-duration="20"
+    >
+      <div id="scene-1" class="scene">
+        <div class="bg-rule rule-h" id="rule-1" data-layout-ignore></div>
+        <div class="bg-rule rule-v" id="rule-2" data-layout-ignore></div>
+        <div class="scene-content">
+          <div class="scene-header">
+            <div>
+              <div class="eyebrow s1">v1 / OpenCode data plane</div>
+              <h1 class="s1">AgentProxy</h1>
+            </div>
+            <div class="rail s1" aria-hidden="true"></div>
+          </div>
+          <p class="subtitle s1">
+            A thin local control plane for Coding Agent runtimes. It standardizes commands,
+            sessions, runtime lifecycle, and safe output while OpenCode owns the agent work.
+          </p>
+          <div class="tag-row">
+            <div class="tag s1"><strong>CLI</strong> verified through Phase 5</div>
+            <div class="tag s1"><strong>Runtime</strong> managed or attached</div>
+            <div class="tag s1"><strong>Data</strong> local index only</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="scene-2" class="scene">
+        <div class="scene-content">
+          <div class="scene-header">
+            <div>
+              <div class="eyebrow s2">Architecture boundary</div>
+              <h2 class="s2">One control surface, provider-owned execution.</h2>
+            </div>
+            <p class="small-note s2">
+              AgentProxy routes and normalizes. OpenCode still performs model calls, tools,
+              permissions, MCP, and native interaction.
+            </p>
+          </div>
+          <div class="boundary-stack">
+            <div class="boundary s2" id="entry-band">
+              <div class="boundary-label">Entry Surface</div>
+              <div class="module-row">
+                <div class="module-card s2">
+                  <div class="card-title">CLI</div>
+                  <div class="card-copy mono">doctor · run · chat · config</div>
+                </div>
+                <div class="connector s2" data-layout-ignore>
+                  <svg viewBox="0 0 64 24" role="img" aria-labelledby="s2-entry-connector-title">
+                    <title id="s2-entry-connector-title">Entry surface connector arrow</title>
+                    <path class="line-path s2-line" d="M4 12 H56" />
+                    <path class="line-path s2-line" d="M48 5 L56 12 L48 19" />
+                  </svg>
+                </div>
+                <div class="module-card s2">
+                  <div class="card-title">Commands</div>
+                  <div class="card-copy">stable routing and output</div>
+                </div>
+              </div>
+            </div>
+            <div class="boundary s2" id="control-band">
+              <div class="boundary-label">AgentProxy Control Plane</div>
+              <div class="module-row">
+                <div class="module-card s2">
+                  <div class="card-title">Provider Registry</div>
+                  <div class="card-copy">capabilities and health</div>
+                </div>
+                <div class="connector s2" data-layout-ignore>
+                  <svg viewBox="0 0 64 24" role="img" aria-labelledby="s2-control-connector-one-title">
+                    <title id="s2-control-connector-one-title">Control plane connector arrow</title>
+                    <path class="line-path s2-line" d="M4 12 H56" />
+                    <path class="line-path s2-line" d="M48 5 L56 12 L48 19" />
+                  </svg>
+                </div>
+                <div class="module-card s2">
+                  <div class="card-title">Runtime Manager</div>
+                  <div class="card-copy mono">managed · attached · healthy</div>
+                </div>
+                <div class="connector s2" data-layout-ignore>
+                  <svg viewBox="0 0 64 24" role="img" aria-labelledby="s2-control-connector-two-title">
+                    <title id="s2-control-connector-two-title">Session service connector arrow</title>
+                    <path class="line-path s2-line" d="M4 12 H56" />
+                    <path class="line-path s2-line" d="M48 5 L56 12 L48 19" />
+                  </svg>
+                </div>
+                <div class="module-card s2">
+                  <div class="card-title">Session Services</div>
+                  <div class="card-copy">local mapping lifecycle</div>
+                </div>
+              </div>
+            </div>
+            <div class="boundary s2" id="data-band">
+              <div class="boundary-label">OpenCode Data Plane</div>
+              <div class="module-row">
+                <div class="module-card s2">
+                  <div class="card-title">OpenCode Server</div>
+                  <div class="card-copy mono">serve · HTTP · SSE</div>
+                </div>
+                <div class="connector s2" data-layout-ignore>
+                  <svg viewBox="0 0 64 24" role="img" aria-labelledby="s2-data-connector-title">
+                    <title id="s2-data-connector-title">OpenCode data plane connector arrow</title>
+                    <path class="dashed-path s2-line" d="M4 12 H56" />
+                    <path class="dashed-path s2-line" d="M48 5 L56 12 L48 19" />
+                  </svg>
+                </div>
+                <div class="module-card s2">
+                  <div class="card-title">Native OpenCode</div>
+                  <div class="card-copy">TUI, permissions, tools, MCP</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="scene-3" class="scene">
+        <div class="scene-content">
+          <div class="scene-header">
+            <div>
+              <div class="eyebrow s3">Run path</div>
+              <h2 class="s3">Headless tasks use OpenCode’s real event stream.</h2>
+            </div>
+            <p class="small-note s3">
+              The local smoke path has run through OpenCode Go with
+              <span class="mono">opencode-go/glm-5.1</span>.
+            </p>
+          </div>
+          <div class="run-panel">
+            <div class="terminal s3">
+              <div>
+                <div class="terminal-line">
+                  <span class="green">$</span> agentproxy run
+                </div>
+                <div class="terminal-line">--model opencode-go/glm-5.1</div>
+                <div class="terminal-line">"ship a focused task"</div>
+              </div>
+              <p class="terminal-caption">
+                AgentProxy creates the local mapping, then streams safe summaries instead of raw
+                transcript bodies.
+              </p>
+            </div>
+            <div class="flow-map s3">
+              <svg
+                class="map-svg"
+                viewBox="0 0 1090 620"
+                data-layout-ignore
+                role="img"
+                aria-labelledby="s3-flow-map-title"
+              >
+                <title id="s3-flow-map-title">Run flow request and SSE return paths</title>
+                <path class="line-path s3-line" d="M170 310 H450 C500 310 500 220 550 220 H790" />
+                <path class="line-path s3-line" d="M790 398 H570 C515 398 515 310 450 310" />
+                <path class="line-path s3-line" d="M782 213 L796 220 L782 227" />
+                <path class="line-path s3-line" d="M458 303 L444 310 L458 317" />
+              </svg>
+              <div class="flow-row">
+                <div class="flow-card s3">
+                  <div class="card-title">Session Mapping</div>
+                  <div class="card-copy">AgentProxy ID points to provider session ID</div>
+                </div>
+                <div class="flow-card s3">
+                  <div class="card-title">OpenCode Runtime</div>
+                  <div class="card-copy mono">POST /session · POST /message</div>
+                </div>
+                <div class="flow-card s3">
+                  <div class="card-title">Event Summary</div>
+                  <div class="card-copy mono">/event SSE · completed/failed</div>
+                </div>
+              </div>
+              <div id="http-label" class="flow-label s3">HTTP request</div>
+              <div id="sse-label" class="flow-label s3">SSE return</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="scene-4" class="scene">
+        <div class="scene-content">
+          <div class="scene-header">
+            <div>
+              <div class="eyebrow s4">Local data and safety</div>
+              <h2 class="s4">Index the control plane, not the private conversation.</h2>
+            </div>
+            <p class="small-note s4">
+              The project keeps local metadata useful while treating provider output and artifacts
+              as sensitive by default.
+            </p>
+          </div>
+          <div class="safety-grid">
+            <div class="storage-visual s4">
+              <div class="cylinder">
+                <div class="cylinder-rail"></div>
+                <div class="cylinder-text">
+                  <div class="card-title">SQLite local index</div>
+                  <div class="card-copy">
+                    runtimes, sessions, provider mappings, tombstones, and sanitized event
+                    projections
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="safety-list">
+              <div class="safety-card s4">
+                <div class="card-title">Redacted logs</div>
+                <div class="card-copy">
+                  terminal-safe diagnostics and JSON output remove secrets and control characters.
+                </div>
+              </div>
+              <div class="safety-card s4">
+                <div class="card-title">Restricted provider environment</div>
+                <div class="card-copy">
+                  passthrough and native operations keep a narrow execution boundary.
+                </div>
+              </div>
+              <div class="safety-card s4">
+                <div class="card-title">Confirmed raw exports</div>
+                <div class="card-copy">
+                  raw session artifacts require explicit confirmation and file-safe handling.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="scene-5" class="scene">
+        <div class="scene-content">
+          <div class="scene-header">
+            <div>
+              <div class="eyebrow s5">Current state</div>
+              <h2 class="s5">Phase 5 CLI is verified. Phase 6 TUI is next.</h2>
+            </div>
+            <p class="small-note s5">
+              The boundary stays explicit: standardize control, preserve provider runtime
+              ownership.
+            </p>
+          </div>
+          <div class="status-grid">
+            <div class="status-card s5">
+              <div class="status-label">Done</div>
+              <div class="status-text">doctor, run, chat launcher, providers, runtime, sessions, config</div>
+            </div>
+            <div class="status-card s5">
+              <div class="status-label">Verified</div>
+              <div class="status-text">Gate 5 CLI surface and real OpenCode Go smoke</div>
+            </div>
+          </div>
+          <div class="final-diagram">
+            <div class="final-card s5">
+              <div class="card-title">AgentProxy</div>
+              <div class="card-copy">local command and session control plane</div>
+            </div>
+            <div class="final-line s5" aria-hidden="true"></div>
+            <div class="final-card s5">
+              <div class="card-title">OpenCode</div>
+              <div class="card-copy">provider-owned agent runtime and data plane</div>
+            </div>
+          </div>
+          <div class="closing">
+            <div class="closing-title s5">Standardize control. Preserve runtime ownership.</div>
+            <div class="closing-note s5">A stable local entry point without rebuilding the agent.</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="transition-wipe" class="transition-wipe" data-layout-ignore></div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      function trace(selector, start, duration) {
+        document.querySelectorAll(selector).forEach((path) => {
+          var length = path.getTotalLength ? path.getTotalLength() : 120;
+          gsap.set(path, { strokeDasharray: length, strokeDashoffset: length });
+          tl.to(path, { strokeDashoffset: 0, duration: duration, ease: "power2.out" }, start);
+        });
+      }
+
+      function pageWipe(fromScene, toScene, start) {
+        tl.to(
+          "#transition-wipe",
+          { x: "0%", duration: 0.34, ease: "power3.inOut", overwrite: "auto" },
+          start,
+        );
+        tl.set(toScene, { x: 0, zIndex: 3 }, start + 0.34);
+        tl.set(fromScene, { x: -1920, zIndex: 1 }, start + 0.35);
+        tl.to(
+          "#transition-wipe",
+          { x: "100%", duration: 0.42, ease: "power3.out", overwrite: "auto" },
+          start + 0.36,
+        );
+        tl.set("#transition-wipe", { x: "-100%" }, start + 0.8);
+      }
+
+      function enterScene1() {
+        tl.from(".s1.eyebrow", { y: 22, opacity: 0, duration: 0.45, ease: "power3.out" }, 0.18);
+        tl.from("h1.s1", { x: -42, opacity: 0, duration: 0.62, ease: "expo.out" }, 0.3);
+        tl.from(".rail.s1", { scaleY: 0, opacity: 0, duration: 0.55, ease: "power2.out" }, 0.42);
+        tl.from(".subtitle.s1", { y: 34, opacity: 0, duration: 0.55, ease: "sine.out" }, 0.72);
+        tl.from(".tag.s1", { y: 24, opacity: 0, scale: 0.98, duration: 0.45, stagger: 0.11, ease: "back.out(1.3)" }, 1.05);
+      }
+
+      function enterScene2(start) {
+        tl.from(".s2.eyebrow", { y: 20, opacity: 0, duration: 0.42, ease: "power3.out" }, start);
+        tl.from("h2.s2", { x: -38, opacity: 0, duration: 0.58, ease: "expo.out" }, start + 0.08);
+        tl.from(".small-note.s2", { y: 26, opacity: 0, duration: 0.52, ease: "sine.out" }, start + 0.22);
+        tl.from(".boundary.s2", { y: 22, opacity: 0, duration: 0.48, stagger: 0.14, ease: "power2.out" }, start + 0.44);
+        tl.from(".module-card.s2", { y: 20, opacity: 0, scale: 0.985, duration: 0.46, stagger: 0.06, ease: "back.out(1.15)" }, start + 0.82);
+        trace(".s2-line", start + 1.08, 0.6);
+      }
+
+      function enterScene3(start) {
+        tl.from(".s3.eyebrow", { y: 20, opacity: 0, duration: 0.42, ease: "power3.out" }, start);
+        tl.from("h2.s3", { x: -34, opacity: 0, duration: 0.58, ease: "expo.out" }, start + 0.08);
+        tl.from(".small-note.s3", { y: 24, opacity: 0, duration: 0.52, ease: "sine.out" }, start + 0.24);
+        tl.from(".terminal.s3", { x: -30, opacity: 0, scale: 0.985, duration: 0.55, ease: "power2.out" }, start + 0.52);
+        tl.from(".flow-map.s3", { x: 30, opacity: 0, scale: 0.99, duration: 0.55, ease: "power3.out" }, start + 0.62);
+        tl.from(".flow-card.s3", { y: 24, opacity: 0, duration: 0.44, stagger: 0.09, ease: "back.out(1.2)" }, start + 0.94);
+        trace(".s3-line", start + 1.16, 0.74);
+        tl.from(".flow-label.s3", { y: 14, opacity: 0, duration: 0.38, stagger: 0.12, ease: "power2.out" }, start + 1.42);
+        tl.from(".terminal-line", { y: 16, opacity: 0, duration: 0.32, stagger: 0.08, ease: "power2.out" }, start + 1.02);
+        tl.from(".terminal-caption", { y: 18, opacity: 0, duration: 0.4, ease: "sine.out" }, start + 1.38);
+      }
+
+      function enterScene4(start) {
+        tl.from(".s4.eyebrow", { y: 20, opacity: 0, duration: 0.42, ease: "power3.out" }, start);
+        tl.from("h2.s4", { x: -34, opacity: 0, duration: 0.58, ease: "expo.out" }, start + 0.08);
+        tl.from(".small-note.s4", { y: 24, opacity: 0, duration: 0.52, ease: "sine.out" }, start + 0.24);
+        tl.from(".storage-visual.s4", { x: -28, opacity: 0, duration: 0.54, ease: "power2.out" }, start + 0.58);
+        tl.from(".cylinder", { y: 28, opacity: 0, scale: 0.97, duration: 0.55, ease: "back.out(1.1)" }, start + 0.72);
+        tl.from(".cylinder-rail", { scaleY: 0, duration: 0.45, ease: "power2.out" }, start + 0.96);
+        tl.from(".safety-card.s4", { x: 30, opacity: 0, duration: 0.46, stagger: 0.12, ease: "power3.out" }, start + 0.82);
+      }
+
+      function enterScene5(start) {
+        tl.from(".s5.eyebrow", { y: 20, opacity: 0, duration: 0.42, ease: "power3.out" }, start);
+        tl.from("h2.s5", { x: -34, opacity: 0, duration: 0.58, ease: "expo.out" }, start + 0.08);
+        tl.from(".small-note.s5", { y: 24, opacity: 0, duration: 0.52, ease: "sine.out" }, start + 0.24);
+        tl.from(".status-card.s5", { y: 26, opacity: 0, duration: 0.46, stagger: 0.12, ease: "back.out(1.12)" }, start + 0.54);
+        tl.from(".final-card.s5", { y: 28, opacity: 0, scale: 0.985, duration: 0.5, stagger: 0.16, ease: "power3.out" }, start + 0.98);
+        tl.from(".final-line.s5", { scaleX: 0, opacity: 0, duration: 0.46, ease: "power2.out" }, start + 1.2);
+        tl.from(".closing-title.s5", { x: -34, opacity: 0, duration: 0.58, ease: "expo.out" }, start + 1.58);
+        tl.from(".closing-note.s5", { y: 20, opacity: 0, duration: 0.48, ease: "sine.out" }, start + 1.78);
+        tl.to(".s5", { opacity: 0, duration: 0.7, ease: "sine.inOut" }, 19.2);
+      }
+
+      enterScene1();
+      pageWipe("#scene-1", "#scene-2", 3.68);
+      enterScene2(4.22);
+      pageWipe("#scene-2", "#scene-3", 7.68);
+      enterScene3(8.22);
+      pageWipe("#scene-3", "#scene-4", 11.68);
+      enterScene4(12.22);
+      pageWipe("#scene-4", "#scene-5", 15.68);
+      enterScene5(16.22);
+
+      window.__timelines["agentproxy-intro"] = tl;
+    </script>
+  </body>
+</html>

@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 640" width="1180" height="640">
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', 'Microsoft JhengHei', 'SimHei', sans-serif; letter-spacing: 0; }
+    .title { font-size: 22px; font-weight: 600; fill: #0d0d0d; }
+    .subtitle { font-size: 13px; font-weight: 400; fill: #6e6e80; }
+    .group { font-size: 11px; font-weight: 600; fill: #6e6e80; }
+    .label { font-size: 15px; font-weight: 600; fill: #0d0d0d; }
+    .desc { font-size: 12px; font-weight: 400; fill: #6e6e80; }
+    .small { font-size: 11px; font-weight: 400; fill: #6e6e80; }
+    .step { font-size: 10px; font-weight: 600; fill: #ffffff; }
+    .arrowLabel { font-size: 11px; font-weight: 500; fill: #0f8f70; }
+  </style>
+  <defs>
+    <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10a37f"/>
+    </marker>
+  </defs>
+  <rect width="1180" height="640" fill="#ffffff"/>
+  <text x="590" y="34" text-anchor="middle" class="title">Provider and Runtime Framework Boundaries</text>
+  <text x="590" y="56" text-anchor="middle" class="subtitle">AgentProxy standardizes control; OpenCode owns the agent runtime</text>
+  <rect x="48" y="90" width="246" height="420" rx="8" ry="8" fill="none" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="60" y="110" class="group">CONTRACTS</text>
+  <rect x="332" y="90" width="246" height="420" rx="8" ry="8" fill="none" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="344" y="110" class="group">OPENCODE ADAPTER</text>
+  <rect x="616" y="90" width="246" height="420" rx="8" ry="8" fill="none" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="628" y="110" class="group">RUNTIME CONTROL</text>
+  <rect x="900" y="90" width="232" height="420" rx="8" ry="8" fill="none" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="912" y="110" class="group">PROVIDER DATA PLANE</text>
+  <rect x="82" y="136" width="178" height="70" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="87" y="141" width="168" height="60" rx="6" ry="6" fill="none" stroke="#e5e5e5" stroke-width="1"/>
+  <rect x="82" y="136" width="4" height="70" rx="2" ry="2" fill="#10a37f"/>
+  <text x="171" y="166" text-anchor="middle" class="label">AgentProvider</text>
+  <text x="171" y="186" text-anchor="middle" class="desc">stable interface</text>
+  <rect x="82" y="284" width="178" height="70" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="82" y="284" width="4" height="70" rx="2" ry="2" fill="#10a37f"/>
+  <text x="171" y="314" text-anchor="middle" class="label">Capabilities</text>
+  <text x="171" y="334" text-anchor="middle" class="desc">available / limited</text>
+  <rect x="82" y="432" width="178" height="70" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="82" y="432" width="4" height="70" rx="2" ry="2" fill="#10a37f"/>
+  <text x="171" y="462" text-anchor="middle" class="label">Registry</text>
+  <text x="171" y="482" text-anchor="middle" class="desc">lookup + probe</text>
+  <rect x="366" y="136" width="178" height="70" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="371" y="141" width="168" height="60" rx="6" ry="6" fill="none" stroke="#e5e5e5" stroke-width="1"/>
+  <rect x="366" y="136" width="4" height="70" rx="2" ry="2" fill="#10a37f"/>
+  <text x="455" y="166" text-anchor="middle" class="label">OpenCodeProvider</text>
+  <text x="455" y="186" text-anchor="middle" class="desc">v1 adapter</text>
+  <rect x="366" y="284" width="178" height="70" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="366" y="284" width="4" height="70" rx="2" ry="2" fill="#10a37f"/>
+  <text x="455" y="314" text-anchor="middle" class="label">Session API</text>
+  <text x="455" y="334" text-anchor="middle" class="desc">list/create/message</text>
+  <rect x="366" y="432" width="178" height="70" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="366" y="432" width="4" height="70" rx="2" ry="2" fill="#10a37f"/>
+  <text x="455" y="462" text-anchor="middle" class="label">Passthrough</text>
+  <text x="455" y="482" text-anchor="middle" class="desc">native command</text>
+  <rect x="650" y="136" width="178" height="70" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="650" y="136" width="4" height="70" rx="2" ry="2" fill="#10a37f"/>
+  <text x="739" y="166" text-anchor="middle" class="label">Runtime Managers</text>
+  <text x="739" y="186" text-anchor="middle" class="desc">start / attach</text>
+  <rect x="650" y="284" width="178" height="70" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="650" y="284" width="4" height="70" rx="2" ry="2" fill="#10a37f"/>
+  <text x="739" y="314" text-anchor="middle" class="label">Event Stream</text>
+  <text x="739" y="334" text-anchor="middle" class="desc">/event SSE</text>
+  <rect x="650" y="432" width="178" height="70" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="650" y="432" width="4" height="70" rx="2" ry="2" fill="#10a37f"/>
+  <text x="739" y="462" text-anchor="middle" class="label">Diagnostics</text>
+  <text x="739" y="482" text-anchor="middle" class="desc">health checks</text>
+  <rect x="934" y="136" width="164" height="70" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="934" y="136" width="4" height="70" rx="2" ry="2" fill="#10a37f"/>
+  <text x="1016" y="166" text-anchor="middle" class="label">OpenCode Server</text>
+  <text x="1016" y="186" text-anchor="middle" class="desc">API boundary</text>
+  <rect x="934" y="284" width="164" height="70" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="934" y="284" width="4" height="70" rx="2" ry="2" fill="#10a37f"/>
+  <text x="1016" y="314" text-anchor="middle" class="label">Agent Runtime</text>
+  <text x="1016" y="334" text-anchor="middle" class="desc">tools / MCP</text>
+  <rect x="934" y="432" width="164" height="70" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="934" y="432" width="4" height="70" rx="2" ry="2" fill="#10a37f"/>
+  <text x="1016" y="462" text-anchor="middle" class="label">opencode CLI</text>
+  <text x="1016" y="482" text-anchor="middle" class="desc">fallback</text>
+  <path d="M 260,171 L 366,171" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <rect x="276" y="152" width="72" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="312" y="166" text-anchor="middle" class="arrowLabel">implements</text>
+  <path d="M 260,319 L 366,319" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <rect x="282" y="300" width="60" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="312" y="314" text-anchor="middle" class="arrowLabel">declares</text>
+  <path d="M 260,467 L 304,467 L 304,171 L 366,171" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <rect x="291" y="456" width="42" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="312" y="470" text-anchor="middle" class="arrowLabel">probe</text>
+  <path d="M 544,171 L 590,171 L 590,116 L 934,116 L 934,171" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <rect x="717" y="110" width="42" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="738" y="124" text-anchor="middle" class="arrowLabel">HTTP</text>
+  <path d="M 544,319 L 590,319 L 590,246 L 934,246 L 934,171 L 934,171" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <rect x="712" y="240" width="60" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="742" y="254" text-anchor="middle" class="arrowLabel">sessions</text>
+  <path d="M 828,171 L 934,171" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <rect x="859" y="152" width="42" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="880" y="166" text-anchor="middle" class="arrowLabel">serve</text>
+  <path d="M 828,319 L 880,319 L 880,207 L 934,207 L 934,171" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <rect x="859" y="300" width="42" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="880" y="314" text-anchor="middle" class="arrowLabel">SSE</text>
+  <path d="M 828,467 L 880,467 L 880,207 L 934,207 L 934,171" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <rect x="856" y="456" width="48" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="880" y="470" text-anchor="middle" class="arrowLabel">health</text>
+  <path d="M 1016,206 L 1016,284" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <rect x="995" y="236" width="42" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="1016" y="250" text-anchor="middle" class="arrowLabel">owns</text>
+  <path d="M 544,467 L 590,467 L 590,530 L 934,530 L 934,467" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <rect x="686" y="520" width="84" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="728" y="534" text-anchor="middle" class="arrowLabel">escape hatch</text>
+  <path d="M 1016,432 L 1016,354" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <rect x="1018" y="380" width="72" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="1054" y="394" text-anchor="middle" class="arrowLabel">native ops</text>
+  <path d="M 64,600 L 98,600" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <text x="108" y="604" class="small">primary control/data</text>
+  <path d="M 254,600 L 288,600" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <text x="298" y="604" class="small">persisted / optional</text>
+</svg>

@@ -5,11 +5,104 @@
 - Primary goal: v1 uses OpenCode as the first full runtime provider
 - Working rule: do not mark an item done until implementation, tests, docs, and verification evidence are complete
 
+## Current Iteration - 2026-05-22 Chinese README Refresh
+
+Scope: deeply analyze the current AgentProxy project and generate a complete Chinese README that incorporates the existing `assets/` diagrams and video assets. This is documentation-only; do not change runtime behavior, provider behavior, CLI behavior, tests, or project phase scope.
+
+Implementation checklist:
+
+- [x] Review project lessons and preserve existing task history.
+- [x] Analyze source modules, CLI command surface, docs, tests, and `assets/` materials.
+- [x] Draft a Chinese README that accurately positions AgentProxy as a thin local OpenCode control plane.
+- [x] Integrate `assets/imgs` diagrams and `assets/video` material with stable relative links.
+- [x] Verify README formatting, links, and documentation-only diff.
+- [x] Record verification evidence and residual risks in this Review section.
+
+Acceptance criteria:
+
+- [x] README is comprehensive, Chinese-first, and project-accurate.
+- [x] README uses the current assets without claiming unfinished Phase 6+ work is complete.
+- [x] README documents installation, commands, architecture, data/security boundaries, development workflow, and status.
+- [x] No source/runtime behavior is changed.
+
+Risks and constraints:
+
+- Do not frame AgentProxy as a self-built agent runtime.
+- Do not expose provider secrets, raw transcripts, share URLs, or sensitive artifact contents.
+- Keep claims aligned with current status: Phase 5 CLI MVP is complete and Phase 6 AgentProxy TUI is not started.
+
+Review notes:
+
+- 2026-05-22: Replaced the minimal README with a comprehensive Chinese README for AgentProxy. The README now covers project positioning, current phase status, quick start, CLI command matrix, architecture, module boundaries, provider/runtime boundaries, `agentproxy run` flow, data/security boundaries, configuration, typical workflows, development verification, project structure, non-goals, and reference docs. It integrates the existing assets via a contact-sheet link to `assets/video/agentproxy-intro.mp4` plus four SVG diagrams from `assets/imgs`. Verification passed: custom README local-link check (10 local links), `git diff --check`, `pnpm run agentproxy -- --help`, `pnpm run format:check`, README self-review for Phase 6/chat/provider-scope claims, and no source/test/package diff. Before committing the assets, the pre-existing Biome issues in `assets/video/agentproxy-intro/index.html` were fixed with SVG titles and an arrow-function cleanup; follow-up verification passed: `pnpm run lint`, `pnpm run format:check`, and `git diff --check`. Residual risk: README and assets summarize current architecture and should be refreshed after Phase 6 AgentProxy TUI begins.
+
+## Current Iteration - 2026-05-22 HyperFrames Intro Video
+
+Scope: deeply analyze the current AgentProxy project and generate a 20-second introductory HyperFrames video under `assets/video`. This is a documentation/marketing asset iteration only; do not change runtime behavior, provider behavior, CLI behavior, tests, or project phase scope.
+
+Implementation checklist:
+
+- [x] Review project lessons and preserve existing task history.
+- [x] Analyze README, development plan, progress tracker, source module boundaries, tests, and existing diagram assets.
+- [x] Define a project-specific video visual identity derived from the existing precise white/green AgentProxy diagram language.
+- [x] Create a 20-second HyperFrames composition source with scene transitions, motion, and project-accurate copy.
+- [x] Render the final video artifact into `assets/video`.
+- [x] Validate the composition and rendered output, including duration, layout/readability, and video file integrity.
+- [x] Record verification evidence and residual risks in this Review section.
+
+Acceptance criteria:
+
+- [x] The video is exactly about AgentProxy as a thin local control plane over OpenCode, not a self-built agent runtime.
+- [x] The final rendered video is approximately 20 seconds and stored under `assets/video` with stable, descriptive names.
+- [x] The composition uses HyperFrames conventions, a documented visual identity, scene transitions, and readable text.
+- [x] Existing runtime/source behavior is unchanged.
+
+Risks and constraints:
+
+- Avoid leaking provider secrets, raw transcripts, share URLs, local model credentials, or sensitive artifact contents in video text.
+- Keep claims aligned with current project status: Phase 5 CLI is complete and Phase 6 AgentProxy TUI is not started.
+- Do not replace historical task records while updating this current iteration.
+
+Review notes:
+
+- 2026-05-22: Generated a 20-second HyperFrames introduction video for AgentProxy under `assets/video`. Final rendered artifact: `assets/video/agentproxy-intro.mp4` (H.264 MP4, 1920x1080, 30 fps, 20.000000s, 2.3 MB). Source composition and design identity live under `assets/video/agentproxy-intro/` as `index.html` and `DESIGN.md`; verification snapshots are under `assets/video/agentproxy-intro/snapshots/`. The video uses the existing white/gray/OpenAI-green architecture diagram language and accurately frames AgentProxy as a thin local control plane over OpenCode, with Phase 5 CLI verified and Phase 6 AgentProxy TUI marked as next, not done. Verification passed: `npx hyperframes lint assets/video/agentproxy-intro` (0 errors, 1 maintenance warning for single-file composition size), `npx hyperframes validate assets/video/agentproxy-intro --timeout=5000` using `HYPERFRAMES_BROWSER_PATH` (no console errors, 69 text elements pass WCAG AA), `npx hyperframes inspect assets/video/agentproxy-intro --samples=12 --timeout=8000` (0 errors, 0 warnings; remaining info entries are expected off-canvas inactive scenes used for page-wipe transitions), `npx hyperframes snapshot assets/video/agentproxy-intro --at=1.8,5.8,9.8,13.8,18.2 --describe=false`, `npx hyperframes render assets/video/agentproxy-intro --output assets/video/agentproxy-intro.mp4 --fps=30 --quality=standard --workers=1 --no-browser-gpu`, `ffprobe` duration/codec/dimension check, `file`/`ls -lh` artifact check, and `git diff --check`. Residual risk: the HyperFrames animation-map helper first failed because `@hyperframes/producer` was not installed locally and then timed out after 5 minutes when run through `npx -p @hyperframes/producer@0.6.33`; layout, contrast, snapshots, and final render were verified directly instead. Existing runtime/source behavior was not changed.
+
 ## Status Legend
 
 - `[ ]` Not started
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
+
+## Current Iteration - 2026-05-22 Style 7 Architecture Diagram Set
+
+Scope: deeply analyze the current AgentProxy project and generate a set of Style 7 OpenAI Official technical diagrams under `assets/imgs`. Keep the diagrams pure white, precise, modern, minimal, and use clean green semantic arrows. This is a documentation/asset iteration only; do not change runtime behavior, provider behavior, CLI behavior, tests, or project phase scope.
+
+Implementation checklist:
+
+- [x] Review project lessons and preserve existing task history.
+- [x] Analyze source, docs, tests, and module boundaries with subagents where useful.
+- [x] Design the diagram set so it covers architecture, execution flow, framework boundaries, and data/security surfaces.
+- [x] Generate SVG diagrams in `assets/imgs` using the `fireworks-tech-graph` Style 7 visual language.
+- [x] Export matching PNG images to `assets/imgs`.
+- [x] Validate SVG syntax/rendering and inspect the generated images for readability and routing issues.
+- [x] Record verification evidence and residual risks in this Review section.
+
+Acceptance criteria:
+
+- [x] The diagrams accurately position AgentProxy as a thin OpenCode control plane, not a self-built agent runtime.
+- [x] The set includes at least one architecture diagram, one process/data-flow diagram, and one framework/boundary diagram.
+- [x] All files are placed under `assets/imgs` with stable, descriptive names.
+- [x] SVG and PNG files render successfully with no obvious text overlap, arrow-node collision, or non-white decorative theme drift.
+- [x] No source code or behavior is changed.
+
+Risks and constraints:
+
+- Avoid leaking provider secrets, raw transcripts, share URLs, or sensitive artifact contents in diagram text.
+- Keep labels concise enough to fit the Style 7 boxes.
+- Do not replace historical task records while updating this current iteration.
+
+Review notes:
+
+- 2026-05-22: Generated a Style 7 OpenAI Official diagram set under `assets/imgs`: `agentproxy-system-architecture`, `agentproxy-run-flow`, `agentproxy-provider-runtime-framework`, and `agentproxy-data-security-boundaries`, each as SVG plus PNG. The diagrams are pure white, use thin gray containers/nodes and clean green semantic arrows, and keep AgentProxy framed as a thin OpenCode control plane rather than a self-built agent runtime. Verification passed: XML parse for all generated SVG files, bundled `sharp` SVG-to-PNG render at 2x resolution, `file`/`sips` PNG dimension checks, ASCII check for SVG files, visual inspection of all four PNGs, and `git diff --check`. No source code, tests, runtime behavior, provider behavior, CLI behavior, or docs outside this task record were changed. Residual risk: the diagrams summarize current architecture and may need refresh after Phase 6 AgentProxy TUI implementation begins.
 
 ## Current Iteration - 2026-05-22 Real OpenCode Go Model Smoke
 

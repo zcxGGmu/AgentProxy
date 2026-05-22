@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 760" width="1120" height="760">
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', 'Microsoft JhengHei', 'SimHei', sans-serif; letter-spacing: 0; }
+    .title { font-size: 22px; font-weight: 600; fill: #0d0d0d; }
+    .subtitle { font-size: 13px; font-weight: 400; fill: #6e6e80; }
+    .group { font-size: 11px; font-weight: 600; fill: #6e6e80; }
+    .label { font-size: 15px; font-weight: 600; fill: #0d0d0d; }
+    .desc { font-size: 12px; font-weight: 400; fill: #6e6e80; }
+    .small { font-size: 11px; font-weight: 400; fill: #6e6e80; }
+    .step { font-size: 10px; font-weight: 600; fill: #ffffff; }
+    .arrowLabel { font-size: 11px; font-weight: 500; fill: #0f8f70; }
+  </style>
+  <defs>
+    <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10a37f"/>
+    </marker>
+  </defs>
+  <rect width="1120" height="760" fill="#ffffff"/>
+  <text x="560" y="34" text-anchor="middle" class="title">Data and Security Boundaries</text>
+  <text x="560" y="56" text-anchor="middle" class="subtitle">Persist local indexes and safe summaries; keep sensitive provider artifacts explicit</text>
+  <rect x="48" y="88" width="1024" height="132" rx="8" ry="8" fill="none" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="60" y="108" class="group">CONFIG BOUNDARY</text>
+  <rect x="48" y="276" width="1024" height="158" rx="8" ry="8" fill="none" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="60" y="296" class="group">PERSISTENCE BOUNDARY</text>
+  <rect x="48" y="500" width="1024" height="150" rx="8" ry="8" fill="none" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="60" y="520" class="group">SENSITIVE ARTIFACT BOUNDARY</text>
+  <rect x="86" y="126" width="170" height="62" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="86" y="126" width="4" height="62" rx="2" ry="2" fill="#10a37f"/>
+  <text x="171" y="152" text-anchor="middle" class="label">Config Sources</text>
+  <text x="171" y="172" text-anchor="middle" class="desc">builtin/global/project</text>
+  <rect x="326" y="126" width="170" height="62" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="326" y="126" width="4" height="62" rx="2" ry="2" fill="#10a37f"/>
+  <text x="411" y="152" text-anchor="middle" class="label">Config Resolver</text>
+  <text x="411" y="172" text-anchor="middle" class="desc">normalize + validate</text>
+  <rect x="566" y="126" width="170" height="62" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="566" y="126" width="4" height="62" rx="2" ry="2" fill="#10a37f"/>
+  <text x="651" y="152" text-anchor="middle" class="label">Safe Config</text>
+  <text x="651" y="172" text-anchor="middle" class="desc">workspace/runtime</text>
+  <rect x="806" y="126" width="170" height="62" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="806" y="126" width="4" height="62" rx="2" ry="2" fill="#10a37f"/>
+  <text x="891" y="152" text-anchor="middle" class="label">Env Allowlist</text>
+  <text x="891" y="172" text-anchor="middle" class="desc">OpenCode only</text>
+  <rect x="86" y="322" width="170" height="62" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="86" y="322" width="4" height="62" rx="2" ry="2" fill="#10a37f"/>
+  <text x="171" y="348" text-anchor="middle" class="label">Provider Data</text>
+  <text x="171" y="368" text-anchor="middle" class="desc">sessions/events</text>
+  <rect x="326" y="322" width="170" height="62" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="326" y="322" width="4" height="62" rx="2" ry="2" fill="#10a37f"/>
+  <text x="411" y="348" text-anchor="middle" class="label">Sanitizers</text>
+  <text x="411" y="368" text-anchor="middle" class="desc">redact controls</text>
+  <ellipse cx="651" cy="314" rx="85" ry="14" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <path d="M 566,314 L 566,392 Q 651,406 736,392 L 736,314" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <ellipse cx="651" cy="392" rx="85" ry="14" fill="none" stroke="#e5e5e5" stroke-width="1.5"/>
+  <path d="M 566,314 L 566,392" stroke="#10a37f" stroke-width="4" stroke-linecap="round"/>
+  <text x="651" y="351" text-anchor="middle" class="label">SQLite</text>
+  <text x="651" y="371" text-anchor="middle" class="desc">safe projection</text>
+  <rect x="806" y="322" width="170" height="62" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="806" y="322" width="4" height="62" rx="2" ry="2" fill="#10a37f"/>
+  <text x="891" y="348" text-anchor="middle" class="label">CLI Output</text>
+  <text x="891" y="368" text-anchor="middle" class="desc">JSON / human</text>
+  <rect x="86" y="544" width="170" height="62" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="86" y="544" width="4" height="62" rx="2" ry="2" fill="#10a37f"/>
+  <text x="171" y="570" text-anchor="middle" class="label">Raw Export</text>
+  <text x="171" y="590" text-anchor="middle" class="desc">--raw --yes</text>
+  <rect x="326" y="544" width="170" height="62" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="326" y="544" width="4" height="62" rx="2" ry="2" fill="#10a37f"/>
+  <text x="411" y="570" text-anchor="middle" class="label">Artifact File</text>
+  <text x="411" y="590" text-anchor="middle" class="desc">0600 mode</text>
+  <rect x="566" y="544" width="170" height="62" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="566" y="544" width="4" height="62" rx="2" ry="2" fill="#10a37f"/>
+  <text x="651" y="570" text-anchor="middle" class="label">Share URL</text>
+  <text x="651" y="590" text-anchor="middle" class="desc">not persisted</text>
+  <rect x="806" y="544" width="170" height="62" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="806" y="544" width="4" height="62" rx="2" ry="2" fill="#10a37f"/>
+  <text x="891" y="570" text-anchor="middle" class="label">Logs</text>
+  <text x="891" y="590" text-anchor="middle" class="desc">stderr redacted</text>
+  <path d="M 256,157 L 326,157" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <rect x="271" y="142" width="42" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="292" y="156" text-anchor="middle" class="arrowLabel">merge</text>
+  <path d="M 496,157 L 566,157" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <rect x="502" y="142" width="60" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="532" y="156" text-anchor="middle" class="arrowLabel">validate</text>
+  <path d="M 736,157 L 806,157" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <rect x="739" y="142" width="66" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="772" y="156" text-anchor="middle" class="arrowLabel">allowlist</text>
+  <path d="M 256,353 L 326,353" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <rect x="271" y="338" width="42" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="292" y="352" text-anchor="middle" class="arrowLabel">input</text>
+  <path d="M 496,353 L 566,353" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <rect x="505" y="338" width="54" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="532" y="352" text-anchor="middle" class="arrowLabel">summary</text>
+  <path d="M 736,353 L 806,353" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <rect x="748" y="338" width="48" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="772" y="352" text-anchor="middle" class="arrowLabel">render</text>
+  <path d="M 256,575 L 326,575" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <rect x="271" y="560" width="42" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="292" y="574" text-anchor="middle" class="arrowLabel">write</text>
+  <path d="M 496,575 L 566,575" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <rect x="502" y="560" width="60" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="532" y="574" text-anchor="middle" class="arrowLabel">separate</text>
+  <path d="M 736,575 L 806,575" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <rect x="748" y="560" width="48" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="772" y="574" text-anchor="middle" class="arrowLabel">redact</text>
+  <text x="580" y="444" text-anchor="middle" class="small">Stored: providers, runtimes, sessions, session_events</text>
+  <text x="580" y="464" text-anchor="middle" class="small">Not stored: full transcript, raw diff, raw export payload, share URL</text>
+  <path d="M 64,720 L 98,720" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <text x="108" y="724" class="small">primary control/data</text>
+  <path d="M 254,720 L 288,720" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <text x="298" y="724" class="small">persisted / optional</text>
+</svg>

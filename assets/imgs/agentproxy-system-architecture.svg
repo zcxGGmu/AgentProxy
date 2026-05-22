@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760">
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', 'Microsoft JhengHei', 'SimHei', sans-serif; letter-spacing: 0; }
+    .title { font-size: 22px; font-weight: 600; fill: #0d0d0d; }
+    .subtitle { font-size: 13px; font-weight: 400; fill: #6e6e80; }
+    .group { font-size: 11px; font-weight: 600; fill: #6e6e80; }
+    .label { font-size: 15px; font-weight: 600; fill: #0d0d0d; }
+    .desc { font-size: 12px; font-weight: 400; fill: #6e6e80; }
+    .small { font-size: 11px; font-weight: 400; fill: #6e6e80; }
+    .step { font-size: 10px; font-weight: 600; fill: #ffffff; }
+    .arrowLabel { font-size: 11px; font-weight: 500; fill: #0f8f70; }
+  </style>
+  <defs>
+    <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10a37f"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="760" fill="#ffffff"/>
+  <text x="600" y="34" text-anchor="middle" class="title">AgentProxy System Architecture</text>
+  <text x="600" y="56" text-anchor="middle" class="subtitle">Thin local control plane over the OpenCode data plane</text>
+  <rect x="48" y="84" width="1104" height="112" rx="8" ry="8" fill="none" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="60" y="104" class="group">ENTRY SURFACE</text>
+  <rect x="48" y="228" width="1104" height="260" rx="8" ry="8" fill="none" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="60" y="248" class="group">AGENTPROXY CONTROL PLANE</text>
+  <rect x="48" y="520" width="1104" height="154" rx="8" ry="8" fill="none" stroke="#e5e5e5" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="60" y="540" class="group">OPENCODE DATA PLANE</text>
+  <rect x="88" y="118" width="150" height="58" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <text x="163" y="142" text-anchor="middle" class="label">User</text>
+  <text x="163" y="162" text-anchor="middle" class="desc">local operator</text>
+  <rect x="316" y="114" width="176" height="66" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="316" y="114" width="4" height="66" rx="2" ry="2" fill="#10a37f"/>
+  <text x="404" y="142" text-anchor="middle" class="label">AgentProxy CLI</text>
+  <text x="404" y="162" text-anchor="middle" class="desc">commands today</text>
+  <rect x="576" y="114" width="176" height="66" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="576" y="114" width="4" height="66" rx="2" ry="2" fill="#10a37f"/>
+  <text x="664" y="142" text-anchor="middle" class="label">AgentProxy TUI</text>
+  <text x="664" y="162" text-anchor="middle" class="desc">Phase 6 planned</text>
+  <rect x="836" y="114" width="188" height="66" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="836" y="114" width="4" height="66" rx="2" ry="2" fill="#10a37f"/>
+  <text x="930" y="142" text-anchor="middle" class="label">OpenCode TUI</text>
+  <text x="930" y="162" text-anchor="middle" class="desc">native launcher</text>
+  <rect x="88" y="268" width="174" height="66" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="88" y="268" width="4" height="66" rx="2" ry="2" fill="#10a37f"/>
+  <text x="175" y="296" text-anchor="middle" class="label">Config Resolver</text>
+  <text x="175" y="316" text-anchor="middle" class="desc">merge + validate</text>
+  <rect x="338" y="260" width="196" height="82" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="343" y="265" width="186" height="72" rx="6" ry="6" fill="none" stroke="#e5e5e5" stroke-width="1"/>
+  <rect x="338" y="260" width="4" height="82" rx="2" ry="2" fill="#10a37f"/>
+  <text x="436" y="296" text-anchor="middle" class="label">Command Layer</text>
+  <text x="436" y="316" text-anchor="middle" class="desc">routing + output</text>
+  <rect x="610" y="268" width="176" height="66" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="610" y="268" width="4" height="66" rx="2" ry="2" fill="#10a37f"/>
+  <text x="698" y="296" text-anchor="middle" class="label">Provider Registry</text>
+  <text x="698" y="316" text-anchor="middle" class="desc">capabilities</text>
+  <rect x="862" y="268" width="184" height="66" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="862" y="268" width="4" height="66" rx="2" ry="2" fill="#10a37f"/>
+  <text x="954" y="296" text-anchor="middle" class="label">Runtime Manager</text>
+  <text x="954" y="316" text-anchor="middle" class="desc">managed / attached</text>
+  <rect x="210" y="390" width="184" height="66" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="210" y="390" width="4" height="66" rx="2" ry="2" fill="#10a37f"/>
+  <text x="302" y="418" text-anchor="middle" class="label">Session Services</text>
+  <text x="302" y="438" text-anchor="middle" class="desc">mapping lifecycle</text>
+  <rect x="508" y="390" width="190" height="66" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="508" y="390" width="4" height="66" rx="2" ry="2" fill="#10a37f"/>
+  <text x="603" y="418" text-anchor="middle" class="label">OpenCodeProvider</text>
+  <text x="603" y="438" text-anchor="middle" class="desc">HTTP / SSE / CLI</text>
+  <rect x="806" y="390" width="174" height="66" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="806" y="390" width="4" height="66" rx="2" ry="2" fill="#10a37f"/>
+  <text x="893" y="418" text-anchor="middle" class="label">Diagnostics</text>
+  <text x="893" y="438" text-anchor="middle" class="desc">redacted output</text>
+  <ellipse cx="1058" cy="390" rx="62" ry="14" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <path d="M 996,390 L 996,454 Q 1058,468 1120,454 L 1120,390" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <ellipse cx="1058" cy="454" rx="62" ry="14" fill="none" stroke="#e5e5e5" stroke-width="1.5"/>
+  <path d="M 996,390 L 996,454" stroke="#10a37f" stroke-width="4" stroke-linecap="round"/>
+  <text x="1058" y="420" text-anchor="middle" class="label">SQLite</text>
+  <text x="1058" y="440" text-anchor="middle" class="desc">local index</text>
+  <rect x="230" y="564" width="196" height="70" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="230" y="564" width="4" height="70" rx="2" ry="2" fill="#10a37f"/>
+  <text x="328" y="594" text-anchor="middle" class="label">OpenCode Server</text>
+  <text x="328" y="614" text-anchor="middle" class="desc">opencode serve</text>
+  <rect x="514" y="564" width="184" height="70" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="514" y="564" width="4" height="70" rx="2" ry="2" fill="#10a37f"/>
+  <text x="606" y="594" text-anchor="middle" class="label">opencode CLI</text>
+  <text x="606" y="614" text-anchor="middle" class="desc">fallback</text>
+  <rect x="806" y="564" width="190" height="70" rx="8" ry="8" fill="#ffffff" stroke="#e5e5e5" stroke-width="1.5"/>
+  <rect x="806" y="564" width="4" height="70" rx="2" ry="2" fill="#10a37f"/>
+  <text x="901" y="594" text-anchor="middle" class="label">Workspace</text>
+  <text x="901" y="614" text-anchor="middle" class="desc">Git repo + files</text>
+  <path d="M 238,147 L 316,147" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <path d="M 492,147 L 576,147" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <rect x="510" y="118" width="48" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="534" y="132" text-anchor="middle" class="arrowLabel">future</text>
+  <path d="M 492,147 L 518,147 L 518,94 L 830,94 L 830,147 L 836,147" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <path d="M 404,180 L 404,214 L 436,214 L 436,260" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <rect x="393" y="208" width="42" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="414" y="222" text-anchor="middle" class="arrowLabel">route</text>
+  <path d="M 338,301 L 262,301" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <path d="M 534,301 L 610,301" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <path d="M 786,301 L 862,301" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <path d="M 436,342 L 436,366 L 302,366 L 302,390" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <path d="M 394,423 L 508,423" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <path d="M 436,342 L 436,362 L 893,362 L 893,390" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <path d="M 394,423 L 424,423 L 424,484 L 996,484 L 996,422 L 996,422" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <path d="M 954,334 L 954,352 L 1058,352 L 1058,376" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <path d="M 603,456 L 603,500 L 328,500 L 328,564" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <rect x="418" y="498" width="72" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="454" y="512" text-anchor="middle" class="arrowLabel">HTTP + SSE</text>
+  <path d="M 954,334 L 954,506 L 328,506 L 328,564" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <rect x="679" y="504" width="42" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="700" y="518" text-anchor="middle" class="arrowLabel">serve</text>
+  <path d="M 603,456 L 606,564" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <rect x="580" y="502" width="72" height="18" rx="4" ry="4" fill="#ffffff" opacity="0.96"/>
+  <text x="616" y="516" text-anchor="middle" class="arrowLabel">native ops</text>
+  <path d="M 426,599 L 454,599 L 454,652 L 806,652 L 806,599" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <path d="M 698,613 L 806,613" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <path d="M 64,718 L 98,718" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)"/>
+  <text x="108" y="722" class="small">primary control/data</text>
+  <path d="M 254,718 L 288,718" fill="none" stroke="#10a37f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-green)" stroke-dasharray="5,4"/>
+  <text x="298" y="722" class="small">persisted / optional</text>
+</svg>
