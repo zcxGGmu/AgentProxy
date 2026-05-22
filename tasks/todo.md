@@ -11,6 +11,51 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-22 Phase 5 Config Get CLI Minimal Workflow
+
+Scope: advance only the Phase 5 `agentproxy config get [key]` CLI task group. This workflow reads the already resolved AgentProxy configuration and emits a redacted, terminal-safe control-plane summary for either the full config or one supported key path. Do not implement `config set`, config file mutation, Gate 5, Phase 6 AgentProxy TUI, OpenCode native config mutation, generic provider expansion, or any new Agent runtime behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit before implementation.
+- [x] Review `tasks/lessons.md`, `docs/development-progress-tracker.zh.md`, `docs/agentproxy-development-plan.md`, and current `tasks/todo.md`.
+- [x] Add focused CLI tests for `config get [key]` JSON/human output, full config summary, single key lookup, source/path reporting, explicit config path handling, env/CLI precedence, invalid key behavior, invalid config errors, redaction, terminal-control safety, and `config set` placeholder boundary.
+- [x] Add a narrow `src/cli/config.ts` read-only service/formatter that resolves config through the existing resolver, redacts sensitive values, exposes only stable AgentProxy config fields, and never opens or migrates SQLite.
+- [x] Wire only `agentproxy config get [key]` from planned placeholder to a real action; keep `config set`, Gate 5, and Phase 6 TUI untouched.
+- [x] Keep JSON/human output free of raw provider payloads, OpenCode native config, transcripts, headers, URL credentials, query secrets, and terminal control characters.
+- [x] Update `docs/development-progress-tracker.zh.md` completed/unfinished status and Review notes after verification.
+- [x] Run focused config CLI tests, related placeholder boundary tests, full applicable project verification, code review, and create one detailed Chinese commit.
+
+Dependencies confirmed before implementation:
+
+- Initial working tree is clean; `git log -1 --oneline` is `4d16450 文档：同步 Phase 5 Sessions Unshare 后最新状态`, so the latest Phase 5 implementation baseline remains `46fac9a 阶段进展：完成 Phase 5 Sessions Unshare CLI`.
+- Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Phase 2 config resolver already provides builtin/global/project/explicit/env/CLI merge order, schema validation, path normalization, runtime port validation, OpenCode native config separation, and redacted stable config errors.
+- Phase 5 CLI framework already provides nested global flags, `--json`, stdout/stderr separation, stable error mapping, and Commander diagnostic sanitization.
+
+Acceptance criteria for this iteration:
+
+- [x] `agentproxy config get [key]` is a real read-only command and no longer returns the generic planned `CAPABILITY_UNSUPPORTED` placeholder.
+- [x] `agentproxy config get --json` emits exactly one valid redacted JSON object on stdout with resolved config, config sources, and config paths; stderr remains empty on success.
+- [x] `agentproxy config get <key> --json` emits exactly one valid redacted JSON object for supported dotted key paths without exposing unrelated config values.
+- [x] Human output is terminal-control-character safe and does not print raw metadata blobs, transcripts, provider payloads, URL credentials, query strings, headers, or provider-controlled control characters.
+- [x] The command resolves config using the existing resolver and never creates, opens, migrates, or writes SQLite; it does not touch provider runtime lifecycle or OpenCode native config.
+- [x] Invalid dotted key paths fail with stable `CONFIG_INVALID` and do not leak secret-shaped key/value content.
+- [x] Explicit missing or invalid `--config` continues to map to stable `CONFIG_INVALID` through the resolver.
+- [x] `config set`, Gate 5, and Phase 6 AgentProxy TUI remain unimplemented or explicitly unsupported.
+- [x] Focused tests pass, followed by `pnpm run typecheck`, `pnpm run test`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+
+Risks and constraints:
+
+- Config output is diagnostic/control-plane data; redact passthrough env values and secret-shaped strings even when the user asks for a key directly.
+- `config get` must describe AgentProxy's resolved config only; do not read or mutate OpenCode native config and do not imply multi-provider v1 support beyond OpenCode.
+- Avoid starting Gate 5 until the remaining `config` MVP scope is complete and separately verified.
+- Avoid implementing `config set` in this iteration because write semantics need a separate source-of-truth and file mutation plan.
+
+Review notes:
+
+- 2026-05-22: Implemented the Phase 5 `config get [key]` CLI minimal workflow. Added focused failing tests first, then added `src/cli/config.ts` and wired `src/cli/index.ts` so `agentproxy config get [key]` resolves AgentProxy config through the existing resolver, emits a redacted full config summary or one supported dotted key, includes sources/paths, and keeps `config set`, Gate 5, `chat --session`, and Phase 6 TUI untouched. The command never opens SQLite, starts runtime, probes providers, or reads/mutates OpenCode native config. Security/code review found inherited-property key lookup and JSON error control-character gaps; both were fixed with own-property lookup, structured JSON error sanitization, and regression tests for `constructor`/`toString`/`__proto__` plus C1 control characters. Verification passed: `pnpm exec vitest run tests/cli-config.test.ts tests/cli-help.test.ts tests/cli-providers.test.ts tests/cli-runtime.test.ts tests/cli-chat.test.ts tests/cli-run.test.ts tests/cli-sessions.test.ts --testTimeout=30000` (7 files, 113 tests), `pnpm exec vitest run tests/cli-config.test.ts tests/cli-help.test.ts --testTimeout=30000` (2 files, 20 tests), `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run test` (30 files, 288 tests), `pnpm run build`, and `git diff --check`. Initial default `pnpm run test` showed one transient `tests/cli-doctor.test.ts` Git status warning failure; the focused doctor test and the next default full test both passed. Residual risk: `config set` still needs a separate source-of-truth, file permission, schema validation, and atomic write design before Gate 5 can pass.
+
 ## Current Iteration - 2026-05-22 Documentation Sync After Phase 5 Sessions Unshare CLI
 
 Scope: update only the project tracking documents after `46fac9a 阶段进展：完成 Phase 5 Sessions Unshare CLI` so the next Codex session can resume from the correct remaining Phase 5 CLI MVP task group. This is documentation-only. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.
@@ -2671,10 +2716,10 @@ Acceptance criteria:
 - [x] Implement `sessions resume`.
 - [x] Implement `sessions abort`.
 - [x] Implement `sessions delete`.
-- [ ] Implement `sessions export`.
-- [ ] Implement `sessions import`.
-- [ ] Implement `sessions share`.
-- [ ] Implement `sessions unshare`.
+- [x] Implement `sessions export`.
+- [x] Implement `sessions import`.
+- [x] Implement `sessions share`.
+- [x] Implement `sessions unshare`.
 - [ ] Add `--json` where applicable.
 - [ ] Add `--yes` for destructive actions.
 
@@ -2691,7 +2736,7 @@ Acceptance criteria:
 - [x] Implement `provider exec`.
 - [x] Implement `runtime list`.
 - [x] Implement `runtime stop`.
-- [ ] Implement `config get`.
+- [x] Implement `config get`.
 - [ ] Implement `config set`.
 
 Acceptance criteria:

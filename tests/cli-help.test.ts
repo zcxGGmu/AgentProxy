@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -180,9 +180,30 @@ describe("agentproxy CLI placeholder", () => {
 
   it("parses global flags from nested commands", async () => {
     const originalExitCode = process.exitCode;
+    process.exitCode = undefined;
+    const root = await mkdtemp(path.join(tmpdir(), "agentproxy-cli-help-config-test-"));
+    const workspacePath = path.join(root, "workspace");
+    const homeDir = path.join(root, "home");
+    const configPath = path.join(workspacePath, "agentproxy.json");
+    await Promise.all([
+      mkdir(workspacePath, { recursive: true }),
+      mkdir(homeDir, { recursive: true }),
+    ]);
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        storage: {
+          path: path.join(root, "data", "agentproxy.sqlite3"),
+        },
+      }),
+      "utf8",
+    );
     const stdout = createMemorySink();
     const stderr = createMemorySink();
     const program = createProgram({
+      cwd: workspacePath,
+      homeDir,
+      env: {},
       output: createOutputWriters({ stdout, stderr }),
     });
 
@@ -203,12 +224,12 @@ describe("agentproxy CLI placeholder", () => {
         "./agentproxy.json",
       ]);
 
-      expect(process.exitCode).toBe(6);
-      expect(stdout.chunks.join("")).toContain('"ok":false');
-      expect(stdout.chunks.join("")).toContain('"code":"CAPABILITY_UNSUPPORTED"');
+      expect(process.exitCode).toBe(0);
+      expect(stdout.chunks.join("")).toContain('"ok":true');
       expect(stderr.chunks.join("")).toBe("");
     } finally {
       process.exitCode = originalExitCode;
+      await rm(root, { recursive: true, force: true });
     }
   });
 
@@ -221,12 +242,19 @@ describe("agentproxy CLI placeholder", () => {
     });
 
     try {
-      await program.parseAsync(["node", "agentproxy", "config", "get"]);
+      await program.parseAsync([
+        "node",
+        "agentproxy",
+        "config",
+        "set",
+        "providers.opencode.enabled",
+        "true",
+      ]);
 
       expect(process.exitCode).toBe(6);
       expect(stdout.chunks.join("")).toBe("");
       expect(stderr.chunks.join("")).toContain(
-        "CAPABILITY_UNSUPPORTED: agentproxy config get is planned",
+        "CAPABILITY_UNSUPPORTED: agentproxy config set is planned",
       );
     } finally {
       process.exitCode = originalExitCode;

@@ -3205,19 +3205,24 @@ describe("agentproxy sessions CLI", () => {
     });
   });
 
-  it("leaves config commands as planned placeholders", async () => {
+  it("leaves config set as a planned placeholder", async () => {
     const workspace = await createTestWorkspace();
 
-    for (const argv of [
-      ["config", "get", "--config", workspace.configPath],
-      ["config", "set", "providers.opencode.enabled", "true", "--config", workspace.configPath],
-    ]) {
-      const result = await runCli({ workspace, argv });
+    const result = await runCli({
+      workspace,
+      argv: [
+        "config",
+        "set",
+        "providers.opencode.enabled",
+        "true",
+        "--config",
+        workspace.configPath,
+      ],
+    });
 
-      expect(result.exitCode).toBe(6);
-      expect(result.stdout).toBe("");
-      expect(result.stderr).toContain("CAPABILITY_UNSUPPORTED");
-      expect(result.stderr).toContain("planned for a later phase");
-    }
+    expect(result.exitCode).toBe(6);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("CAPABILITY_UNSUPPORTED");
+    expect(result.stderr).toContain("agentproxy config set is planned");
   });
 });

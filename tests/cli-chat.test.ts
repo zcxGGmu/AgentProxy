@@ -362,18 +362,18 @@ describe("agentproxy chat native TUI launcher", () => {
     });
   });
 
-  it("keeps config commands as planned placeholders", async () => {
+  it("keeps config set as a planned placeholder", async () => {
     const { workspacePath, homeDir } = await createTestRoot();
 
     const result = await runCli({
       cwd: workspacePath,
       homeDir,
-      argv: ["config", "get"],
+      argv: ["config", "set", "providers.opencode.enabled", "true"],
     });
 
     expect(result.exitCode).toBe(6);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("CAPABILITY_UNSUPPORTED");
-    expect(result.stderr).toContain("agentproxy config get is planned");
+    expect(result.stderr).toContain("agentproxy config set is planned");
   });
 });

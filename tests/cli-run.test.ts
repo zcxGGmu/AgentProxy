@@ -914,19 +914,19 @@ describe("agentproxy run CLI", () => {
     }
   });
 
-  it("leaves config commands as planned placeholders", async () => {
+  it("leaves config set as a planned placeholder", async () => {
     const { workspacePath, homeDir } = await createTestRoot();
 
     const result = await runCli({
       cwd: workspacePath,
       homeDir,
-      argv: ["config", "get"],
+      argv: ["config", "set", "providers.opencode.enabled", "true"],
       stdin: Readable.from([]),
     });
 
     expect(result.exitCode).toBe(6);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("CAPABILITY_UNSUPPORTED");
-    expect(result.stderr).toContain("agentproxy config get is planned");
+    expect(result.stderr).toContain("agentproxy config set is planned");
   });
 });

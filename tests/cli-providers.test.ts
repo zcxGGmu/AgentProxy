@@ -500,17 +500,24 @@ describe("agentproxy providers CLI", () => {
     });
   });
 
-  it("leaves config commands as planned placeholders", async () => {
+  it("leaves config set as a planned placeholder", async () => {
     const workspace = await createTestWorkspace({});
 
     const result = await runCli({
       workspace,
-      argv: ["config", "get", "--config", workspace.configPath],
+      argv: [
+        "config",
+        "set",
+        "providers.opencode.enabled",
+        "true",
+        "--config",
+        workspace.configPath,
+      ],
     });
 
     expect(result.exitCode).toBe(6);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("CAPABILITY_UNSUPPORTED");
-    expect(result.stderr).toContain("agentproxy config get is planned");
+    expect(result.stderr).toContain("agentproxy config set is planned");
   });
 });

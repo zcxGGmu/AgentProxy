@@ -10,14 +10,11 @@ import {
   type AgentProxyConfig,
 } from "../config/index.js";
 import { createAgentProxyError, isAgentProxyError } from "../core/index.js";
-import {
-  createOutputWriters,
-  redactValue,
-  type AgentProxyOutputWriters,
-} from "../logging/index.js";
+import { createOutputWriters, type AgentProxyOutputWriters } from "../logging/index.js";
 import { OPENCODE_PROVIDER_ID, OpenCodeProvider } from "../providers/opencode/index.js";
 import type { AgentProvider } from "../providers/types.js";
 import { launchAgentProxyChat } from "./chat.js";
+import { formatConfigGetHumanReport, getAgentProxyConfig } from "./config.js";
 import {
   formatDoctorHumanReport,
   mapDoctorReportToExitCode,
@@ -35,6 +32,7 @@ import {
   runAgentProxyPrompt,
   sanitizeHumanInline,
   sanitizeHumanText,
+  sanitizeStructuredOutput,
   type AgentProxyRunEventSummary,
 } from "./run.js";
 import {
@@ -90,10 +88,11 @@ const implementedCoreWorkflows = [
   "agentproxy sessions import <source>",
   "agentproxy sessions share <id>",
   "agentproxy sessions unshare <id>",
+  "agentproxy config get [key]",
   "agentproxy provider exec <id> -- <native args>",
 ];
 
-const plannedCoreWorkflows = ["agentproxy config get|set"];
+const plannedCoreWorkflows = ["agentproxy config set <key> <value>"];
 
 const globalOptionDefinitions = [
   {
@@ -283,7 +282,7 @@ export function createProgram(options: CreateProgramOptions = {}): Command {
     .command("get")
     .argument("[key]", "Config key.")
     .description("Read config values.")
-    .action(plannedAction("config get", output));
+    .action(createConfigGetAction(output, options));
   config
     .command("set")
     .argument("<key>", "Config key.")
@@ -589,6 +588,33 @@ function createRuntimeStopAction(
         output.writeJson(report);
       } else {
         output.writeResult(formatRuntimeStopHumanReport(report));
+      }
+      process.exitCode = 0;
+    } catch (error) {
+      handleCliError(error, output, this);
+    }
+  };
+}
+
+function createConfigGetAction(
+  output: AgentProxyOutputWriters,
+  options: CreateProgramOptions,
+): (this: Command, key?: string) => Promise<void> {
+  return async function (this: Command, key) {
+    try {
+      const globalOptions = getCliGlobalOptions(this);
+      const report = await getAgentProxyConfig({
+        ...(key !== undefined ? { key } : {}),
+        ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+        ...(options.homeDir !== undefined ? { homeDir: options.homeDir } : {}),
+        ...(options.env !== undefined ? { env: options.env } : {}),
+        cli: createCliConfigOverrides(this),
+      });
+
+      if (globalOptions.json) {
+        output.writeJson(report);
+      } else {
+        output.writeResult(formatConfigGetHumanReport(report));
       }
       process.exitCode = 0;
     } catch (error) {
@@ -1156,7 +1182,7 @@ function formatCliError(error: unknown): string {
 
 function formatCliJsonError(error: unknown): unknown {
   if (!isAgentProxyError(error)) {
-    return redactValue({
+    return sanitizeStructuredOutput({
       ok: false,
       error: {
         code: "UNKNOWN",
@@ -1165,7 +1191,7 @@ function formatCliJsonError(error: unknown): unknown {
     });
   }
 
-  return redactValue({
+  return sanitizeStructuredOutput({
     ok: false,
     error: {
       code: error.code,
