@@ -653,7 +653,7 @@ describe("agentproxy run CLI", () => {
         cli: {
           configPath,
         },
-        timeoutMs: 10,
+        timeoutMs: 2_000,
         collectEvents: false,
       }),
     ).rejects.toMatchObject({

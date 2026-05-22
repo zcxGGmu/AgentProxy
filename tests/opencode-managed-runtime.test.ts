@@ -47,9 +47,9 @@ function createManager(options: {
     env: {
       ...(options.env ?? {}),
     },
-    healthTimeoutMs: 800,
+    healthTimeoutMs: 5_000,
     healthPollIntervalMs: 25,
-    stopTimeoutMs: 800,
+    stopTimeoutMs: 2_000,
     runtimeIdFactory: () => options.runtimeId ?? "runtime_managed_test",
   });
   managers.push(manager);

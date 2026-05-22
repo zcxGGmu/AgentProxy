@@ -71,3 +71,5 @@
 - `sessions unshare` 这类撤销分享命令不需要返回 providerSessionId 或历史 share URL；成功输出应只保留本地控制面摘要，share-state 写回前要复核 providerId/providerSessionId，避免并发 remap 后污染新映射。
 - `config get` 这类只读诊断命令也必须按敏感面处理：不要打开 SQLite 或触发 provider/runtime，passthrough env 值默认全部隐藏，runtime URL 输出前剥离 credentials/query/hash，`config set` 需要单独设计写入 source-of-truth 和原子写策略。
 - `config set` 这类会重写 JSON 文件的命令不能只校验本次 leaf value；写入前还必须校验目标文件中将被重新序列化的既有字段，拒绝 non-empty passthroughEnv、带 credentials/query/hash 的 runtime URL、终端控制符和 secret-shaped persisted strings，避免无关配置修改把旧 secret 重新落盘或带入 diff。
+- `doctor` 这类诊断命令不能把初始探测失败和真实“不存在/不支持”混为一类；例如 Git repository probe 超时、不可执行或权限错误应输出独立 warning/failureReason，而不是误报为非 Git 仓库。
+- Gate 汇总验证会暴露全量并发下的测试预算问题；fake runtime/server/process 测试要验证目标行为的稳定状态，不要依赖 10ms 级竞态或过短子进程 health timeout。

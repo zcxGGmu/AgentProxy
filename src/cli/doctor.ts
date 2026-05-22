@@ -91,6 +91,7 @@ interface StorageCheckResult {
 
 const MINIMUM_NODE_VERSION = ">=22.0.0";
 const DEFAULT_DOCTOR_REQUEST_TIMEOUT_MS = 1_000;
+const DOCTOR_GIT_COMMAND_TIMEOUT_MS = 10_000;
 const DOCTOR_STORAGE_PROBE_PROVIDER_ID_PREFIX = "__agentproxy_doctor__";
 
 const RUNTIME_CHECK_LABELS: Record<string, string> = {
@@ -483,21 +484,35 @@ async function checkWorkspaceGit(
   env: NodeJS.ProcessEnv | Record<string, string | undefined> | undefined,
 ): Promise<AgentProxyDoctorCheck> {
   return await runDoctorCheck("workspace.git", "Workspace Git status", async () => {
-    const inside = await execFileText(
+    const insideResult = await execFileText(
       "git",
       ["-C", workspacePath, "rev-parse", "--is-inside-work-tree"],
       env,
-    ).catch(() => undefined);
+    )
+      .then((value) => ({ ok: true as const, value }))
+      .catch((error: unknown) => ({ ok: false as const, error }));
 
-    if (inside?.trim() !== "true") {
+    if (!insideResult.ok) {
+      if (isNotGitRepositoryError(insideResult.error)) {
+        return notInsideGitRepositoryWarning(workspacePath);
+      }
+
       return {
         status: "warning",
-        message: "Workspace is not inside a Git repository.",
+        message: "Workspace Git repository probe could not be read.",
         details: {
           workspacePath,
-          suggestion: "Run AgentProxy from a Git workspace for richer diagnostics.",
+          failureReason: "git_probe_failed",
+          errorMessage:
+            insideResult.error instanceof Error
+              ? insideResult.error.message
+              : String(insideResult.error),
         },
       };
+    }
+
+    if (insideResult.value.trim() !== "true") {
+      return notInsideGitRepositoryWarning(workspacePath);
     }
 
     const [topLevel, branch, statusResult] = await Promise.all([
@@ -546,6 +561,21 @@ async function checkWorkspaceGit(
       },
     };
   });
+}
+
+function notInsideGitRepositoryWarning(workspacePath: string): {
+  status: "warning";
+  message: string;
+  details: ProviderMetadata;
+} {
+  return {
+    status: "warning",
+    message: "Workspace is not inside a Git repository.",
+    details: {
+      workspacePath,
+      suggestion: "Run AgentProxy from a Git workspace for richer diagnostics.",
+    },
+  };
 }
 
 function checkNodeVersion(nodeVersion: string): {
@@ -1034,11 +1064,12 @@ function execFileText(
       args,
       {
         ...(env !== undefined ? { env: { ...process.env, ...env } } : {}),
-        timeout: 3_000,
+        timeout: DOCTOR_GIT_COMMAND_TIMEOUT_MS,
         maxBuffer: 128 * 1024,
       },
-      (error, stdout) => {
+      (error, stdout, stderr) => {
         if (error !== null) {
+          Object.assign(error, { stderr, stdout });
           reject(error);
           return;
         }
@@ -1046,6 +1077,12 @@ function execFileText(
       },
     );
   });
+}
+
+function isNotGitRepositoryError(error: unknown): boolean {
+  const stderr = isRecord(error) && typeof error.stderr === "string" ? error.stderr : "";
+  const message = error instanceof Error ? error.message : String(error);
+  return `${message}\n${stderr}`.toLowerCase().includes("not a git repository");
 }
 
 function isRecord(value: unknown): value is ProviderMetadata {

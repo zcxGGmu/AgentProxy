@@ -11,6 +11,51 @@
 - `[x]` Done and verified
 - Use the Review section to record date, scope, verification command, and unresolved risks after each iteration.
 
+## Current Iteration - 2026-05-22 Gate 5 Summary Validation
+
+Scope: complete only Gate 5 summary validation for the already implemented Phase 5 CLI MVP command surface. This is a validation and tracking iteration, not a new feature iteration. Validate `doctor`, `run`, `chat` native OpenCode launcher, `providers list/inspect`, `runtime list/stop`, `sessions list/show/resume/abort/delete/export/import/share/unshare`, `config get/set`, and the existing provider passthrough boundary. Do not enter Phase 6 AgentProxy TUI, do not treat `agentproxy chat` as Phase 6 TUI, and do not rewrite or extend OpenCode agent runtime behavior.
+
+Implementation checklist:
+
+- [x] Confirm current git status and latest commit.
+- [x] Review `tasks/lessons.md`, `docs/development-progress-tracker.zh.md`, `docs/agentproxy-development-plan.md`, and current `tasks/todo.md`.
+- [x] Run a focused Phase 5 CLI command-surface validation suite covering all implemented CLI MVP command groups and placeholder boundaries.
+- [x] Run full applicable project verification: `pnpm run test`, `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, and `git diff --check`.
+- [x] Run lightweight CLI help/version smoke checks after build to prove the shipped command entrypoint exposes the expected Phase 5 surface.
+- [x] Update `docs/development-progress-tracker.zh.md` latest status, Gate 5 checkbox/status, Phase 5 summary, remaining work, Review entry, and next-start prompt.
+- [x] Update this Review section with exact validation results and any residual risks.
+- [ ] Create one detailed Chinese commit for the Gate 5 validation result.
+
+Dependencies confirmed before validation:
+
+- Initial working tree is clean.
+- Latest commit is `181ceba 文档：同步 Phase 5 Config Set 后最新状态`, which is documentation-only.
+- Latest Phase 5 implementation baseline remains `b2cb5d6 阶段进展：完成 Phase 5 Config Set CLI`.
+- Latest Gate 4 validation baseline remains `549a979 阶段进展：完成 Gate 4 汇总验证`.
+- Phase 5 CLI MVP command surface is already implemented through `config set <key> <value>`.
+- Gate 5 can rely on fake binary/server tests and existing CLI tests; it should not require a real model call or real OpenCode native TUI interaction.
+
+Acceptance criteria:
+
+- [x] Focused Phase 5 CLI command-surface validation passes and covers all implemented command groups.
+- [x] Full applicable verification passes without running build/typecheck in parallel with the full test suite.
+- [x] CLI help/version smoke checks confirm the entrypoint exposes the implemented Phase 5 workflows while keeping `chat --session` as planned.
+- [x] `docs/development-progress-tracker.zh.md` marks Gate 5 passed only after validation evidence is recorded.
+- [x] Phase 6 AgentProxy TUI remains explicitly not started, and `agentproxy chat` remains documented as a Phase 5 provider-native launcher only.
+- [x] Remaining work is listed as Phase 6 AgentProxy TUI and Phase 7-9.
+- [ ] The iteration ends with a detailed Chinese commit.
+
+Risks and constraints:
+
+- Do not broaden the task into Phase 6 TUI, debug bundle, release pipeline, or real-provider compatibility matrix work.
+- Do not mark Gate 5 complete if any verification command fails without a root-cause explanation and fix or documented rerun evidence.
+- If a fake server/binary test fails transiently, isolate and rerun the focused failing test before deciding whether code changes are required.
+- Keep AgentProxy as a thin OpenCode control plane; v1 remains OpenCode-only and must not copy OpenCode runtime internals.
+
+Review notes:
+
+- 2026-05-22: Completed Gate 5 summary validation for the Phase 5 CLI MVP command surface. Focused validation passed for `doctor`, `run`, `chat` native OpenCode launcher, `providers list/inspect`, `runtime list/stop`, `sessions list/show/resume/abort/delete/export/import/share/unshare`, `config get/set`, and provider passthrough boundaries. Gate validation exposed three issues, all fixed before marking Gate 5 passed: `doctor` now distinguishes real non-Git workspaces from initial Git probe failures by preserving stderr and classifying `not a git repository`; `doctor` Git command timeout was raised from 3s to 10s for realistic diagnostic budget; fake managed runtime and `run` timeout tests now use stable budgets instead of millisecond-level races. Verification passed: `pnpm exec vitest run tests/cli-doctor.test.ts --testTimeout=30000` (1 file, 11 tests), `pnpm exec vitest run tests/cli-doctor.test.ts tests/cli-run.test.ts tests/opencode-managed-runtime.test.ts --testTimeout=30000` (3 files, 34 tests), `pnpm exec vitest run tests/cli-help.test.ts tests/cli-doctor.test.ts tests/cli-run.test.ts tests/cli-chat.test.ts tests/cli-providers.test.ts tests/cli-runtime.test.ts tests/cli-sessions.test.ts tests/cli-config.test.ts tests/cli-provider-exec.test.ts tests/opencode-provider-passthrough.test.ts --testTimeout=30000` (10 files, 146 tests), `pnpm run test` (30 files, 302 tests), `pnpm run typecheck`, `pnpm run lint`, `pnpm run format:check`, `pnpm run build`, build-output CLI help/version smoke for 10 commands, and `git diff --check`. Residual risk: real OpenCode compatibility smoke, Phase 6 AgentProxy TUI, Phase 7 security/observability, Phase 8 CI, and Phase 9 packaging/release remain future work; `agentproxy chat` remains a Phase 5 provider-native launcher, not Phase 6 TUI.
+
 ## Current Iteration - 2026-05-22 Documentation Sync After Phase 5 Config Set CLI
 
 Scope: update only the project tracking documents after `b2cb5d6 阶段进展：完成 Phase 5 Config Set CLI` so the next Codex session can resume from the correct first unfinished item. This is documentation-only. Do not change source code, tests, provider behavior, runtime behavior, CLI command behavior, or TUI behavior.

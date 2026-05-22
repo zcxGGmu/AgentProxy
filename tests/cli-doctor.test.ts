@@ -102,6 +102,44 @@ exit 64
   return binaryPath;
 }
 
+async function writeFailingProbeGitBinary(directory: string): Promise<string> {
+  const binaryPath = path.join(directory, "git");
+  await writeFile(
+    binaryPath,
+    `#!/bin/sh
+case "$*" in
+  *"--is-inside-work-tree"*)
+    echo probe failed >&2
+    exit 2
+    ;;
+esac
+exit 64
+`,
+    "utf8",
+  );
+  await chmod(binaryPath, 0o755);
+  return binaryPath;
+}
+
+async function writeNotGitRepositoryGitBinary(directory: string): Promise<string> {
+  const binaryPath = path.join(directory, "git");
+  await writeFile(
+    binaryPath,
+    `#!/bin/sh
+case "$*" in
+  *"--is-inside-work-tree"*)
+    echo "fatal: not a git repository (or any of the parent directories): .git" >&2
+    exit 128
+    ;;
+esac
+exit 64
+`,
+    "utf8",
+  );
+  await chmod(binaryPath, 0o755);
+  return binaryPath;
+}
+
 async function writeConfig(input: {
   configPath: string;
   workspacePath: string;
@@ -631,6 +669,101 @@ describe("agentproxy doctor CLI", () => {
           }),
         ]),
       );
+      expect(stdout.chunks.join("")).not.toContain("clean Git repository");
+    } finally {
+      process.exitCode = originalExitCode;
+    }
+  });
+
+  it("warns when the initial Git repository probe cannot be read", async () => {
+    const originalExitCode = process.exitCode;
+    const { workspacePath, binaryDirectory, configPath, storagePath } = await createTestRoot();
+    const [binary] = await Promise.all([
+      writeVersionOnlyOpenCodeBinary(binaryDirectory),
+      writeFailingProbeGitBinary(binaryDirectory),
+    ]);
+    await writeConfig({
+      configPath,
+      workspacePath,
+      storagePath,
+      binary,
+    });
+    const stdout = createMemorySink();
+    const stderr = createMemorySink();
+    const program = createProgram({
+      cwd: workspacePath,
+      env: {
+        PATH: binaryDirectory,
+      },
+      output: createOutputWriters({ stdout, stderr }),
+    });
+
+    try {
+      await program.parseAsync(["node", "agentproxy", "--config", configPath, "doctor", "--json"]);
+
+      expect(process.exitCode).toBe(0);
+      expect(stderr.chunks.join("")).toBe("");
+      const report = JSON.parse(stdout.chunks.join(""));
+      expect(report.checks).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "workspace.git",
+            status: "warning",
+            message: "Workspace Git repository probe could not be read.",
+            details: expect.objectContaining({
+              failureReason: "git_probe_failed",
+            }),
+          }),
+        ]),
+      );
+      expect(stdout.chunks.join("")).not.toContain("clean Git repository");
+    } finally {
+      process.exitCode = originalExitCode;
+    }
+  });
+
+  it("keeps a real non-Git repository probe result separate from Git probe failures", async () => {
+    const originalExitCode = process.exitCode;
+    const { workspacePath, binaryDirectory, configPath, storagePath } = await createTestRoot();
+    const [binary] = await Promise.all([
+      writeVersionOnlyOpenCodeBinary(binaryDirectory),
+      writeNotGitRepositoryGitBinary(binaryDirectory),
+    ]);
+    await writeConfig({
+      configPath,
+      workspacePath,
+      storagePath,
+      binary,
+    });
+    const stdout = createMemorySink();
+    const stderr = createMemorySink();
+    const program = createProgram({
+      cwd: workspacePath,
+      env: {
+        PATH: binaryDirectory,
+      },
+      output: createOutputWriters({ stdout, stderr }),
+    });
+
+    try {
+      await program.parseAsync(["node", "agentproxy", "--config", configPath, "doctor", "--json"]);
+
+      expect(process.exitCode).toBe(0);
+      expect(stderr.chunks.join("")).toBe("");
+      const report = JSON.parse(stdout.chunks.join(""));
+      expect(report.checks).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "workspace.git",
+            status: "warning",
+            message: "Workspace is not inside a Git repository.",
+            details: expect.objectContaining({
+              suggestion: "Run AgentProxy from a Git workspace for richer diagnostics.",
+            }),
+          }),
+        ]),
+      );
+      expect(stdout.chunks.join("")).not.toContain("git_probe_failed");
       expect(stdout.chunks.join("")).not.toContain("clean Git repository");
     } finally {
       process.exitCode = originalExitCode;
